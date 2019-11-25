@@ -1,0 +1,48 @@
+version: "2.3"
+services:
+  local_debug:
+    build: ..
+    volumes:
+      - ./notebooks/models:/notebooks/models
+      - ./notebooks:/notebooks
+      - ../ml-utils:/transfer_learning/ml-utils
+      - ../transfer_learning:/projects/transfer_learning
+      - /tmp/djcache:/cache
+    env_file: .env
+    entrypoint: ""
+  local_develop:
+    build: ..
+    volumes:
+      - ./notebooks/models:/notebooks/models
+      - ./notebooks:/notebooks
+      - ../ml-utils:/transfer_learning/ml-utils
+      - ../transfer_learning:/projects/transfer_learning
+      - /tmp/djcache:/cache
+    ports:
+      - "8888:8888"
+    env_file: .env
+  server_develop:
+    build: ..
+    volumes:
+      - ./notebooks/models:/notebooks/models
+      - ./notebooks:/notebooks
+      - ../ml-utils:/transfer_learning/ml-utils
+      - ../transfer_learning:/projects/transfer_learning
+      - /tmp/djcache:/cache
+    ports:
+      - "6001:8888"
+    env_file: .env
+    runtime: nvidia
+  server_job:
+    build: ..
+    volumes:
+      - ./notebooks/models:/notebooks/models
+      - ./notebooks:/notebooks
+      - ../ml-utils:/transfer_learning/ml-utils
+      - ../transfer_learning:/projects/transfer_learning
+      - /tmp/djcache:/cache
+    env_file: .env
+    runtime: nvidia
+    entrypoint: /usr/bin/python3
+    command: run.py
+
