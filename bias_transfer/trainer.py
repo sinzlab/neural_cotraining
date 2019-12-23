@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import torch
 from torch import nn
 from torch import optim
@@ -9,6 +7,8 @@ import datajoint as dj
 
 import os
 from tqdm import tqdm
+
+from bias_transfer.utils import stringify
 
 
 def load_model(model, path):
@@ -33,21 +33,29 @@ def save_model(model, acc, epoch, path, name):
     torch.save(state, os.path.join(path, name))
 
 
-def apply_noise(x, device, std: float = None, snr: float = None):
+def apply_noise(x, device, std: dict = None, snr: dict = None):
     with torch.no_grad():
-        if std is None:
-            signal = torch.mean(x * x, dim=[1, 2, 3], keepdim=True)  # for each dimension except batch
-            std = signal / snr
-        else:
-            std = torch.tensor(std)
-        std = std.expand_as(x)
-        x += torch.normal(mean=0.0, std=std).to(device)
+        noise_levels = std if std else snr
+        assert sum(noise_levels.values()) == 1.0, "Percentage for noise levels should sum to one!"
+        indices = torch.randperm(x.shape[0])
+        start = 0
+        for level, percentage in noise_levels.items():
+            end = start + int(percentage * x.shape[0])
+            if level is not None:  # option to deactivate noise for a fraction of the data
+                if std is None:  # are we doing snr or std?
+                    signal = torch.mean(x[indices[start:end]] * x[indices[start:end]], dim=[1, 2, 3], keepdim=True)  # for each dimension except batch
+                    std = signal / level
+                else:
+                    std = torch.tensor(level)
+                std = std.expand_as(x[start:end])
+                x[indices[start:end]] += torch.normal(mean=0.0, std=std).to(device)
+            start = end
         x = torch.clamp(x, max=1.0, min=0.0)
     return x
 
 
 def train_loop(model, criterion, device, optimizer, data_loader, epoch, add_noise: bool = False,
-               noise_std: float = 0.1, noise_snr: float = 0.9):
+               noise_std: dict = None, noise_snr: dict = None):
     model.train()
     train_loss = 0
     correct = 0
@@ -108,21 +116,24 @@ def test_loop(model, criterion, device, data_loader, epoch, best_acc, comment: s
     return acc, test_loss, best_acc
 
 
-def test_model(model, path, criterion, device, data_loader, test_noise=None):
+def test_model(model, path, criterion, device, data_loader, noise_test=None):
     model, _, _ = load_model(model, path)
-    if test_noise:
+    if noise_test:
         test_acc = {}
         test_loss = {}
-        for noise_type, noise_vals in test_noise.items():
+        for noise_type, noise_vals in noise_test.items():
             test_acc[noise_type] = {}
             test_loss[noise_type] = {}
             for val in noise_vals:
-                test_acc[noise_type][val], test_loss[noise_type][val], _ = test_loop(model, criterion, device,
-                                                                                     data_loader=data_loader, epoch=999,
-                                                                                     best_acc=0,
-                                                                                     comment="Final Eval",
-                                                                                     add_noise=True,
-                                                                                     **{noise_type: val})
+                val_string = stringify(val)
+                test_acc[noise_type][val_string], test_loss[noise_type][val_string], _ = test_loop(model, criterion,
+                                                                                                   device,
+                                                                                                   data_loader=data_loader,
+                                                                                                   epoch=999,
+                                                                                                   best_acc=0,
+                                                                                                   comment="Final Eval",
+                                                                                                   add_noise=True,
+                                                                                                   **{noise_type: val})
     else:
         test_acc, test_loss, _ = test_loop(model, criterion, device,
                                            data_loader=data_loader, epoch=999,
@@ -134,9 +145,9 @@ def test_model(model, path, criterion, device, data_loader, test_noise=None):
 
 def trainer(model, seed, dataloaders,
             add_noise: bool = False,
-            noise_std: float = None,
-            noise_snr: float = 0.9,
-            test_noise: dict = None,
+            noise_std: dict = None,
+            noise_snr: dict = None,
+            noise_test: dict = None,
             num_epochs: int = 200,
             force_cpu: bool = False,
             lr: float = 0.1,
@@ -145,7 +156,7 @@ def trainer(model, seed, dataloaders,
             weight_decay: float = 5e-4,
             lr_decay: float = 0.2,
             lr_milestones: list = None,
-            resume: bool = False,  #TODO rename in prevent_resume!!
+            prevent_resume: bool = False,
             transfer_from_path: str = "",
             freeze: bool = False,
             reset_linear: bool = False,
@@ -168,7 +179,7 @@ def trainer(model, seed, dataloaders,
             model.module.linear.reset_parameters()
         if freeze:
             model.module.freeze(exclude_linear=True)
-    if not resume:
+    if not prevent_resume:
         path = "./checkpoint/ckpt.{}.pth".format(comment)
         if os.path.isfile(path):
             model, best_acc, start_epoch = load_model(model, path)
@@ -196,20 +207,17 @@ def trainer(model, seed, dataloaders,
         train_acc, train_loss = train_loop(model, criterion, device, optimizer,
                                            data_loader=dataloaders["train"], epoch=epoch, add_noise=add_noise,
                                            noise_std=noise_std, noise_snr=noise_snr)
-        dev_acc, dev_loss, best_acc = test_loop(model, criterion, device, data_loader=dataloaders["val"], epoch=epoch, comment=comment,
-                                                best_acc=best_acc, add_noise=add_noise,
+        dev_acc, dev_loss, best_acc = test_loop(model, criterion, device, data_loader=dataloaders["val"], epoch=epoch,
+                                                comment=comment, best_acc=best_acc, add_noise=add_noise,
                                                 noise_std=noise_std, noise_snr=noise_snr)
         if lr_milestones:
             train_scheduler.step(epoch=epoch)
         train_stats.append(dict(train_acc=train_acc, train_loss=train_loss, dev_acc=dev_acc, dev_loss=dev_loss))
 
-    # if test_noise == None:
-    #     test_noise = {"noise_snr": [5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.0],
-    #                   "noise_std": [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]}
     # test the final model
     dev_noise_acc, dev_noise_loss = test_model(model=model, path="./checkpoint/ckpt.{}.pth".format(comment),
                                                criterion=criterion, device=device, data_loader=dataloaders["val"],
-                                               test_noise=test_noise)
+                                               noise_test=noise_test)
     # test the final model
     test_acc, test_loss = test_model(model=model, path="./checkpoint/ckpt.{}.pth".format(comment),
                                      criterion=criterion, device=device, data_loader=dataloaders["test"])

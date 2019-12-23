@@ -15,11 +15,11 @@ dj.config['database.host'] = os.environ['DJ_HOST']
 dj.config['database.user'] = os.environ['DJ_USER']
 dj.config['database.password'] = os.environ['DJ_PASS']
 dj.config['enable_python_native_blobs'] = True
-# dj.config['schema_name'] = "anix_nnfabrik_bias_transfer"
-dj.config['schema_name'] = "anix_nnfabrik_bias_transfer_test"
+dj.config['schema_name'] = "anix_nnfabrik_bias_transfer"
+# dj.config['schema_name'] = "anix_nnfabrik_bias_transfer_test"
 
 import nnfabrik as nnf
-# nnf.config['repos'] = ['/notebooks/nnfabrik', '/notebooks/ml-utils', '/notebooks/bias_transfer']
+nnf.config['repos'] = ['/notebooks/nnfabrik']
 from nnfabrik.main import *
 from bias_transfer.tables.transfer import TrainedTransferModel
 
@@ -56,9 +56,12 @@ def run_manually():
 
 
 if __name__ == "__main__":
-    config = Config(optimizer="Adam", lr=0.0003, lr_decay=0.5, num_epochs=1, apply_data_augmentation=True,
-                    apply_data_normalization=False, transfer=True, freeze=True, reset_linear=False)
-    fill_tables(config)
-    # run_manually()
-    # TrainedModel().populate(display_progress=True, reserve_jobs=True, order="random")
-    TrainedTransferModel().populate(display_progress=True, reserve_jobs=True, order="random")
+    without_transfer = (Trainer() & "NOT trainer_comment LIKE '%transfer%'")
+    hashes_wo_transfer = without_transfer.fetch("trainer_hash")
+    TrainedModel().populate(["trainer_hash='{}'".format(h) for h in hashes_wo_transfer],
+                            display_progress=True, reserve_jobs=True, order="random")
+
+    with_transfer = (Trainer() & "trainer_comment LIKE '%transfer%'")
+    hashes_w_transfer = with_transfer.fetch("trainer_hash")
+    TrainedTransferModel().populate(["transfer_trainer_hash='{}'".format(h) for h in hashes_w_transfer],
+                                    display_progress=True, reserve_jobs=True, order="random")

@@ -1,3 +1,5 @@
+from bias_transfer.utils import stringify
+
 class Config:
     def __init__(self,
                  dataset: str = "CIFAR100",
@@ -10,8 +12,9 @@ class Config:
                  lr_milestones: tuple = (60, 120, 160),
                  lr_decay: float = 0.7,
                  add_noise: bool = False,
-                 noise_std: float = None,
-                 noise_snr: float = 0.9,
+                 noise_std: dict = None,
+                 noise_snr: dict = None,
+                 noise_test: dict = None,
                  transfer: bool = False,
                  freeze: bool = False,
                  reset_linear: bool = False
@@ -21,12 +24,18 @@ class Config:
                                     batch_size=batch_size, num_epochs=num_epochs,
                                     lr=lr, lr_milestones=lr_milestones, lr_decay=lr_decay, add_noise=add_noise,
                                     noise_std=noise_std, noise_snr=noise_snr)
+
+        if noise_test == None:
+            noise_test = {
+                "noise_snr": [{5.0: 1.0}, {4.0: 1.0}, {3.0: 1.0}, {2.0: 1.0}, {1.0: 1.0}, {0.5: 1.0}, {0.0: 1.0}],
+                "noise_std": [{0.0: 1.0}, {0.05: 1.0}, {0.1: 1.0}, {0.2: 1.0}, {0.3: 1.0}, {0.5: 1.0}, {1.0: 1.0}]
+            }
         if transfer:
             self.name += ".transfer"
         if not lr:
             lr = 0.0003 if optimizer == "Adam" else 0.1
         self.trainer = {"force_cpu": False,
-                        "resume": False,
+                        "prevent_resume": False,
                         "num_epochs": num_epochs,
                         "optimizer": optimizer,
                         "lr": lr,
@@ -35,6 +44,7 @@ class Config:
                         "add_noise": add_noise,
                         "noise_std": noise_std,
                         "noise_snr": noise_snr,
+                        "noise_test": noise_test,
                         "freeze": freeze,
                         "reset_linear": reset_linear,
                         "comment": self.name}
@@ -58,10 +68,10 @@ class Config:
         for i, (key, value) in enumerate(kwargs.items()):
             if self.__init__.__kwdefaults__ and key in self.__init__.__kwdefaults__:
                 if value is not self.__init__.__kwdefaults__[key]:
-                    name.append("{}_{}".format(key, value))
+                    name.append("{}_{}".format(key, stringify(value)))
             elif i < len(self.__init__.__defaults__):
                 if value is not self.__init__.__defaults__[i]:
-                    name.append("{}_{}".format(key, value))
+                    name.append("{}_{}".format(key, stringify(value)))
             else:
-                name.append("{}_{}".format(key, value))
+                name.append("{}_{}".format(key, stringify(value)))
         return ".".join(name)

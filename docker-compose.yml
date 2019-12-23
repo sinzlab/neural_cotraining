@@ -6,7 +6,7 @@ services:
       - ./notebooks:/notebooks
       - ./notebooks/models:/notebooks/models
       - ../bias_transfer:/notebooks/bias_transfer
-      - ../ml-utils:/notebooks/ml-utils
+      - ../mlutils:/notebooks/mlutils
       - ../nnfabrik:/notebooks/nnfabrik
       - /tmp/djcache:/cache
     env_file: .env
@@ -17,7 +17,7 @@ services:
       - ./notebooks:/notebooks
       - ./notebooks/models:/notebooks/models
       - ../bias_transfer:/notebooks/bias_transfer
-      - ../ml-utils:/notebooks/ml-utils
+      - ../mlutils:/notebooks/mlutils
       - ../nnfabrik:/notebooks/nnfabrik
       - /tmp/djcache:/cache
     ports:
@@ -29,7 +29,7 @@ services:
       - ./notebooks:/notebooks
       - ./notebooks/models:/notebooks/models
       - ../bias_transfer:/notebooks/bias_transfer
-      - ../ml-utils:/notebooks/ml-utils
+      - ../mlutils:/notebooks/mlutils
       - ../nnfabrik:/notebooks/nnfabrik
       - /tmp/djcache:/cache
     env_file: .env
@@ -40,7 +40,7 @@ services:
         - ./notebooks:/notebooks
         - ./notebooks/models:/notebooks/models
         - ../bias_transfer:/notebooks/bias_transfer
-        - ../ml-utils:/notebooks/ml-utils
+        - ../mlutils:/notebooks/mlutils
         - ../nnfabrik:/notebooks/nnfabrik
         - /tmp/djcache:/cache
     env_file: .env
