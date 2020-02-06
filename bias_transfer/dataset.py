@@ -57,6 +57,8 @@ def dataset_loader(train_data_mean,
     - train_loader: training set iterator.
     - valid_loader: validation set iterator.
     """
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
     transform_list_base = [transforms.ToTensor()]
     if apply_normalization:
