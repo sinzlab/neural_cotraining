@@ -188,6 +188,72 @@ def fill_frozen_readout_experiment():
                                                                **transfer2_config)])  # Train all variants after directly
 
 
+def fill_logit_reg_experiment():
+    fabrikant = dict(fabrikant_name="Arne Nix", email="arnenix@googlemail.com", affiliation="sinzlab",
+                     dj_username="anix")
+    Fabrikant().insert1(fabrikant, skip_duplicates=True)
+    base_config = dict(optimizer="Adam",
+                       lr=0.0003,
+                       lr_decay=0.8,
+                       num_epochs=200,
+                       add_noise=False,
+                       noise_snr=None,
+                       noise_std=None,
+                       apply_data_augmentation=True,
+                       apply_data_normalization=False,
+                       noise_adv_classification=False,
+                       noise_adv_regression=False,
+                       batch_size=64)
+    for seed in (42,):
+    # for seed in (42, 8, 13):
+        for reg_factor in (1.0,10.0,100.0):
+            base_config = copy.deepcopy(base_config)
+            base_config["seed"] = seed
+            for noise_type in (  # {"add_noise": False, "noise_snr": None, "noise_std": None},
+                    # {"add_noise": True, "noise_snr": {1.0: 0.5, None: 0.5}, "noise_std": None},
+                    # {"add_noise": True, "noise_snr": {1.0: 0.9, None: 0.1}, "noise_std": None},
+                    # {"add_noise": True, "noise_snr": {1.0: 1.0}, "noise_std": None},
+                    # {"add_noise": True, "noise_snr": None, "noise_std": {0.5: 0.5, None: 0.5}},
+                    {"add_noise": True, "noise_snr": None,
+                     "noise_std": {0.08: 0.2, 0.12: 0.2, 0.18: 0.2, 0.26: 0.2, 0.38: 0.2}},
+                    # {"add_noise": True, "noise_snr": None,
+                    # "noise_std": {0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, None: 0.5}},
+            ):
+                for noise_adv in ({"noise_adv_classification": False, "noise_adv_regression": False},
+                        # {"noise_adv_classification": True, "noise_adv_regression": False},
+                        # {"noise_adv_classification": False, "noise_adv_regression": True}
+                                  ):
+                    if not noise_type["add_noise"]:
+                        if noise_adv["noise_adv_classification"]:
+                            continue
+                        if noise_adv["noise_adv_regression"]:
+                            continue
+                    # one config to create the readout
+                    config = copy.deepcopy(base_config)
+                    config["freeze"] = ("readout",)
+                    config["clean_noisy_comp_regularization"] = reg_factor
+                    config.update(noise_type)
+                    config.update(noise_adv)
+                    # one config for transfer to noisy data (to train the robust core)
+                    transfer_config = copy.deepcopy(base_config)
+                    transfer_config["transfer"] = True
+                    transfer_config["freeze"] = ("readout",)
+                    transfer_config["reset_linear"] = False
+                    transfer_config["clean_noisy_comp_regularization"] = reg_factor
+                    transfer_config.update(noise_type)
+                    transfer_config.update(noise_adv)
+                    transfer2_config = copy.deepcopy(base_config)
+                    transfer2_config["transfer"] = True
+                    transfer2_config["freeze"] = ("core",)
+                    transfer2_config["reset_linear"] = True
+                    ConfigToTrainAndTransfer().add_entry(
+                        [Config(**config), Config(**transfer2_config)])  # Train all variants directly
+                    ConfigToTrainAndTransfer2().add_entry([Config(**base_config), Config(**transfer_config),
+                                                           Config(
+                                                               **transfer2_config)])  # Train all variants after directly
+
+
+
 def fill_random_readout_experiment():
     fabrikant = dict(fabrikant_name="Arne Nix", email="arnenix@googlemail.com", affiliation="sinzlab",
                      dj_username="anix")

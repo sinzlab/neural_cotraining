@@ -32,7 +32,8 @@ class Config:
         "freeze": False,
         "force_cpu": False,
         "reset_linear": False,
-        "reset_linear_frequency": {},
+        "reset_linear_frequency": False,
+        "clean_noisy_comp_regularization": False,
         "noise_adv_classification": False,
         "noise_adv_regression": False,
         "noise_adv_loss_factor": 1.0,
@@ -67,13 +68,16 @@ class Config:
                         "noise_test": get("noise_test"),
                         "freeze": get("freeze"),
                         "reset_linear": get("reset_linear"),
-                        "reset_linear_frequency": get("reset_linear_frequency"),
                         "noise_adv_classification": get("noise_adv_classification"),
                         "noise_adv_regression": get("noise_adv_regression"),
                         "noise_adv_loss_factor": get("noise_adv_loss_factor"),
                         "noise_adv_gamma": get("noise_adv_gamma"),
                         "use_tensorboard": get("use_tensorboard"),
                         }
+        if get("clean_noisy_comp_regularization"):
+            self.trainer["clean_noisy_comp_regularization"] = get("clean_noisy_comp_regularization")
+        if get("reset_linear_frequency") is not False:
+            self.trainer["reset_linear_frequency"] = get("reset_linear_frequency")
         self.trainer["comment"] = self.build_name(self.trainer, self.defaults)
         self.trainer_comment = self.trainer["comment"]
         self.dataset = {"dataset_cls": get("dataset"),
@@ -117,6 +121,6 @@ class Config:
     def build_name(self, settings, defaults):
         name = []
         for key, value in settings.items():
-            if value is not defaults.get(key):
+            if value is not defaults.get(key) and not (key == "reset_linear_frequency" and not value): #TODO remove this hack!
                 name.append("{}_{}".format(key, stringify(value)))
         return ".".join(name)

@@ -24,87 +24,97 @@ import matplotlib.pyplot as plt
 class Analyzer:
 
     def __init__(self,
-                 tables=TrainedModel(),
-                 selection_like=None,
-                 selection_exact=None,
-                 reformat_comment=(),
-                 comment_map={}):
-        self.df = self._reformat_comments(self._load_data(tables, selection_like, selection_exact), reformat_comment)
-        self.df = self._remap_comments(self.df, comment_map)
+                 entries,
+                 keys_to_fetch=("comment",),
+                 # selection_like=None,
+                 # selection_exact=None,
+                 # reformat_comment=(),
+                 # comment_map={}
+                 ):
+        self.df = self._load_data(entries, keys_to_fetch)
+        # self.df = self._reformat_comments(self._load_data(entries, selection_like, selection_exact), reformat_comment)
+        # self.df = self._remap_comments(self.df, comment_map)
 
-    def _load_data(self, tables, selection_like, selection_exact):
+    def _load_data(self, entries, keys_to_fetch):
         # Select data:
-        fetched = []
-        for table in tables:
-            if selection_exact:
-                fetched += (table & selection_exact).fetch("output", *selection_exact[0].keys(), as_dict=True)
-            elif selection_like:
-                selection_list = []
-                for k, v in selection_like.items():
-                    if not isinstance(v, tuple):
-                        v = (v,)
-                    selection_list.append("{} LIKE '%{}%'".format(k, "%".join(v)))
-                print(selection_list)
-                dj.AndList(selection_list)
-                selection_keys = set("comment")
-                for k in selection_like.keys():
-                    if k.startswith("NOT"):
-                        selection_keys.add(k[4:])
-                    else:
-                        selection_keys.add(k)
-                fetched += (table & selection_list).fetch("output", *selection_keys, as_dict=True)
-            else:
-                fetched += table.fetch("output", "comment", as_dict=True)
+        fetched = {}
+        for name, (configs, config_table, training_table) in entries.items():
+            fetched[name] = (config_table.get_entry(configs).proj(c_comment="comment") * training_table).fetch1(
+                "output",
+                *keys_to_fetch)
 
+        # for table in tables:
+        #     if selection_exact:
+        #         fetched += (table & selection_exact).fetch("output", *selection_exact[0].keys(), as_dict=True)
+        #     elif selection_like:
+        #         selection_list = []
+        #         for k, v in selection_like.items():
+        #             if not isinstance(v, tuple):
+        #                 v = (v,)
+        #             selection_list.append("{} LIKE '%{}%'".format(k, "%".join(v)))
+        #         print(selection_list)
+        #         dj.AndList(selection_list)
+        #         selection_keys = set("comment")
+        #         for k in selection_like.keys():
+        #             if k.startswith("NOT"):
+        #                 selection_keys.add(k[4:])
+        #             else:
+        #                 selection_keys.add(k)
+        #         fetched += (table & selection_list).fetch("output", *selection_keys, as_dict=True)
+        #     else:
+        #         fetched += table.fetch("output", "comment", as_dict=True)
 
         # Reformat to display nicely/ access easily:
-        df = pd.DataFrame(fetched)
-        df = pd.concat([df.drop(['output'], axis=1), df['output'].apply(pd.Series)], axis=1)
+        df = pd.DataFrame(fetched).transpose()
+        df = df.rename(columns={1: "comment"})
+        df = pd.concat([df.drop([0], axis=1), df[0].apply(pd.Series)], axis=1)
         df = df.rename(columns={0: "training_progress"})
-        df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)  # Final Results
+        df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
+        df['name'] = df.index  # Final Results
         return df
 
-    def _remap_comments(self, df, comment_map):
-        # reformat comment
-        def remap(c):
-            for k,v in comment_map.items():
-                if isinstance(k,tuple):
-                    match = True
-                    for sub_k in k:
-                        if sub_k not in c:
-                            match = False
-                    if match:
-                        return v
-                else:
-                    if k == c:
-                        return v
-                    elif c.startswith(k):
-                        return v
-                    elif k in c:
-                        return v
-            print(c)
-            print("********")
-            return c
-        df["comment"] = df["comment"].map(remap)
-        return df
-
-    def _reformat_comments(self, df, reformat_comment):
-        # reformat comment
-        def reformat(comment):
-            for remove in reformat_comment:
-                s_pos = comment.find(remove)
-                if s_pos == -1:
-                    continue
-                comment = comment[:s_pos] + comment[s_pos + len(remove):]
-            return comment
-
-        df["comment"] = df["comment"].map(reformat)
-        if "transfer_comment" in df.columns:
-            df["transfer_comment"] = df["transfer_comment"].map(reformat)
-            df["comment"] = df["comment"] + "\nTRANSFER." + df["transfer_comment"]
-        df["comment"] = df["comment"].map(lambda x: "default" if x == "" else x)
-        df = df.sort_values(by=['comment'])
-        return df
+    # def _remap_comments(self, df, comment_map):
+    #     # reformat comment
+    #     def remap(c):
+    #         for k, v in comment_map.items():
+    #             if isinstance(k, tuple):
+    #                 match = True
+    #                 for sub_k in k:
+    #                     if sub_k not in c:
+    #                         match = False
+    #                 if match:
+    #                     return v
+    #             else:
+    #                 if k == c:
+    #                     return v
+    #                 elif c.startswith(k):
+    #                     return v
+    #                 elif k in c:
+    #                     return v
+    #         print(c)
+    #         print("********")
+    #         return c
+    #
+    #     df["comment"] = df["comment"].map(remap)
+    #     return df
+    #
+    # def _reformat_comments(self, df, reformat_comment):
+    #     # reformat comment
+    #     def reformat(comment):
+    #         for remove in reformat_comment:
+    #             s_pos = comment.find(remove)
+    #             if s_pos == -1:
+    #                 continue
+    #             comment = comment[:s_pos] + comment[s_pos + len(remove):]
+    #         return comment
+    #
+    #     df["comment"] = df["comment"].map(reformat)
+    #     if "transfer_comment" in df.columns:
+    #         df["transfer_comment"] = df["transfer_comment"].map(reformat)
+    #         df["comment"] = df["comment"] + "\nTRANSFER." + df["transfer_comment"]
+    #     df["comment"] = df["comment"].map(lambda x: "default" if x == "" else x)
+    #     df = df.sort_values(by=['comment'])
+    #     return df
 
     def plot(self,
              to_plot="dev_noise_acc",
@@ -112,7 +122,8 @@ class Analyzer:
              plot_method=sns.catplot,
              kind="bar",
              save="",
-             fig=None, ax=None):
+             fig=None, ax=None,
+             perf_measure='dev_acc'):
         # import matplotlib as mpl
         # from matplotlib import pyplot as plt
         # font = {'family': 'Helvetica Neue',
@@ -129,14 +140,14 @@ class Analyzer:
             fig, ax = plt.subplots(figsize=self.fs, dpi=self.dpi)
         # Plot
         if to_plot in ("test_acc", "test_loss"):
-            plot_method(x="comment", y=to_plot, hue="comment",
+            plot_method(x="name", y=to_plot, hue="name",
                         kind="bar", data=self.df, ax=ax)
         if to_plot in ("dev_noise_acc", "dev_noise_loss"):
             data = self.df[to_plot].apply(pd.Series)
             data = data['noise_' + noise_measure].apply(pd.Series)
-            data = pd.concat([self.df["comment"], data], axis=1)
-            data.index = data.comment
-            del data["comment"]
+            data = pd.concat([self.df["name"], data], axis=1)
+            data.index = data.name
+            del data["name"]
             data = data.stack().reset_index()
             data.columns = ["Training", 'Noise in Evaluation (Standard deviation)', 'Accuracy']
             data["Noise in Evaluation (Standard deviation)"] = data["Noise in Evaluation (Standard deviation)"].map(
@@ -149,15 +160,17 @@ class Analyzer:
                             ax=ax)
         if to_plot in ("training_progress",):
             data = self.df[to_plot].apply(pd.Series)
-            data = data.applymap(lambda x: x.get('dev_acc'))
-            data = pd.concat([self.df["comment"], data], axis=1)
-            data.index = data.comment
-            del data["comment"]
+            data = data.applymap(lambda x: x.get(perf_measure))
+            data = pd.concat([self.df["name"], data], axis=1)
+            data.index = data.name
+            del data["name"]
             data = data.stack().reset_index()
-            data.columns = ["comment", 'epoch', 'score']
-            plot_method(x="epoch", y="score", hue="comment", data=data, ax=ax)
+            data.columns = ["name", 'epoch', 'score']
+            plot_method(x="epoch", y="score", hue="name", data=data, ax=ax)
 
         sns.despine(offset=10, trim=True)
+        plt.setp(ax.get_legend().get_texts(), fontsize='10')
+        plt.setp(ax.get_legend().get_title(), fontsize='12')
         # plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         if save:
             fig.savefig(save, facecolor=fig.get_facecolor(), edgecolor=fig.get_edgecolor(), bbox_inches='tight')
@@ -380,7 +393,7 @@ def visualize_data(data_loader,
                     axs[batch_idx, i].set_title('{}'.format(list(noise_std.keys())[0]))
             for i, noise_snr in enumerate(noise_snrs):
                 if add_noise and noise_snr:
-                    inputs_ , _ = apply_noise(inputs.clone(), device, std=None, snr=noise_snr)
+                    inputs_, _ = apply_noise(inputs.clone(), device, std=None, snr=noise_snr)
                 else:
                     inputs_ = inputs.clone()
                 inputs_ = inputs_.transpose(1, 3)
@@ -433,4 +446,3 @@ def visualize_corr_matrix(model, data_loader,
             axs[batch_idx].matshow(mat[layer].detach().cpu(), cmap=cm.get_cmap(name="Spectral_r"))
             # f.suptitle("Layer " + str(i) + " Batch-wise Correlation Similarity Matrices", fontsize=20)
     return fig
-

@@ -41,10 +41,11 @@ class ConfigToTrainAndTransfer(dj.Manual):
         """
         return definition
 
-    def add_entry(self, configs):
+    def add_entry(self, configs, insert=True):
         """
         inserts one new entry into the Config Table
-        config -- Config object containing trainer, dataset and model options
+        configs -- List of config objects containing trainer, dataset and model options
+        insert -- flag that decides whether anything is actually added to the tables (or only the key retrieved)
         """
         assert len(configs) == (self.transfer_steps + 1)
         key = {}
@@ -53,7 +54,7 @@ class ConfigToTrainAndTransfer(dj.Manual):
         prefix = "transfer_{i}_".format(i=i) if i > 0 else ""
         for component, table in (("dataset", Dataset()), ("model", Model()), ("trainer", Trainer())):
             hash = make_hash(config[component].config)
-            if not (table & (component + '_hash = "' + hash + '"')):  # not inserted yet
+            if not (table & (component + '_hash = "' + hash + '"')) and insert:  # not inserted yet
                 table.add_entry(config[component].fn,
                                 config[component].config,
                                 config.fabrikant,
@@ -63,9 +64,10 @@ class ConfigToTrainAndTransfer(dj.Manual):
                                                                               as_dict=True)[0]
             inserted = {prefix + k: v for k, v in inserted.items()}
             key.update(inserted)
-        Seed().insert1({"seed": config.seed}, skip_duplicates=True)
+        if insert:
+            Seed().insert1({"seed": config.seed}, skip_duplicates=True)
+            key[prefix + "config"] = config.combined_config
         key[prefix + "seed"] = config.seed
-        key[prefix + "config"] = config.combined_config
         if i > 0:
             if i > 2:
                 sub_config_table = globals()["ConfigToTrainAndTransfer{}".format(i)]()
@@ -73,11 +75,21 @@ class ConfigToTrainAndTransfer(dj.Manual):
                 sub_config_table = globals()["ConfigToTrainAndTransfer"]()
             elif i == 1:
                 sub_config_table = globals()["ConfigToTrain"]()
-            key.update(sub_config_table.add_entry(configs[:-1]))
-        key["comment"] = "\n".join([c.name for c in configs])
-        key["config_fabrikant"] = configs[0].fabrikant
-        self.insert1(key, skip_duplicates=True)
+            key.update(sub_config_table.add_entry(configs[:-1], insert=insert))
+        if insert:
+            key["comment"] = "\n".join([c.name for c in configs])
+            key["config_fabrikant"] = configs[0].fabrikant
+            self.insert1(key, skip_duplicates=True)
         return key
+
+    def get_entry(self, configs):
+        """
+        inserts one new entry into the Config Table
+        config -- Config object containing trainer, dataset and model options
+        """
+        key = self.add_entry(configs, insert=False)
+        return self & key
+
 
 
 @schema
@@ -93,44 +105,6 @@ class ConfigToTrainAndTransfer2(ConfigToTrainAndTransfer):
 @schema
 class TrainedModelProduct(TrainedModelBase):
     table_comment = "My Trained models"
-
-
-# @schema
-# class ConfigToTrain(dj.Manual):
-#     definition = """
-#     -> Trainer
-#     -> Dataset
-#     -> Model
-#     -> Seed
-#     ---
-#     config:                 longblob        # configuration object
-#     -> Fabrikant.proj(config_fabrikant='fabrikant_name')
-#     comment='' :            varchar(768)     # short description
-#     ts=CURRENT_TIMESTAMP:   timestamp       # UTZ timestamp at time of insertion
-#     """
-#
-#     def add_entry(self, config):
-#         """
-#         inserts one new entry into the Config Table
-#         config -- Config object containing trainer, dataset and model options
-#         """
-#         key = {"config": config.combined_config,
-#                "comment": config.name,
-#                "seed": config.seed,
-#                "config_fabrikant": config.fabrikant}
-#         for component, table in (("dataset", Dataset()), ("model", Model()), ("trainer", Trainer())):
-#             hash = make_hash(config[component].config)
-#             if not (table & (component + '_hash = "' + hash + '"')):  # not inserted yet
-#                 table.add_entry(config[component].fn,
-#                                 config[component].config,
-#                                 config.fabrikant,
-#                                 config[component].comment)
-#             inserted = (table & (component + '_hash = "' + hash + '"')).fetch(component + '_fn',
-#                                                                               component + '_hash',
-#                                                                               as_dict=True)[0]
-#             key.update(inserted)
-#         Seed().insert1({"seed": config.seed}, skip_duplicates=True)
-#         self.insert1(key, skip_duplicates=True)
 
 
 @schema

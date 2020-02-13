@@ -13,9 +13,9 @@ from bias_transfer.utils import stringify
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 # from slacker import Slacker
 # from torch.utils.tensorboard import SummaryWriter
-
 
 
 class TrainingReport:
@@ -23,6 +23,7 @@ class TrainingReport:
         self.label = label
         self.icon_emoji = icon_emoji if icon_emoji else ':clipboard:'
         self.connect()
+
     def connect(self, slack_api_token=None):
         slack_api_token = slack_api_token if slack_api_token else os.environ['SLACK_TOKEN']
         self.slack = Slacker(slack_api_token)
@@ -30,9 +31,11 @@ class TrainingReport:
             print(f"Connected to {self.slack.team.info().body['team']['name']} workspace.", flush=True)
         else:
             print('Try Again!')
+
     def send_text(self, text, channel='trainingreport'):
         self.slack.chat.post_message(channel=channel, text=text,
                                      username=self.label, icon_emoji=self.icon_emoji)
+
     def send_figure(self):
         raise NotImplementedError()
 
@@ -74,7 +77,7 @@ def save_model(model, optimizer, acc, epoch, path, name):
 def apply_noise(x, device, std: dict = None, snr: dict = None, rnd_gen=None):
     with torch.no_grad():
         noise_levels = std if std else snr
-        assert sum(noise_levels.values())-1.0 < 0.00001, "Percentage for noise levels should sum to one!"
+        assert sum(noise_levels.values()) - 1.0 < 0.00001, "Percentage for noise levels should sum to one!"
         indices = torch.randperm(x.shape[0])
         applied_std = torch.zeros([x.shape[0], 1], device=device)
         start = 0
@@ -95,8 +98,8 @@ def apply_noise(x, device, std: dict = None, snr: dict = None, rnd_gen=None):
     return x, applied_std
 
 
-def train_loop(model, criterion, device, optimizer, data_loader, epoch: int, noise_criterion=None,
-               config: dict = {}):
+def train_loop(model, criterion, device, optimizer, data_loader, epoch: int,
+               config: dict, clean_noisy_comp_criterion=None, noise_criterion=None):
     model.train()
     train_loss, train_noise_loss, correct, total = 0, 0, 0, 0
     previous_steps = epoch * len(data_loader)
@@ -105,13 +108,16 @@ def train_loop(model, criterion, device, optimizer, data_loader, epoch: int, noi
         tqdm._instances.clear()
     with tqdm(data_loader, desc='Train Epoch {}'.format(epoch)) as t:
         for batch_idx, (inputs, targets) in enumerate(t):
+            loss = torch.zeros(1, device=device)
             if config.get("reset_linear_frequency", {}).get("batch"):
                 if batch_idx % config.get("reset_linear_frequency", {})["batch"] == 0:
                     model.module.linear_readout.reset_parameters()
             inputs, targets = inputs.to(device), targets.to(device)
             if config.get("add_noise"):
-                inputs, applied_std = apply_noise(inputs, device, std=config.get("noise_std"),
-                                                  snr=config.get("noise_snr"))
+                noisy_inputs, applied_std = apply_noise(inputs, device, std=config.get("noise_std"),
+                                                        snr=config.get("noise_snr"))
+                inputs = torch.cat([noisy_inputs, inputs]) if config.get(
+                    "clean_noisy_comp_regularization") else noisy_inputs
             optimizer.zero_grad()
             if noise_criterion:
                 progress = float(batch_idx + previous_steps) / total_steps
@@ -119,7 +125,16 @@ def train_loop(model, criterion, device, optimizer, data_loader, epoch: int, noi
                 outputs = model(inputs, noise_lambda=noise_adv_lambda)
             else:
                 outputs = model(inputs)
-            loss = criterion(outputs[0], targets)
+            if config.get("clean_noisy_comp_regularization"):
+                logits = outputs[0][:(outputs[0].shape[0] // 2)]
+                clean_logits = outputs[0][(outputs[0].shape[0] // 2):]
+                clean_noisy_comp_loss = clean_noisy_comp_criterion(logits, clean_logits)
+                loss += config.get("clean_noisy_comp_regularization") * clean_noisy_comp_loss
+                outputs = (logits,) + outputs[1:]
+                clean_noisy_comp_loss = clean_noisy_comp_loss.item()
+            else:
+                clean_noisy_comp_loss = 0.0
+            loss += criterion(outputs[0], targets)
             train_loss += loss.item()
             if noise_criterion:
                 if config.get("noise_adv_classification"):
@@ -134,8 +149,9 @@ def train_loop(model, criterion, device, optimizer, data_loader, epoch: int, noi
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
             acc = 100. * correct / total
-            t.set_postfix(acc=acc, loss=train_loss / total, noise_loss=train_noise_loss / total)
-    return acc, train_loss / total, train_noise_loss / total
+            t.set_postfix(acc=acc, loss=train_loss / (batch_idx + 1), noise_loss=train_noise_loss / (batch_idx + 1),
+                          clean_noisy_loss=clean_noisy_comp_loss / (batch_idx + 1))
+    return acc, train_loss / (batch_idx + 1), train_noise_loss / (batch_idx + 1)
 
 
 def test_loop(model, criterion, device, data_loader, epoch,
@@ -178,7 +194,7 @@ def test_loop(model, criterion, device, data_loader, epoch,
     return acc, test_loss, test_noise_loss
 
 
-def test_model(model, path, criterion, device, data_loader, config: dict = {}, noise_test: bool = True):
+def test_model(model, path, criterion, device, data_loader, config: dict, noise_test: bool = True):
     model, _, epoch = load_checkpoint(path, model)
     if config.get("noise_test") and noise_test:
         test_acc = {}
@@ -189,19 +205,19 @@ def test_model(model, path, criterion, device, data_loader, config: dict = {}, n
             for val in n_vals:
                 val_str = stringify(val)
                 test_acc[n_type][val_str], test_loss[n_type][val_str], _ = test_loop(model,
-                                                                                        criterion,
-                                                                                        device,
-                                                                                        data_loader=data_loader,
-                                                                                        epoch=epoch,
-                                                                                        config={
-                                                                                            "comment": "Final Eval",
-                                                                                            "add_noise": True,
-                                                                                            n_type: val})
+                                                                                     criterion,
+                                                                                     device,
+                                                                                     data_loader=data_loader,
+                                                                                     epoch=epoch,
+                                                                                     config={
+                                                                                         "comment": "Final Eval",
+                                                                                         "add_noise": True,
+                                                                                         n_type: val})
     else:
         test_acc, test_loss, _ = test_loop(model, criterion, device,
-                                              data_loader=data_loader, epoch=epoch,
-                                              config={"comment": "Final Eval",
-                                                      "add_noise": False})
+                                           data_loader=data_loader, epoch=epoch,
+                                           config={"comment": "Final Eval",
+                                                   "add_noise": False})
     return test_acc, test_loss
 
 
@@ -257,6 +273,7 @@ def trainer(model, dataloaders, seed, uid="default", cb=None, **config):
         noise_criterion = nn.BCELoss()
     else:
         noise_criterion = None
+    clean_noise_comp_criterion = nn.MSELoss() if config.get("clean_noisy_comp_regularization") else None
 
     print('==> Starting model {}'.format(comment), flush=True)
     # if config.get("use_tensorboard"):
@@ -264,7 +281,7 @@ def trainer(model, dataloaders, seed, uid="default", cb=None, **config):
     #     writer = SummaryWriter('gs://anix-tensorboard-logs/logs/{}'.format(uid))
     train_stats = []
     for epoch in range(start_epoch + 1, config.get("num_epochs")):
-        if config.get("reset_linear_frequency",{}).get("epoch"):
+        if config.get("reset_linear_frequency", {}).get("epoch"):
             if epoch % config.get("reset_linear_frequency", {})["epoch"] == 0:
                 model.module.linear_readout.reset_parameters()
                 print('Resetting readout', flush=True)
@@ -273,15 +290,14 @@ def trainer(model, dataloaders, seed, uid="default", cb=None, **config):
         train_acc, train_loss, train_noise_loss = train_loop(model, criterion, device, optimizer,
                                                              data_loader=dataloaders["train"],
                                                              epoch=epoch,
+                                                             config=config,
                                                              noise_criterion=noise_criterion,
-                                                             config=config)
+                                                             clean_noisy_comp_criterion=clean_noise_comp_criterion)
         dev_acc, dev_loss, dev_noise_loss = test_loop(model, criterion, device,
-                                                                data_loader=dataloaders["val"],
-                                                                epoch=epoch,
-                                                                noise_criterion=noise_criterion,
-                                                                config=config)
-
-
+                                                      data_loader=dataloaders["val"],
+                                                      epoch=epoch,
+                                                      noise_criterion=noise_criterion,
+                                                      config=config)
 
         if dev_acc > best_acc:
             save_model(model, optimizer, dev_acc, epoch, "./checkpoint", "ckpt.{}.pth".format(uid))
@@ -291,7 +307,6 @@ def trainer(model, dataloaders, seed, uid="default", cb=None, **config):
         train_stats.append(dict(train_acc=train_acc, train_loss=train_loss, dev_acc=dev_acc, dev_loss=dev_loss))
         # if config.get("use_tensorboard"):
         #     writer.add_scalars("training_progress", train_stats[-1], epoch)
-
 
     # test the final model
     dev_noise_acc, dev_noise_loss = test_model(model=model, path="./checkpoint/ckpt.{}.pth".format(uid),
