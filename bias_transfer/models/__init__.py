@@ -1,39 +1,47 @@
 import torch
 import numpy as np
 
-from .resnet import ResNet, Bottleneck, BasicBlock
-from .noise_adversarial_resnet import NoiseAdvResNet
+from bias_transfer.configs.model import ModelConfig
 
 
 def resnet_builder(data_loader,
                    seed: int,
-                   type: int,
-                   num_classes: int,
-                   noise_adv_classification: bool,
-                   noise_adv_regression: bool,
-                   *args,
-                   **kwargs):
+                   **config):
+    config = ModelConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    if type in (18, 34):
+    if config.self_attention:
+        from .resnet_self_attention import ResNet, Bottleneck
+    else:
+        from .resnet import ResNet, Bottleneck, BasicBlock
+        from .resnet_noise_adv import NoiseAdvResNet
+
+    if config.type in (18, 34):
+        assert not config.self_attention
         block = BasicBlock
     else:
         block = Bottleneck
-    if type == 18:
+    if config.type == 18:
         num_blocks = [2, 2, 2, 2]
-    elif type == 34:
+    elif config.type == 26:
+        num_blocks = [1, 2, 4, 1]
+    elif config.type == 34:
         num_blocks = [3, 4, 6, 3]
-    elif type == 50:
+    elif config.type == 38:
+        num_blocks = [2, 3, 5, 2]
+    elif config.type == 50:
         num_blocks = [3, 4, 6, 3]
-    elif type == 101:
+    elif config.type == 101:
         num_blocks = [3, 4, 23, 3]
-    elif type == 152:
+    elif config.type == 152:
         num_blocks = [3, 8, 36, 3]
     else:
         raise KeyError
-    if noise_adv_regression or noise_adv_classification:
-        return NoiseAdvResNet(block, num_blocks, num_classes=num_classes, classification=noise_adv_classification)
+    if config.noise_adv_regression or config.noise_adv_classification:
+        assert not config.self_attention
+        return NoiseAdvResNet(block, num_blocks, num_classes=config.num_classes,
+                              classification=config.noise_adv_classification,
+                              adv_readout_layers=config.num_noise_adv_layers)
     else:
-        return ResNet(block, num_blocks, num_classes=num_classes)
-
+        return ResNet(block, num_blocks, num_classes=config.num_classes)

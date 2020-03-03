@@ -4,6 +4,8 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 
+from bias_transfer.configs.dataset import DatasetConfig
+
 
 def compute_mean_std(train_set):
     """compute the mean and std of cifar100 dataset
@@ -20,19 +22,7 @@ def compute_mean_std(train_set):
     return mean, std
 
 
-def dataset_loader(train_data_mean,
-                   train_data_std,
-                   apply_augmentation: bool = True,
-                   apply_normalization: bool = True,
-                   dataset_cls="CIFAR100",
-                   data_dir='./data',
-                   batch_size=128,
-                   seed=42,
-                   valid_size=0.1,
-                   shuffle=True,
-                   show_sample=False,
-                   num_workers=4,
-                   pin_memory=False):
+def dataset_loader(seed, **config):
     """
     Utility function for loading and returning train and valid
     multi-process iterators over the CIFAR-10 dataset. A sample
@@ -57,13 +47,14 @@ def dataset_loader(train_data_mean,
     - train_loader: training set iterator.
     - valid_loader: validation set iterator.
     """
+    config = DatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     transform_list_base = [transforms.ToTensor()]
-    if apply_normalization:
-        transform_list_base += [transforms.Normalize(train_data_mean, train_data_std)]
-    if apply_augmentation:
+    if config.apply_normalization:
+        transform_list_base += [transforms.Normalize(config.train_data_mean, config.train_data_std)]
+    if config.apply_augmentation:
         transform_list = [transforms.RandomCrop(32, padding=4),
                           transforms.RandomHorizontalFlip(),
                           transforms.RandomRotation(15),
@@ -74,30 +65,30 @@ def dataset_loader(train_data_mean,
     transform_train = transforms.Compose(transform_list)
 
     error_msg = "[!] valid_size should be in the range [0, 1]."
-    assert ((valid_size >= 0) and (valid_size <= 1)), error_msg
+    assert ((config.valid_size >= 0) and (config.valid_size <= 1)), error_msg
 
     # load the dataset
-    dataset_cls = eval("torchvision.datasets." + dataset_cls)
+    dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
     train_dataset = dataset_cls(
-        root=data_dir, train=True,
+        root=config.data_dir, train=True,
         download=True, transform=transform_train,
     )
 
     valid_dataset = dataset_cls(
-        root=data_dir, train=True,
+        root=config.data_dir, train=True,
         download=True, transform=transform_base,
     )
 
     test_dataset = dataset_cls(
-        root=data_dir, train=False,
+        root=config.data_dir, train=False,
         download=True, transform=transform_base,
     )
 
     num_train = len(train_dataset)
     indices = list(range(num_train))
-    split = int(np.floor(valid_size * num_train))
+    split = int(np.floor(config.valid_size * num_train))
 
-    if shuffle:
+    if config.shuffle:
         np.random.seed(seed)
         np.random.shuffle(indices)
 
@@ -106,23 +97,23 @@ def dataset_loader(train_data_mean,
     valid_sampler = SubsetRandomSampler(valid_idx)
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, sampler=train_sampler,
-        num_workers=num_workers, pin_memory=pin_memory, shuffle=False
+        train_dataset, batch_size=config.batch_size, sampler=train_sampler,
+        num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
     )
     valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=batch_size, sampler=valid_sampler,
-        num_workers=num_workers, pin_memory=pin_memory, shuffle=False
+        valid_dataset, batch_size=config.batch_size, sampler=valid_sampler,
+        num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=batch_size,
-        num_workers=num_workers, pin_memory=pin_memory, shuffle=False
+        test_dataset, batch_size=config.batch_size,
+        num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
     )
 
     # visualize some images
-    if show_sample:
+    if config.show_sample:
         sample_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=9, shuffle=shuffle,
-            num_workers=num_workers, pin_memory=pin_memory,
+            train_dataset, batch_size=9, shuffle=config.shuffle,
+            num_workers=config.num_workers, pin_memory=config.pin_memory,
         )
         data_iter = iter(sample_loader)
         images, labels = data_iter.next()

@@ -1,15 +1,14 @@
 import math
 import torch
 import torch.backends.cudnn as cudnn
-from bias_transfer.trainer import apply_noise, load_checkpoint
+from .utils.io import load_checkpoint
+from .trainer.noise_augmentation import NoiseAugmentation
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib as mpl
 from matplotlib import cm
 from sklearn.cluster import AgglomerativeClustering
 from nnfabrik.main import *
-from bias_transfer.tables.base import *
-# from bias_transfer.tables.transfer import *
 
 import pandas as pd
 import seaborn as sns
@@ -24,97 +23,30 @@ import matplotlib.pyplot as plt
 class Analyzer:
 
     def __init__(self,
-                 entries,
                  keys_to_fetch=("comment",),
-                 # selection_like=None,
-                 # selection_exact=None,
-                 # reformat_comment=(),
-                 # comment_map={}
                  ):
-        self.df = self._load_data(entries, keys_to_fetch)
-        # self.df = self._reformat_comments(self._load_data(entries, selection_like, selection_exact), reformat_comment)
-        # self.df = self._remap_comments(self.df, comment_map)
+        self.keys_to_fetch = keys_to_fetch
+        self.df = pd.DataFrame()
 
-    def _load_data(self, entries, keys_to_fetch):
+    def add_data(self, configs, table, transfer_level=0):
+        self.df = self.df.append(self._load_data(configs, table, transfer_level))
+
+    def _load_data(self, configs, table, transfer_level):
         # Select data:
-        fetched = {}
-        for name, (configs, config_table, training_table) in entries.items():
-            fetched[name] = (config_table.get_entry(configs).proj(c_comment="comment") * training_table).fetch1(
-                "output",
-                *keys_to_fetch)
-
-        # for table in tables:
-        #     if selection_exact:
-        #         fetched += (table & selection_exact).fetch("output", *selection_exact[0].keys(), as_dict=True)
-        #     elif selection_like:
-        #         selection_list = []
-        #         for k, v in selection_like.items():
-        #             if not isinstance(v, tuple):
-        #                 v = (v,)
-        #             selection_list.append("{} LIKE '%{}%'".format(k, "%".join(v)))
-        #         print(selection_list)
-        #         dj.AndList(selection_list)
-        #         selection_keys = set("comment")
-        #         for k in selection_like.keys():
-        #             if k.startswith("NOT"):
-        #                 selection_keys.add(k[4:])
-        #             else:
-        #                 selection_keys.add(k)
-        #         fetched += (table & selection_list).fetch("output", *selection_keys, as_dict=True)
-        #     else:
-        #         fetched += table.fetch("output", "comment", as_dict=True)
+        fetched = []
+        for description, config in configs.items():
+            restricted = table & config.get_restrictions()[transfer_level]
+            if restricted:  # could be empty if entry is not computed yet
+                fetch_res = restricted.fetch1("output", *self.keys_to_fetch)
+                fetched.append((description.name,)+fetch_res)
 
         # Reformat to display nicely/ access easily:
-        df = pd.DataFrame(fetched).transpose()
-        df = df.rename(columns={1: "comment"})
-        df = pd.concat([df.drop([0], axis=1), df[0].apply(pd.Series)], axis=1)
+        df = pd.DataFrame(fetched)
+        df = df.rename(columns={0: "name",2: "comment"})
+        df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
         df = df.rename(columns={0: "training_progress"})
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
-        df['name'] = df.index  # Final Results
         return df
-
-    # def _remap_comments(self, df, comment_map):
-    #     # reformat comment
-    #     def remap(c):
-    #         for k, v in comment_map.items():
-    #             if isinstance(k, tuple):
-    #                 match = True
-    #                 for sub_k in k:
-    #                     if sub_k not in c:
-    #                         match = False
-    #                 if match:
-    #                     return v
-    #             else:
-    #                 if k == c:
-    #                     return v
-    #                 elif c.startswith(k):
-    #                     return v
-    #                 elif k in c:
-    #                     return v
-    #         print(c)
-    #         print("********")
-    #         return c
-    #
-    #     df["comment"] = df["comment"].map(remap)
-    #     return df
-    #
-    # def _reformat_comments(self, df, reformat_comment):
-    #     # reformat comment
-    #     def reformat(comment):
-    #         for remove in reformat_comment:
-    #             s_pos = comment.find(remove)
-    #             if s_pos == -1:
-    #                 continue
-    #             comment = comment[:s_pos] + comment[s_pos + len(remove):]
-    #         return comment
-    #
-    #     df["comment"] = df["comment"].map(reformat)
-    #     if "transfer_comment" in df.columns:
-    #         df["transfer_comment"] = df["transfer_comment"].map(reformat)
-    #         df["comment"] = df["comment"] + "\nTRANSFER." + df["transfer_comment"]
-    #     df["comment"] = df["comment"].map(lambda x: "default" if x == "" else x)
-    #     df = df.sort_values(by=['comment'])
-    #     return df
 
     def plot(self,
              to_plot="dev_noise_acc",
@@ -136,6 +68,7 @@ class Analyzer:
             sns.set()
             sns.set_context("talk")
             plt.style.use("dark_background")
+            # mpl.rcParams["axes.labelsize"] = 0.1
             # sns.set_palette("pastel")
             fig, ax = plt.subplots(figsize=self.fs, dpi=self.dpi)
         # Plot
@@ -169,8 +102,9 @@ class Analyzer:
             plot_method(x="epoch", y="score", hue="name", data=data, ax=ax)
 
         sns.despine(offset=10, trim=True)
-        plt.setp(ax.get_legend().get_texts(), fontsize='10')
-        plt.setp(ax.get_legend().get_title(), fontsize='12')
+        plt.legend(fontsize=14, title_fontsize='14')
+        # plt.setp(ax.get_legend().get_texts(), fontsize='12')
+        # plt.setp(ax.get_legend().get_title(), fontsize='12')
         # plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         if save:
             fig.savefig(save, facecolor=fig.get_facecolor(), edgecolor=fig.get_edgecolor(), bbox_inches='tight')

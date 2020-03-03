@@ -142,9 +142,9 @@ class ResNet(nn.Module):
         self.linear_readout = nn.Linear(512 * block.expansion, num_classes)
 
     def forward(self, x, compute_corr: bool = False, seed: int = None):
-        out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
-        out = self.linear_readout(out)
-        return out, corr_matrices
+        core_out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
+        out = self.linear_readout(core_out)
+        return {"logits": out, "conv_rep": core_out, "corr_matrices": corr_matrices}
 
     def freeze(self, selection=("core",)):
         if selection is True or "core" in selection:
@@ -152,4 +152,3 @@ class ResNet(nn.Module):
         elif "readout" in selection:
             for param in self.linear_readout.parameters():
                 param.requires_grad = False
-

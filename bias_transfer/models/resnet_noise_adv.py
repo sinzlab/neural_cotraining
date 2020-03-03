@@ -24,9 +24,17 @@ def grad_reverse(x, lambda_p):
 
 
 class NoiseAdvResNet(ResNet):
-    def __init__(self, block, num_blocks, num_classes: int = 10, classification: bool = False):
+    def __init__(self, block, num_blocks, num_classes: int = 10, classification: bool = False,
+                 adv_readout_layers: int = 1):
         super().__init__(block, num_blocks, num_classes=num_classes)
-        self.noise_readout = nn.Linear(512 * block.expansion, 1)
+        readout_layers = []
+        for i in range(1, adv_readout_layers):
+            readout_layers.append(nn.Linear(512 * block.expansion, 512 * block.expansion))
+            readout_layers.append(nn.ReLU())
+        readout_layers.append(nn.Linear(512 * block.expansion, 1))
+        self.noise_readout = nn.Sequential(
+            *readout_layers
+        )
         self.classification = classification
 
     def forward(self, x, compute_corr: bool = False, seed: int = None, noise_lambda=None):
@@ -35,4 +43,4 @@ class NoiseAdvResNet(ResNet):
         noise_out = self.noise_readout(grad_reverse(core_out, noise_lambda))  # additional noise prediction
         if self.classification:
             noise_out = F.sigmoid(noise_out)
-        return out, corr_matrices, noise_out
+        return {"logits": out, "conv_rep": core_out, "corr_matrices": corr_matrices, "noise_pred": noise_out}
