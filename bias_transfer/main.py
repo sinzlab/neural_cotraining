@@ -20,8 +20,10 @@ from bias_transfer.tables.trained_transfer_model import *
 
 
 def fill_tables(configs: dict):
-    architect = dict(fabrikant_name="Arne Nix", email="arnenix@googlemail.com", affiliation="sinzlab",
-                     dj_username="anix")
+    architect = dict(fabrikant_name=os.environ['USER'],
+                     email=os.environ['EMAIL'],
+                     affiliation=os.environ['AFFILIATION'],
+                     dj_username=os.environ['DJ_USER'])
     Fabrikant().insert1(architect, skip_duplicates=True)
     for config in configs.values():
         config.add_to_table()
@@ -51,15 +53,13 @@ def analyze(configs, train_table):
 
 
 if __name__ == "__main__":
-    # from bias_transfer.experiments.noise_adv_training import configs
-    # from bias_transfer.experiments.logit_matching import configs
     from bias_transfer.experiments.representation_matching import experiments as rep_configs
-    from bias_transfer.experiments.noise_adv_training import experiments as adv_configs
+    # from bias_transfer.experiments.noise_adv_training import experiments as adv_configs
     from bias_transfer.experiments.self_attention import experiments as attn_configs
 
     fill_tables(rep_configs)
-    fill_tables(adv_configs)
+    # fill_tables(adv_configs)
     fill_tables(attn_configs)
     run_all_experiments(rep_configs)
-    run_all_experiments(adv_configs)
+    # run_all_experiments(adv_configs)
     run_all_experiments(attn_configs)
