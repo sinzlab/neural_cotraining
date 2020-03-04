@@ -1,13 +1,14 @@
-from . import Description
-from bias_transfer.configs.config import Config
-from bias_transfer.configs.experiment import Experiment
+from . import Description, TransferExperiment, Experiment
 from bias_transfer.configs import model, dataset, trainer
 from . import baseline
 
-configs = {}
 experiments = {}
+transfer_experiments = {}
 
-for seed in (42, 8, 13):
+for seed in (42,
+             # 8,
+             # 13
+             ):
     # Noise augmentation:
     for noise_type in (
             {"add_noise": True, "noise_snr": None,
@@ -24,8 +25,8 @@ for seed in (42, 8, 13):
                                 "second_noise_std": {(0, 1.0): 1.0},
                                 "lambda": reg_factor}
             name = "Noise Augmented + Repr. Matching ({})".format(reg_factor)
-            configs[
-                Description(name=name, seed=seed)] = Config(
+            experiments[
+                Description(name=name, seed=seed)] = Experiment(
                 dataset=dataset.CIFAR100(description="Default"),
                 model=model.CIFAR100(description="Default"),
                 trainer=trainer.TrainerConfig(description=name,
@@ -36,12 +37,12 @@ for seed in (42, 8, 13):
                 seed=seed)
 
             # The transfer experiments:
-            experiments[Description(name=name, seed=seed)] = Experiment(
+            transfer_experiments[Description(name=name, seed=seed)] = TransferExperiment(
                 [
-                    baseline.configs[Description(name="Noise Augmented", seed=seed)],
-                    configs[Description(name=name, seed=seed)],
-                    baseline.configs[Description(name="Transfer", seed=seed)]])
-            experiments[Description(name=name + " -> Reset ", seed=seed)] = Experiment(
+                    baseline.experiments[Description(name="Noise Augmented", seed=seed)],
+                    experiments[Description(name=name, seed=seed)],
+                    baseline.experiments[Description(name="Transfer", seed=seed)]])
+            transfer_experiments[Description(name=name + " -> Reset ", seed=seed)] = TransferExperiment(
                 [
-                    configs[Description(name=name, seed=seed)],
-                    baseline.configs[Description(name="Transfer + Reset", seed=seed)]])
+                    experiments[Description(name=name, seed=seed)],
+                    baseline.experiments[Description(name="Transfer + Reset", seed=seed)]])

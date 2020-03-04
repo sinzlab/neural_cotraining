@@ -1,27 +1,25 @@
-from . import Description
-from bias_transfer.configs.config import Config
-from bias_transfer.configs.experiment import Experiment
+from . import Experiment, TransferExperiment, Description
 from bias_transfer.configs import model, dataset, trainer
 
-configs = {}
 experiments = {}
+transfer_experiments = {}
 
 for seed in (42,):
     # Clean baseline:
-    configs[Description(name="Convolution", seed=seed)] = Config(
+    experiments[Description(name="Convolution", seed=seed)] = Experiment(
         dataset=dataset.CIFAR100(description="Default", batch_size=64),
         model=model.CIFAR100(description="Default", type=26),
         trainer=trainer.TrainerConfig(description="Default"),
         seed=seed)
-    configs[Description(name="Self-Attention", seed=seed)] = Config(
+    experiments[Description(name="Self-Attention", seed=seed)] = Experiment(
         dataset=dataset.CIFAR100(description="Default", batch_size=64),
         model=model.CIFAR100(description="Self-Attention", self_attention=True, type=26),
         trainer=trainer.TrainerConfig(description="Default"),
         seed=seed)
-    experiments[Description(name="Convolution", seed=seed)] = Experiment(
-        [configs[Description(name="Convolution", seed=seed)]])
-    experiments[Description(name="Self-Attention", seed=seed)] = Experiment(
-        [configs[Description(name="Self-Attention", seed=seed)]])
+    transfer_experiments[Description(name="Convolution", seed=seed)] = TransferExperiment(
+        [experiments[Description(name="Convolution", seed=seed)]])
+    transfer_experiments[Description(name="Self-Attention", seed=seed)] = TransferExperiment(
+        [experiments[Description(name="Self-Attention", seed=seed)]])
 
     #
     # # Transfer back to clean data:

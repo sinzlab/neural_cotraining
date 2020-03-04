@@ -35,14 +35,19 @@ class Analyzer:
         # Select data:
         fetched = []
         for description, config in configs.items():
-            restricted = table & config.get_restrictions()[transfer_level]
+            if transfer_level < len(config.get_restrictions()):
+                restricted = table & config.get_restrictions()[transfer_level]
+            else:
+                restricted = None
             if restricted:  # could be empty if entry is not computed yet
                 fetch_res = restricted.fetch1("output", *self.keys_to_fetch)
-                fetched.append((description.name,)+fetch_res)
+                fetched.append((description.name,) + fetch_res)
 
         # Reformat to display nicely/ access easily:
         df = pd.DataFrame(fetched)
-        df = df.rename(columns={0: "name",2: "comment"})
+        if not fetched:
+            return df
+        df = df.rename(columns={0: "name", 2: "comment"})
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
         df = df.rename(columns={0: "training_progress"})
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)

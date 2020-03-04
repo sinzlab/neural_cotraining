@@ -1,27 +1,25 @@
-from . import Description
-from bias_transfer.configs.config import Config
-from bias_transfer.configs.experiment import Experiment
+from . import Description, Experiment, TransferExperiment
 from bias_transfer.configs import model, dataset, trainer
 
-configs = {}
 experiments = {}
+transfer_experiments = {}
 
 for seed in (8, 13, 42):
     # Clean baseline:
-    configs[Description(name="Clean", seed=seed)] = Config(
+    experiments[Description(name="Clean", seed=seed)] = Experiment(
         dataset=dataset.CIFAR100(description="Default"),
         model=model.CIFAR100(description="Default"),
         trainer=trainer.TrainerConfig(description="Default"),
         seed=seed)
-    experiments[Description(name="Clean", seed=seed)] = configs[Description(name="Clean", seed=seed)]
+    transfer_experiments[Description(name="Clean", seed=seed)] = experiments[Description(name="Clean", seed=seed)]
 
     # Transfer back to clean data:
-    configs[Description(name="Transfer", seed=seed)] = Config(
+    experiments[Description(name="Transfer", seed=seed)] = Experiment(
         dataset=dataset.CIFAR100(description="Default"),
         model=model.CIFAR100(description="Default"),
         trainer=trainer.TrainerConfig(description="Transfer", freeze=("core",)),
         seed=seed)
-    configs[Description(name="Transfer + Reset", seed=seed)] = Config(
+    experiments[Description(name="Transfer + Reset", seed=seed)] = Experiment(
         dataset=model.CIFAR100(description="Default"),
         model=model.CIFAR100(description="Default"),
         trainer=trainer.TrainerConfig(description="Transfer + Reset", freeze=("core",), reset_linear=True),
@@ -38,16 +36,16 @@ for seed in (8, 13, 42):
             {"add_noise": True, "noise_snr": None,
              "noise_std": {0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5}},
     ):
-        configs[Description(name="Noise Augmented", seed=seed)] = Config(
+        experiments[Description(name="Noise Augmented", seed=seed)] = Experiment(
             dataset=dataset.CIFAR100(description="Default"),
             model=model.CIFAR100(description="Default"),
             trainer=trainer.TrainerConfig(description="Noise Augmented", **noise_type),
             seed=seed)
 
         # The transfer experiments:
-        experiments[Description(name="Noise Augmented", seed=seed)] = Experiment(
-            [configs[Description(name="Noise Augmented", seed=seed)],
-             configs[Description(name="Transfer", seed=seed)]])
-        experiments[Description(name="Noise Augmented -> Reset", seed=seed)] = Experiment(
-            [configs[Description(name="Noise Augmented", seed=seed)],
-             configs[Description(name="Transfer + Reset", seed=seed)]])
+        transfer_experiments[Description(name="Noise Augmented", seed=seed)] = TransferExperiment(
+            [experiments[Description(name="Noise Augmented", seed=seed)],
+             experiments[Description(name="Transfer", seed=seed)]])
+        transfer_experiments[Description(name="Noise Augmented -> Reset", seed=seed)] = TransferExperiment(
+            [experiments[Description(name="Noise Augmented", seed=seed)],
+             experiments[Description(name="Transfer + Reset", seed=seed)]])
