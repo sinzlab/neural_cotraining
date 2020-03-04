@@ -4,6 +4,16 @@ import numpy as np
 from bias_transfer.configs.model import ModelConfig
 
 
+def get_model_parameters(model):
+    total_parameters = 0
+    for layer in list(model.parameters()):
+        layer_parameter = 1
+        for l in list(layer.size()):
+            layer_parameter *= l
+        total_parameters += layer_parameter
+    return total_parameters
+
+
 def resnet_builder(data_loader,
                    seed: int,
                    **config):
@@ -40,8 +50,10 @@ def resnet_builder(data_loader,
         raise KeyError
     if config.noise_adv_regression or config.noise_adv_classification:
         assert not config.self_attention
-        return NoiseAdvResNet(block, num_blocks, num_classes=config.num_classes,
+        model = NoiseAdvResNet(block, num_blocks, num_classes=config.num_classes,
                               classification=config.noise_adv_classification,
                               adv_readout_layers=config.num_noise_adv_layers)
     else:
-        return ResNet(block, num_blocks, num_classes=config.num_classes)
+        model = ResNet(block, num_blocks, num_classes=config.num_classes)
+    print("Model with {} parameters.".format(get_model_parameters(model)))
+    return model

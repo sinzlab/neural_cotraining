@@ -111,25 +111,3 @@ class ResNet(nn.Module):
 
         return {"logits": out, "conv_rep": core_out}
 
-
-def ResNet26(num_classes=1000, stem=False):
-    return Model(Bottleneck, [1, 2, 4, 1], num_classes=num_classes, stem=stem)
-
-
-def ResNet38(num_classes=1000, stem=False):
-    return Model(Bottleneck, [2, 3, 5, 2], num_classes=num_classes, stem=stem)
-
-
-def get_model_parameters(model):
-    total_parameters = 0
-    for layer in list(model.parameters()):
-        layer_parameter = 1
-        for l in list(layer.size()):
-            layer_parameter *= l
-        total_parameters += layer_parameter
-    return total_parameters
-
-
-# temp = torch.randn((2, 3, 224, 224))
-# model = ResNet38(num_classes=1000, stem=True)
-# print(get_model_parameters(model))
