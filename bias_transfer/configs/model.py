@@ -8,7 +8,6 @@ class ModelConfig(BaseConfig):
     config_name = "model"
     table = Model()
     fn = "bias_transfer.models.resnet_builder"
-    fabrikant = "Arne Nix"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

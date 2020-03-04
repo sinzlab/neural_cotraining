@@ -2,11 +2,9 @@ import os
 import json
 import copy
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict
 
-import datajoint as dj
 from nnfabrik.utility.dj_helpers import make_hash
-from bias_transfer.utils import stringify
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,6 @@ class BaseConfig(object):
     config_name = ""
     table = None
     fn = None
-    fabrikant = ""
 
     def __init__(self, **kwargs):
         self.description = kwargs.pop("description")

@@ -1,4 +1,6 @@
-from . import Description, Experiment, TransferExperiment
+from . import Description
+from bias_transfer.configs.transfer_experiment import TransferExperiment
+from bias_transfer.configs.experiment import Experiment
 from bias_transfer.configs import model, dataset, trainer
 
 experiments = {}

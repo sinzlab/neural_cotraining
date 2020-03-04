@@ -1,5 +1,3 @@
-from functools import partial
-
 from .base import BaseConfig
 from nnfabrik.main import *
 
@@ -8,7 +6,6 @@ class DatasetConfig(BaseConfig):
     config_name = "dataset"
     table = Dataset()
     fn = "bias_transfer.dataset.dataset_loader"
-    fabrikant = "Arne Nix"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

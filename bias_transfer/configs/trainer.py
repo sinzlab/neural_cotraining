@@ -8,7 +8,6 @@ class TrainerConfig(BaseConfig):
     config_name = "trainer"
     table = Trainer()
     fn = "bias_transfer.trainer.trainer"
-    fabrikant = "Arne Nix"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
