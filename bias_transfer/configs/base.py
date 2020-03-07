@@ -22,8 +22,6 @@ class BaseConfig(object):
 
     def __init__(self, **kwargs):
         self.description = kwargs.pop("description")
-        if self.description == "Default":
-            self.description = ""
 
     def __getattribute__(self, name):
         try:

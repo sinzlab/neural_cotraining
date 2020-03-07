@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from .main_loop_extra import MainLoopModule
+from .main_loop_module import MainLoopModule
 
 
 class NoiseAugmentation(MainLoopModule):

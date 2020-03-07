@@ -1,6 +1,6 @@
 from . import Description
-from bias_transfer.bias_transfer.configs.transfer_experiment import TransferExperiment
-from bias_transfer.bias_transfer.configs.experiment import Experiment
+from bias_transfer.configs.transfer_experiment import TransferExperiment
+from bias_transfer.configs.experiment import Experiment
 from bias_transfer.configs import model, dataset, trainer
 from . import baseline
 
@@ -20,7 +20,7 @@ for seed in (42,
         for reg_factor in (
                 1.0,
                 10.0,
-                100.0,
+                5.0,
         ):
             matching_options = {"representation": "conv_rep",
                                 "criterion": "cosine",
@@ -29,8 +29,8 @@ for seed in (42,
             name = "Noise Augmented + Repr. Matching ({})".format(reg_factor)
             experiments[
                 Description(name=name, seed=seed)] = Experiment(
-                dataset=dataset.CIFAR100(description="Default"),
-                model=model.CIFAR100(description="Default"),
+                dataset=dataset.CIFAR100(description=""),
+                model=model.CIFAR100(description=""),
                 trainer=trainer.TrainerConfig(description=name,
                                               representation_matching=matching_options,
                                               # freeze=("readout",),

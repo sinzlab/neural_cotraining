@@ -9,14 +9,14 @@ transfer_experiments = {}
 for seed in (42,):
     # Clean baseline:
     experiments[Description(name="Convolution", seed=seed)] = Experiment(
-        dataset=dataset.CIFAR100(description="Default", batch_size=64),
-        model=model.CIFAR100(description="Default", type=26),
-        trainer=trainer.TrainerConfig(description="Default"),
+        dataset=dataset.CIFAR100(description="", batch_size=64),
+        model=model.CIFAR100(description="", type=26),
+        trainer=trainer.TrainerConfig(description=""),
         seed=seed)
     experiments[Description(name="Self-Attention", seed=seed)] = Experiment(
-        dataset=dataset.CIFAR100(description="Default", batch_size=64),
+        dataset=dataset.CIFAR100(description="", batch_size=64),
         model=model.CIFAR100(description="Self-Attention", self_attention=True, type=26),
-        trainer=trainer.TrainerConfig(description="Default"),
+        trainer=trainer.TrainerConfig(description=""),
         seed=seed)
     transfer_experiments[Description(name="Convolution", seed=seed)] = TransferExperiment(
         [experiments[Description(name="Convolution", seed=seed)]])

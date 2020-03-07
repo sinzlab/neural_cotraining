@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from functools import partial
 
-from .main_loop_extra import MainLoopModule
+from .main_loop_module import MainLoopModule
 
 
 class RandomReadoutReset(MainLoopModule):

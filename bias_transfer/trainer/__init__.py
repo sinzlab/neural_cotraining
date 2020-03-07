@@ -46,7 +46,7 @@ def main_loop(model, criterion, device, optimizer, data_loader, epoch: int, modu
                 for module in modules:
                     outputs, loss = module.post_forward(outputs, loss, module_losses, train_mode=train_mode,
                                                         **shared_memory)
-                loss = criterion(outputs["logits"], targets)
+                loss += criterion(outputs["logits"], targets)
                 epoch_loss += loss.item()
                 # Book-keeping
                 _, predicted = outputs["logits"].max(1)

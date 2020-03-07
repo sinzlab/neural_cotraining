@@ -44,7 +44,7 @@ for seed in (8,
                     name += " (lambda {} gamma {})".format(loss_factor, gamma)
                     experiments[
                         Description(name=name, seed=seed)] = Experiment(
-                        dataset=dataset.CIFAR100(description="Default"),
+                        dataset=dataset.CIFAR100(description=""),
                         model=m,
                         trainer=trainer.TrainerConfig(description=name,
                                                       noise_adv_loss_factor=loss_factor,
