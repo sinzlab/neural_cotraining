@@ -2,10 +2,11 @@
 Initial setup based on https://github.com/kuangliu/pytorch-cifar
 and https://github.com/weiaicunzai/pytorch-cifar100
 """
-
+from datetime import datetime
 import os
 import copy
 import datajoint as dj
+from datajoint.errors import LostConnectionError
 
 dj.config['database.host'] = os.environ['DJ_HOST']
 dj.config['database.user'] = os.environ['DJ_USER']
@@ -35,7 +36,10 @@ def run_experiments(configs, train_table, order="random", level=0):
         restr = config.get_restrictions()
         if len(restr) > level:
             restrictions.append(restr[level])
-    train_table.populate(restrictions, display_progress=True, reserve_jobs=True, order=order)
+    try:
+        train_table.populate(restrictions, display_progress=True, reserve_jobs=True, order=order)
+    except LostConnectionError:
+        raise LostConnectionError("Connection to database lost at {}".format(datetime.now()))
 
 
 def run_all_experiments(configs):
