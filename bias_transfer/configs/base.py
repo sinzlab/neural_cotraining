@@ -124,9 +124,22 @@ class BaseConfig(object):
             :class:`BaseConfig`: An instance of a configuration object
 
         """
+
+        def decode_keys(sub_dict):
+            if not isinstance(sub_dict, dict):
+                return sub_dict
+            new_dict = {}
+            for k, v in sub_dict.items():
+                if not isinstance(k, str) and ("{" in k or "(" in k or "[" in k):
+                    new_dict[eval(k)] = decode_keys(v)
+                else:
+                    new_dict[k] = decode_keys(v)
+            return new_dict
+
         with open(json_file, "r", encoding="utf-8") as reader:
             text = reader.read()
         config_dict = json.loads(text)
+        config_dict = decode_keys(config_dict)
         return cls.from_dict(config_dict)
 
     def __eq__(self, other):
@@ -152,7 +165,21 @@ class BaseConfig(object):
         Returns:
             :obj:`string`: String containing all the attributes that make up this configuration instance in JSON format.
         """
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+
+        def encode_keys(sub_dict):
+            if not isinstance(sub_dict, dict):
+                return sub_dict
+            new_dict = {}
+            for k, v in sub_dict.items():
+                if not isinstance(k, (str, float, bool, int)):
+                    new_dict[str(k)] = encode_keys(v)
+                else:
+                    new_dict[k] = encode_keys(v)
+            return new_dict
+
+        dict_rep = self.to_dict()
+        dict_rep = encode_keys(dict_rep)
+        return json.dumps(dict_rep, indent=2, sort_keys=True) + "\n"
 
     def to_json_file(self, json_file_path):
         """
