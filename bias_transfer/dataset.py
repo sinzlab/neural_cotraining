@@ -3,8 +3,13 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
-
+import torchvision
+from torchvision import datasets
 from bias_transfer.configs.dataset import DatasetConfig
+import os
+import zipfile
+import requests
+from io import BytesIO
 
 
 def compute_mean_std(train_set):
@@ -21,6 +26,45 @@ def compute_mean_std(train_set):
     std = np.std(train_set.dataset.data, axis=(0, 1, 2)) / 255
     return mean, std
 
+
+def create_ImageFolder_format(dataset_dir):
+    '''
+    This method is responsible for separating validation images into separate sub folders
+    '''
+    val_dir = os.path.join(dataset_dir, 'val')
+    img_dir = os.path.join(val_dir, 'images')
+
+    fp = open(os.path.join(val_dir, 'val_annotations.txt'), 'r')
+    data = fp.readlines()
+    val_img_dict = {}
+    for line in data:
+        words = line.split('\t')
+        val_img_dict[words[0]] = words[1]
+    fp.close()
+
+    # Create folder if not present and move images into proper folders
+    for img, folder in val_img_dict.items():
+        newpath = (os.path.join(img_dir, folder))
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
+        if os.path.exists(os.path.join(img_dir, img)):
+            os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
+
+
+def download_images(url, data_dir):
+    dataset_dir = data_dir + 'tiny-imagenet-200/'
+    if os.path.isdir(dataset_dir):
+        print ('Images already downloaded...')
+        return dataset_dir
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    r = requests.get(url, stream=True)
+    print ('Downloading ' + url )
+    zip_ref = zipfile.ZipFile(BytesIO(r.content))
+    zip_ref.extractall(data_dir)
+    zip_ref.close()
+    create_ImageFolder_format(dataset_dir)
+    return dataset_dir
 
 def dataset_loader(seed, **config):
     """
@@ -50,12 +94,11 @@ def dataset_loader(seed, **config):
     config = DatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
-
     transform_list_base = [transforms.ToTensor()]
     if config.apply_normalization:
         transform_list_base += [transforms.Normalize(config.train_data_mean, config.train_data_std)]
     if config.apply_augmentation:
-        transform_list = [transforms.RandomCrop(32, padding=4),
+        transform_list = [transforms.RandomCrop(config.input_size, padding=4),
                           transforms.RandomHorizontalFlip(),
                           transforms.RandomRotation(15),
                           ] + transform_list_base
@@ -68,21 +111,36 @@ def dataset_loader(seed, **config):
     assert ((config.valid_size >= 0) and (config.valid_size <= 1)), error_msg
 
     # load the dataset
-    dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
-    train_dataset = dataset_cls(
-        root=config.data_dir, train=True,
-        download=True, transform=transform_train,
-    )
+    if config.dataset_cls in list(torchvision.datasets.__dict__.keys()):
+        dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
+        train_dataset = dataset_cls(
+            root=config.data_dir, train=True,
+            download=True, transform=transform_train,
+        )
 
-    valid_dataset = dataset_cls(
-        root=config.data_dir, train=True,
-        download=True, transform=transform_base,
-    )
+        valid_dataset = dataset_cls(
+            root=config.data_dir, train=True,
+            download=True, transform=transform_base,
+        )
 
-    test_dataset = dataset_cls(
-        root=config.data_dir, train=False,
-        download=True, transform=transform_base,
-    )
+        test_dataset = dataset_cls(
+            root=config.data_dir, train=False,
+            download=True, transform=transform_base,
+        )
+    else:
+        dataset_dir = download_images('http://cs231n.stanford.edu/tiny-imagenet-200.zip',
+                        config.data_dir)
+
+        train_dir = os.path.join(dataset_dir, 'train')
+        val_dir = os.path.join(dataset_dir, 'val', 'images')
+
+        train_dataset = datasets.ImageFolder(train_dir, transform=transform_train)
+
+        valid_dataset = datasets.ImageFolder(train_dir, transform=transform_base)
+
+        test_dataset =  datasets.ImageFolder(val_dir,
+                                        transform=transform_base)
+
 
     num_train = len(train_dataset)
     indices = list(range(num_train))
@@ -104,21 +162,22 @@ def dataset_loader(seed, **config):
         valid_dataset, batch_size=config.batch_size, sampler=valid_sampler,
         num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
     )
+
     test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=config.batch_size,
         num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
-    )
+        )
 
     # visualize some images
-    if config.show_sample:
-        sample_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=9, shuffle=config.shuffle,
-            num_workers=config.num_workers, pin_memory=config.pin_memory,
-        )
-        data_iter = iter(sample_loader)
-        images, labels = data_iter.next()
-        X = images.numpy().transpose([0, 2, 3, 1])
-        plot_images(X, labels)
+    #if config.show_sample:
+        #sample_loader = torch.utils.data.DataLoader(
+        #    train_dataset, batch_size=9, shuffle=config.shuffle,
+        #    num_workers=config.num_workers, pin_memory=config.pin_memory,
+        #)
+        #data_iter = iter(sample_loader)
+        #images, labels = data_iter.next()
+        #X = images.numpy().transpose([0, 2, 3, 1])
+        #plot_images(X, labels)
 
     return {"train": train_loader,
             "val": valid_loader,
