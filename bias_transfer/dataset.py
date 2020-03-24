@@ -3,7 +3,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
-import torchvision
 from torchvision import datasets
 from bias_transfer.configs.dataset import DatasetConfig
 import os
@@ -27,9 +26,12 @@ def compute_mean_std(train_set):
     return mean, std
 
 
-def create_ImageFolder_format(dataset_dir):
+def create_ImageFolder_format(dataset_dir: str):
     '''
     This method is responsible for separating validation images into separate sub folders
+
+    Args:
+        dataset_dir (str): "/path_to_your_dataset/dataset_folder"
     '''
     val_dir = os.path.join(dataset_dir, 'val')
     img_dir = os.path.join(val_dir, 'images')
@@ -51,8 +53,20 @@ def create_ImageFolder_format(dataset_dir):
             os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
 
 
-def download_images(url, data_dir):
-    dataset_dir = data_dir + 'tiny-imagenet-200/'
+def download_images(url: str, data_dir: str, dataset_folder: str = 'tiny-imagenet-200/') -> str:
+    '''
+    Downloads the dataset from an online downloadable link and
+    sets up the folders according to torch ImageFolder required
+    format
+
+    Args:
+        url (str): download link of the dataset from the internet
+        data_dir (str): the directory where to download the dataset
+        dataset_folder (str): name of the dataset's folder
+    Returns:
+        dataset_dir (str): full path to the dataset incl. dataset folder
+    '''
+    dataset_dir = data_dir + dataset_folder
     if os.path.isdir(dataset_dir):
         print ('Images already downloaded...')
         return dataset_dir
@@ -166,17 +180,6 @@ def dataset_loader(seed, **config):
         test_dataset, batch_size=config.batch_size,
         num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
         )
-
-    # visualize some images
-    #if config.show_sample:
-        #sample_loader = torch.utils.data.DataLoader(
-        #    train_dataset, batch_size=9, shuffle=config.shuffle,
-        #    num_workers=config.num_workers, pin_memory=config.pin_memory,
-        #)
-        #data_iter = iter(sample_loader)
-        #images, labels = data_iter.next()
-        #X = images.numpy().transpose([0, 2, 3, 1])
-        #plot_images(X, labels)
 
     return {"train": train_loader,
             "val": valid_loader,
