@@ -131,6 +131,11 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             optimizer = optim.Adam(model.parameters(),
                                    lr=config.lr,
                                    weight_decay=config.weight_decay)
+        elif config.optimizer == "RMSprop":
+            optimizer = optim.RMSprop(model.parameters(),
+                                  lr=config.lr,
+                                  momentum=config.momentum,
+                                  weight_decay=config.weight_decay)
         else:
             optimizer = optim.SGD(model.parameters(),
                                   lr=config.lr,
