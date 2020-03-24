@@ -15,6 +15,7 @@ class ModelConfig(BaseConfig):
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
         self.type = kwargs.pop("type", 50)
         self.input_size = kwargs.pop("input_size", 32)
+        self.conv_stem_kernel_size = kwargs.pop("conv_stem_kernel_size", 3)
         self.num_classes = kwargs.pop("num_classes", 100)
         self.update(**kwargs)
 
@@ -32,5 +33,5 @@ class CIFAR10(ModelConfig):
 class TinyImageNet(ModelConfig):
     def __init__(self, **kwargs):
         kwargs.pop("num_classes", None)
-        super().__init__(num_classes=200, input_size=64, **kwargs)
+        super().__init__(num_classes=200, input_size=64, conv_stem_kernel_size=5, **kwargs)
 

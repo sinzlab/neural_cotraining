@@ -25,8 +25,10 @@ def grad_reverse(x, lambda_p):
 
 class NoiseAdvResNet(ResNet):
     def __init__(self, block, num_blocks, num_classes: int = 10, classification: bool = False,
-                 adv_readout_layers: int = 1, input_size: int = 32):
-        super().__init__(block, num_blocks, num_classes=num_classes, input_size=input_size)
+                 adv_readout_layers: int = 1, input_size: int = 32,
+                 conv_stem_kernel_size: int = 3):
+        super().__init__(block, num_blocks, num_classes=num_classes, input_size=input_size,
+                         conv_stem_kernel_size=conv_stem_kernel_size)
         readout_layers = []
         for i in range(1, adv_readout_layers):
             readout_layers.append(nn.Linear(512 * block.expansion, 512 * block.expansion))

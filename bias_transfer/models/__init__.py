@@ -53,8 +53,10 @@ def resnet_builder(data_loader,
         model = NoiseAdvResNet(block, num_blocks, num_classes=config.num_classes,
                               classification=config.noise_adv_classification,
                               adv_readout_layers=config.num_noise_adv_layers,
-                               input_size=config.input_size)
+                               input_size=config.input_size,
+                               conv_stem_kernel_size=config.conv_stem_kernel_size)
     else:
-        model = ResNet(block, num_blocks, num_classes=config.num_classes, input_size=config.input_size)
+        model = ResNet(block, num_blocks, num_classes=config.num_classes, input_size=config.input_size,
+                       conv_stem_kernel_size=config.conv_stem_kernel_size)
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
