@@ -12,8 +12,9 @@ dj.config['database.host'] = os.environ['DJ_HOST']
 dj.config['database.user'] = os.environ['DJ_USER']
 dj.config['database.password'] = os.environ['DJ_PASS']
 dj.config['enable_python_native_blobs'] = True
-dj.config['schema_name'] = "shahd_tinyimgnet_baseline_resnet"
-
+dj.config['schema_name'] = "anix_nnfabrik_bias_transfer1"
+# dj.config['schema_name'] = "anix_nnfabrik_bias_transfer_adv_noise"
+# dj.config['schema_name'] = "anix_nnfabrik_bias_transfer_test"
 
 from bias_transfer.tables.trained_model import *
 from bias_transfer.tables.trained_transfer_model import *
@@ -56,12 +57,13 @@ def analyze(configs, train_table):
 
 
 if __name__ == "__main__":
-    # from bias_transfer.experiments.representation_matching import experiments as rep_configs
-    # # from bias_transfer.experiments.noise_adv_training import experiments as adv_configs
-    # from bias_transfer.experiments.self_attention import experiments as attn_configs
+    from bias_transfer.experiments.representation_matching import experiments as rep_configs
+    # from bias_transfer.experiments.noise_adv_training import experiments as adv_configs
+    from bias_transfer.experiments.self_attention import experiments as attn_configs
 
-    from bias_transfer.experiments.imgnet_resnet_baseline import experiments as experiment_configs
-
-
-    fill_tables(experiment_configs)
-    run_all_experiments(experiment_configs)
+    fill_tables(rep_configs)
+    # fill_tables(adv_configs)
+    fill_tables(attn_configs)
+    run_all_experiments(rep_configs)
+    # run_all_experiments(adv_configs)
+    run_all_experiments(attn_configs)

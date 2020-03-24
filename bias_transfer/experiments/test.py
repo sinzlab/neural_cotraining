@@ -4,42 +4,32 @@ from bias_transfer.configs.experiment import Experiment
 from bias_transfer.configs import model, dataset, trainer
 
 experiments = {}
-# transfer_experiments = {}
+transfer_experiments = {}
 
 # Clean baseline:
 experiments[Description(name="Clean", seed=42)] = Experiment(
-    dataset=dataset.TinyImageNet(description="Default"),
-    model=model.TinyImageNet(description="Default"),
-    trainer=trainer.TrainerConfig(description="Default", num_epochs=200,
+    dataset=dataset.CIFAR100(description="Default"),
+    model=model.CIFAR100(description="Default"),
+    trainer=trainer.TrainerConfig(description="Default", num_epochs=1,
+                                  noise_test={
+                                      "noise_snr": [{1.0: 1.0}],
+                                      "noise_std": [{0.1: 1.0}]
+                                  }),
+    seed=42)
+transfer_experiments[Description(name="Clean", seed=42)] = experiments[Description(name="Clean", seed=42)]
+
+# Transfer back to clean data:
+experiments[Description(name="Transfer", seed=42)] = Experiment(
+    dataset=dataset.CIFAR100(description="Default"),
+    model=model.CIFAR100(description="Default"),
+    trainer=trainer.TrainerConfig(description="Transfer", freeze=("core",), num_epochs=1,
                                   noise_test={
                                       "noise_snr": [{1.0: 1.0}],
                                       "noise_std": [{0.1: 1.0}]
                                   }),
     seed=42)
 
-# experiments[Description(name="Clean", seed=42)] = Experiment(
-#     dataset=dataset.CIFAR100(description="Default"),
-#     model=model.CIFAR100(description="Default"),
-#     trainer=trainer.TrainerConfig(description="Default", num_epochs=1,
-#                                   noise_test={
-#                                       "noise_snr": [{1.0: 1.0}],
-#                                       "noise_std": [{0.1: 1.0}]
-#                                   }),
-#     seed=42)
-# transfer_experiments[Description(name="Clean", seed=42)] = experiments[Description(name="Clean", seed=42)]
-#
-# # Transfer back to clean data:
-# experiments[Description(name="Transfer", seed=42)] = Experiment(
-#     dataset=dataset.CIFAR100(description="Default"),
-#     model=model.CIFAR100(description="Default"),
-#     trainer=trainer.TrainerConfig(description="Transfer", freeze=("core",), num_epochs=1,
-#                                   noise_test={
-#                                       "noise_snr": [{1.0: 1.0}],
-#                                       "noise_std": [{0.1: 1.0}]
-#                                   }),
-#     seed=42)
-#
-# transfer_experiments[Description(name="Clean -> Transfer", seed=42)] = TransferExperiment(
-#     [experiments[Description(name="Clean", seed=42)],
-#      experiments[Description(name="Transfer", seed=42)]])
+transfer_experiments[Description(name="Clean -> Transfer", seed=42)] = TransferExperiment(
+    [experiments[Description(name="Clean", seed=42)],
+     experiments[Description(name="Transfer", seed=42)]])
 

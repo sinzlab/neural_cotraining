@@ -52,4 +52,3 @@ class TrainerConfig(BaseConfig):
         if self.reset_linear_frequency:
             modules.append("RandomReadoutReset")
         return modules
-

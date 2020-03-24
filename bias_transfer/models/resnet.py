@@ -95,17 +95,14 @@ class Bottleneck(nn.Module):
 
 
 class ResNetCore(nn.Module):
-    def __init__(self, block, num_blocks, input_size):
+    def __init__(self, block, num_blocks):
         super().__init__()
         self.in_planes = 64
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layers = nn.ModuleList()
-        if input_size==32:
-            self.layers.append(self._make_layer(block, 64, num_blocks[0], stride=1))
-        elif input_size==64:
-            self.layers.append(self._make_layer(block, 64, num_blocks[0], stride=2))
+        self.layers.append(self._make_layer(block, 64, num_blocks[0], stride=1))
         self.layers.append(self._make_layer(block, 128, num_blocks[1], stride=2))
         self.layers.append(self._make_layer(block, 256, num_blocks[2], stride=2))
         self.layers.append(self._make_layer(block, 512, num_blocks[3], stride=2))
@@ -139,9 +136,9 @@ class ResNetCore(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, input_size=32):
+    def __init__(self, block, num_blocks, num_classes=10):
         super().__init__()
-        self.core = ResNetCore(block, num_blocks, input_size)
+        self.core = ResNetCore(block, num_blocks)
         self.linear_readout = nn.Linear(512 * block.expansion, num_classes)
 
     def forward(self, x, compute_corr: bool = False, seed: int = None):
