@@ -14,37 +14,58 @@ def get_model_parameters(model):
     return total_parameters
 
 
-def resnet_builder(data_loader,
-                   seed: int,
-                   **config):
+def cnn_builder(data_loader,
+                seed: int,
+                **config):
     config = ModelConfig.from_dict(config)
+    if config.cnn_builder == "vgg":
+        return vgg_builder(seed, config)
+    elif config.cnn_builder == "resnet":
+        return resnet_builder(seed, config)
+
+
+
+def vgg_builder(seed : int, config):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    from .vgg import VGG
+
+    model = VGG(input_size=config.input_size, vgg_type=config.type,
+                num_classes=config.num_classes, pretrained=config.pretrained)
+    print("Model with {} parameters.".format(get_model_parameters(model)))
+    return model
+
+
+def resnet_builder(seed: int,config):
+    #config = ModelConfig.from_dict(config)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    type = int(config.type)
     if config.self_attention:
         from .resnet_self_attention import ResNet, Bottleneck
     else:
         from .resnet import ResNet, Bottleneck, BasicBlock
         from .resnet_noise_adv import NoiseAdvResNet
 
-    if config.type in (18, 34):
+    if type in (18, 34):
         assert not config.self_attention
         block = BasicBlock
     else:
         block = Bottleneck
-    if config.type == 18:
+    if type == 18:
         num_blocks = [2, 2, 2, 2]
-    elif config.type == 26:
+    elif type == 26:
         num_blocks = [1, 2, 4, 1]
-    elif config.type == 34:
+    elif type == 34:
         num_blocks = [3, 4, 6, 3]
-    elif config.type == 38:
+    elif type == 38:
         num_blocks = [2, 3, 5, 2]
-    elif config.type == 50:
+    elif type == 50:
         num_blocks = [3, 4, 6, 3]
-    elif config.type == 101:
+    elif type == 101:
         num_blocks = [3, 4, 23, 3]
-    elif config.type == 152:
+    elif type == 152:
         num_blocks = [3, 8, 36, 3]
     else:
         raise KeyError
