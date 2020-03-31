@@ -41,9 +41,9 @@ class CIFAR10(ModelConfig):
         super().__init__(num_classes=10, **kwargs)
 
 
-class TinyImageNet(ModelConfig):
+class VGG_TinyImageNet(ModelConfig):
     def __init__(self, **kwargs):
         kwargs.pop("num_classes", None)
         super().__init__(num_classes=200, input_size=64,
-                         cnn_builder="resnet", conv_stem_kernel_size=5, **kwargs)
+                         cnn_builder="vgg", type="vgg19_bn", **kwargs)
 

@@ -141,7 +141,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                                   lr=config.lr,
                                   momentum=config.momentum,
                                   weight_decay=config.weight_decay)
-        if config.lr_milestones:
+        if config.adaptive_lr:
+            train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                                   factor=config.lr_decay, patience=10)
+        elif config.lr_milestones:
             train_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                                                              milestones=config.lr_milestones,
                                                              gamma=config.lr_decay
@@ -189,6 +192,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 best_epoch = best_epoch
             if config.lr_milestones:
                 train_scheduler.step(epoch=epoch)
+            elif config.adaptive_lr:
+                train_scheduler.step(dev_loss)
             train_stats.append({"train_acc": train_acc, "train_loss": train_loss, "train_module_loss": train_module_loss,
                                 "dev_acc": dev_acc, "dev_loss": dev_loss, "dev_module_loss": dev_module_loss})
     else:

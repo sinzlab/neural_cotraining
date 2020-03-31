@@ -20,6 +20,7 @@ class TrainerConfig(BaseConfig):
         self.momentum = kwargs.pop("momentum", 0.9)
         self.num_epochs = kwargs.pop("num_epochs", 200)
         self.lr_milestones = kwargs.pop("lr_milestones", (60, 120, 160))
+        self.adaptive_lr = kwargs.pop("adaptive_lr", False)
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)

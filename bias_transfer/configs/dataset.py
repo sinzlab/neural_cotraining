@@ -39,7 +39,8 @@ class CIFAR10(DatasetConfig):
 class TinyImageNet(DatasetConfig):
     def __init__(self, **kwargs):
         kwargs.pop("dataset", None)
-        super().__init__(dataset="TinyImageNet", **kwargs)
+        super().__init__(dataset="TinyImageNet",
+                         apply_data_normalization=True, **kwargs)
         self.train_data_mean = (0.4802, 0.4481, 0.3975) #(0.485, 0.456, 0.406) mean of full ImageNet
         self.train_data_std = (0.2302, 0.2265, 0.2262) #(0.229, 0.224, 0.225) std of full ImageNet
         self.data_dir = kwargs.pop("data_dir", './data/image_classification/')
