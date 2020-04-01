@@ -143,7 +143,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                                   weight_decay=config.weight_decay)
         if config.adaptive_lr:
             train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                                   factor=config.lr_decay, patience=10)
+                                                                   factor=config.lr_decay, patience=config.patience,
+                                                                   threshold=config.threshold,
+                                                                   verbose=config.verbose,)
         elif config.lr_milestones:
             train_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                                                              milestones=config.lr_milestones,

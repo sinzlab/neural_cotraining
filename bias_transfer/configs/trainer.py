@@ -21,6 +21,9 @@ class TrainerConfig(BaseConfig):
         self.num_epochs = kwargs.pop("num_epochs", 200)
         self.lr_milestones = kwargs.pop("lr_milestones", (60, 120, 160))
         self.adaptive_lr = kwargs.pop("adaptive_lr", False)
+        self.patience = kwargs.pop("patience", 10)
+        self.threshold = kwargs.pop("threshold", 0.0001)
+        self.verbose = kwargs.pop("verbose", True)
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)
