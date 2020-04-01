@@ -35,30 +35,28 @@ for seed in (8,
                     name = "Noise"
                     if noise_adv["noise_adv_classification"]:
                         name += " + Adv Classification"
-                        m = model.CIFAR100(description="Noise Adv Classification",
-                                           noise_adv_classification=True)
+                        m = model.ModelConfig(description="Noise Adv Classification",
+                                              dataset_cls="CIFAR100",
+                                              noise_adv_classification=True)
                     else:
                         name += " + Adv Regression"
-                        m = model.CIFAR100(
-                            description="Noise Adv Regression", noise_adv_regression=True)
+                        m = model.ModelConfig(
+                            description="Noise Adv Regression",
+                            dataset_cls="CIFAR100",
+                            noise_adv_regression=True)
                     name += " (lambda {} gamma {})".format(loss_factor, gamma)
                     experiments[
                         Description(name=name, seed=seed)] = Experiment(
-                        dataset=dataset.CIFAR100(description=""),
+                        dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
                         model=m,
                         trainer=trainer.TrainerConfig(description=name,
                                                       noise_adv_loss_factor=loss_factor,
-                                                      noise_adv_gamma=10.0,
+                                                      noise_adv_gamma=gamma,
                                                       **noise_adv,
                                                       **noise_type),
                         seed=seed)
 
                     # The transfer experiments:
-                    transfer_experiments[Description(name=name, seed=seed)] = TransferExperiment(
-                        [baseline.experiments[Description(name="Clean", seed=seed)],
-                         experiments[Description(name=name, seed=seed)],
-                         baseline.experiments[Description(name="Transfer", seed=seed)]])
                     transfer_experiments[Description(name=name + "-> Reset", seed=seed)] = TransferExperiment(
-                        [baseline.experiments[Description(name="Clean", seed=seed)],
-                         experiments[Description(name=name, seed=seed)],
+                        [experiments[Description(name=name, seed=seed)],
                          baseline.experiments[Description(name="Transfer + Reset", seed=seed)]])

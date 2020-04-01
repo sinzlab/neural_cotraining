@@ -9,8 +9,8 @@ transfer_experiments = {}
 for seed in (8, 13, 42):
     # Clean baseline:
     experiments[Description(name="Clean", seed=seed)] = Experiment(
-        dataset=dataset.CIFAR100(description=""),
-        model=model.CIFAR100(description=""),
+        dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+        model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
         trainer=trainer.TrainerConfig(description=""),
         seed=seed)
     transfer_experiments[Description(name="Clean", seed=seed)] = TransferExperiment(
@@ -18,13 +18,13 @@ for seed in (8, 13, 42):
 
     # Transfer back to clean data:
     experiments[Description(name="Transfer", seed=seed)] = Experiment(
-        dataset=dataset.CIFAR100(description=""),
-        model=model.CIFAR100(description=""),
+        dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+        model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
         trainer=trainer.TrainerConfig(description="Transfer", freeze=("core",)),
         seed=seed)
     experiments[Description(name="Transfer + Reset", seed=seed)] = Experiment(
-        dataset=model.CIFAR100(description=""),
-        model=model.CIFAR100(description=""),
+        dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+        model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
         trainer=trainer.TrainerConfig(description="Transfer + Reset", freeze=("core",), reset_linear=True),
         seed=seed)
 
@@ -40,15 +40,15 @@ for seed in (8, 13, 42):
              "noise_std": {0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5}},
     ):
         experiments[Description(name="Noise Augmented", seed=seed)] = Experiment(
-            dataset=dataset.CIFAR100(description=""),
-            model=model.CIFAR100(description=""),
+            dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+            model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
             trainer=trainer.TrainerConfig(description="Noise Augmented", **noise_type),
             seed=seed)
 
         # The transfer experiments:
-        transfer_experiments[Description(name="Noise Augmented", seed=seed)] = TransferExperiment(
-            [experiments[Description(name="Noise Augmented", seed=seed)],
-             experiments[Description(name="Transfer", seed=seed)]])
-        transfer_experiments[Description(name="Noise Augmented -> Reset", seed=seed)] = TransferExperiment(
+        # transfer_experiments[Description(name="Noise Augmented -> Transfer", seed=seed)] = TransferExperiment(
+        #     [experiments[Description(name="Noise Augmented", seed=seed)],
+        #      experiments[Description(name="Transfer", seed=seed)]])
+        transfer_experiments[Description(name="Noise Augmented -> Transfer (Reset)", seed=seed)] = TransferExperiment(
             [experiments[Description(name="Noise Augmented", seed=seed)],
              experiments[Description(name="Transfer + Reset", seed=seed)]])

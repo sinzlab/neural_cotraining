@@ -8,8 +8,8 @@ transfer_experiments = {}
 
 # Clean baseline:
 experiments[Description(name="Clean", seed=42)] = Experiment(
-    dataset=dataset.CIFAR100(description="Default"),
-    model=model.CIFAR100(description="Default"),
+    dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+    model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
     trainer=trainer.TrainerConfig(description="Default", num_epochs=1,
                                   noise_test={
                                       "noise_snr": [{1.0: 1.0}],
@@ -20,8 +20,8 @@ transfer_experiments[Description(name="Clean", seed=42)] = experiments[Descripti
 
 # Transfer back to clean data:
 experiments[Description(name="Transfer", seed=42)] = Experiment(
-    dataset=dataset.CIFAR100(description="Default"),
-    model=model.CIFAR100(description="Default"),
+    dataset=dataset.DatasetConfig(description="", dataset_cls="CIFAR100"),
+    model=model.ModelConfig(description="", dataset_cls="CIFAR100"),
     trainer=trainer.TrainerConfig(description="Transfer", freeze=("core",), num_epochs=1,
                                   noise_test={
                                       "noise_snr": [{1.0: 1.0}],
