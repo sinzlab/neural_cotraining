@@ -19,9 +19,17 @@ import numpy as np
 from bias_transfer.configs.trainer import TrainerConfig
 
 
-def main_loop(model, criterion, device, optimizer, data_loader, epoch: int, modules, train_mode=True):
+def main_loop(model,
+              criterion,
+              device,
+              optimizer,
+              data_loader,
+              epoch: int,
+              modules,
+              train_mode=True,
+              return_outputs=False):
     model.train() if train_mode else model.eval()
-    epoch_loss, correct, total, module_losses = 0, 0, 0, {}
+    epoch_loss, correct, total, module_losses, collected_outputs = 0, 0, 0, {}, []
     for module in modules:
         if module.criterion:  # some modules may compute an additonal output/loss
             module_losses[module.__class__.__name__] = 0
@@ -46,6 +54,8 @@ def main_loop(model, criterion, device, optimizer, data_loader, epoch: int, modu
                 for module in modules:
                     outputs, loss = module.post_forward(outputs, loss, module_losses, train_mode=train_mode,
                                                         **shared_memory)
+                if return_outputs:
+                    collected_outputs.append(outputs)
                 loss += criterion(outputs["logits"], targets)
                 epoch_loss += loss.item()
                 # Book-keeping
@@ -63,6 +73,8 @@ def main_loop(model, criterion, device, optimizer, data_loader, epoch: int, modu
                     # Backward
                     loss.backward()
                     optimizer.step()
+    if return_outputs:
+        return acc, average_loss(epoch_loss), {k: average_loss(l) for k, l in module_losses.items()}, collected_outputs
     return acc, average_loss(epoch_loss), {k: average_loss(l) for k, l in module_losses.items()}
 
 
@@ -121,7 +133,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.benchmark = False
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
-
 
     criterion = nn.CrossEntropyLoss()
     main_loop_modules = [globals().get(k)(config, device, dataloaders["train"], seed) for k in config.main_loop_modules]
@@ -191,12 +202,13 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             if dev_acc > best_acc:
                 save_checkpoint(model, optimizer, dev_acc, epoch, "./checkpoint", "ckpt.{}.pth".format(uid))
                 best_acc = dev_acc
-                best_epoch = best_epoch
+                best_epoch = epoch
             if config.lr_milestones:
                 train_scheduler.step(epoch=epoch)
             elif config.adaptive_lr:
                 train_scheduler.step(dev_loss)
-            train_stats.append({"train_acc": train_acc, "train_loss": train_loss, "train_module_loss": train_module_loss,
+            train_stats.append(
+                {"train_acc": train_acc, "train_loss": train_loss, "train_module_loss": train_module_loss,
                                 "dev_acc": dev_acc, "dev_loss": dev_loss, "dev_module_loss": dev_module_loss})
     else:
         train_stats = []

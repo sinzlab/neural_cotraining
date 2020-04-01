@@ -50,4 +50,17 @@ services:
     entrypoint: python3
     working_dir: /notebooks/bias_transfer/bias_transfer
     command: main.py
+  server_custom_job:
+    build: ..
+    volumes:
+        - ./notebooks:/notebooks
+        - ../bias_transfer:/notebooks/bias_transfer
+        - ../bias_transfer/data:/notebooks/data
+        - ../mlutils:/notebooks/mlutils
+        - ../nnfabrik:/notebooks/nnfabrik
+        - /tmp/djcache:/cache
+    env_file: .env
+    runtime: nvidia
+    entrypoint: ""
+    working_dir: /notebooks/bias_transfer/bias_transfer
 

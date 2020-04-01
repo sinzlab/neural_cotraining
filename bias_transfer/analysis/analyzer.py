@@ -62,12 +62,6 @@ class Analyzer:
              fig=None, ax=None,
              perf_measure='dev_acc',
              style="lighttalk"):
-        # import matplotlib as mpl
-        # from matplotlib import pyplot as plt
-        # font = {'family': 'Helvetica Neue',
-        #         'weight': 'bold',
-        #         'size': 22}
-        # mpl.rc('font', **font)
         if not fig or not ax:
             fs = (16, 10) if "talk" in style else (12, 7.5)
             dpi = 200 if "talk" in style else 200
@@ -86,7 +80,7 @@ class Analyzer:
         # Plot
         if to_plot in ("test_acc", "test_loss"):
             plot_method(x="name", y=to_plot, hue="name",
-                        kind="bar", data=self.df, ax=ax)
+                        kind=kind, data=self.df, ax=ax)
         if to_plot in ("dev_noise_acc", "dev_noise_loss"):
             data = self.df[to_plot].apply(pd.Series)
             data = data['noise_' + noise_measure].apply(pd.Series)
@@ -119,7 +113,6 @@ class Analyzer:
         if save:
             fig.savefig(save + "_" + style, facecolor=fig.get_facecolor(), edgecolor=fig.get_edgecolor(),
                         bbox_inches='tight')
-        return fig, ax
 
 
 def print_table_for_excel(table):
