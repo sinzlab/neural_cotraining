@@ -27,6 +27,7 @@ class NoiseAdvResNet(ResNet):
     def __init__(self, block, num_blocks, num_classes: int = 10, classification: bool = False,
                  adv_readout_layers: int = 1, core_stride: int = 32,
                  conv_stem_kernel_size: int = 3):
+        adv_readout_layers = 1 if not adv_readout_layers else adv_readout_layers
         super().__init__(block, num_blocks, num_classes=num_classes, core_stride=core_stride,
                          conv_stem_kernel_size=conv_stem_kernel_size)
         readout_layers = []
@@ -44,5 +45,5 @@ class NoiseAdvResNet(ResNet):
         out = self.linear_readout(core_out)
         noise_out = self.noise_readout(grad_reverse(core_out, noise_lambda))  # additional noise prediction
         if self.classification:
-            noise_out = F.sigmoid(noise_out)
+            noise_out = torch.sigmoid(noise_out)
         return {"logits": out, "conv_rep": core_out, "corr_matrices": corr_matrices, "noise_pred": noise_out}
