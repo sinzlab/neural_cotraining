@@ -34,8 +34,6 @@ class TrainerConfig(BaseConfig):
         })
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
-        if self.noise_adv_classification or self.noise_adv_regression:
-            self.main_loop_modules.append("NoiseAdvTraining")
         self.noise_adv_loss_factor = kwargs.pop("noise_adv_loss_factor", 1.0)
         self.noise_adv_gamma = kwargs.pop("noise_adv_gamma", 10.0)
         self.representation_matching = kwargs.pop("representation_matching", None)
@@ -53,6 +51,8 @@ class TrainerConfig(BaseConfig):
             modules.append("RepresentationMatching")
         elif self.noise_snr or self.noise_std:  # Logit matching includes noise augmentation
             modules.append("NoiseAugmentation")
+        if self.noise_adv_classification or self.noise_adv_regression:
+            modules.append("NoiseAdvTraining")
         if self.reset_linear_frequency:
             modules.append("RandomReadoutReset")
         return modules

@@ -179,7 +179,7 @@ def dataset_loader(seed, **config):
     test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=config.batch_size,
         num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
-        )
+    )
 
     return {"train": train_loader,
             "val": valid_loader,

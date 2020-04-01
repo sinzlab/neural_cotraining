@@ -14,7 +14,17 @@ class ModelConfig(BaseConfig):
         self.cnn_builder = kwargs.pop("cnn_builder", "resnet")
         self.type = kwargs.pop("type", "50")
         self.input_size = kwargs.pop("input_size", 32)
-        self.num_classes = kwargs.pop("num_classes", 100)
+        self.num_classes = kwargs.pop("num_classes", None)
+        if not self.num_classes:
+            dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
+            if dataset_cls == "CIFAR100":
+                self.num_classes = 100
+            elif dataset_cls == "CIFAR10":
+                self.num_classes = 10
+            elif dataset_cls == "TinyImageNet":
+                self.num_classes = 200
+            else:
+                raise NameError()
 
         #resnet specific
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
@@ -25,25 +35,7 @@ class ModelConfig(BaseConfig):
             self.core_stride = 2
         self.conv_stem_kernel_size = kwargs.pop("conv_stem_kernel_size", 3)
 
-        #vgg specific
+        # vgg specific
         self.pretrained = kwargs.pop("pretrained", False)
 
         self.update(**kwargs)
-
-
-class CIFAR100(ModelConfig):
-    pass
-
-
-class CIFAR10(ModelConfig):
-    def __init__(self, **kwargs):
-        kwargs.pop("num_classes", None)
-        super().__init__(num_classes=10, **kwargs)
-
-
-class VGG_TinyImageNet(ModelConfig):
-    def __init__(self, **kwargs):
-        kwargs.pop("num_classes", None)
-        super().__init__(num_classes=200, input_size=64,
-                         cnn_builder="vgg", type="vgg19_bn", **kwargs)
-
