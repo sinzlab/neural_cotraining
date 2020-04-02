@@ -54,7 +54,6 @@ class VGG(nn.Module):
                                         nn.Dropout(),
                                         nn.Conv2d(4096, num_classes, 1, 1, bias=True),
                                         nn.AdaptiveMaxPool2d(1), nn.Flatten())
-            self._init_readout_conv()
 
     def forward(self, x):
         x = self.core(x)
@@ -80,10 +79,3 @@ class VGG(nn.Module):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
 
-
-    def _init_readout_conv(self):
-        for m in self.readout:
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
