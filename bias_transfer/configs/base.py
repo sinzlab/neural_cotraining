@@ -3,10 +3,13 @@ import json
 import copy
 import logging
 from typing import Dict
+from collections import namedtuple
 
 from nnfabrik.utility.dj_helpers import make_hash
 
 logger = logging.getLogger(__name__)
+
+Description = namedtuple("Description", "name seed")
 
 
 class BaseConfig(object):
