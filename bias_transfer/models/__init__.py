@@ -33,7 +33,7 @@ def vgg_builder(seed : int, config):
 
     model = VGG(input_size=config.input_size, vgg_type=config.type,
                 num_classes=config.num_classes, pretrained=config.pretrained,
-                classifier_type=config.classifier_type)
+                readout_type=config.readout_type)
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
 

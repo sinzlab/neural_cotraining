@@ -38,6 +38,6 @@ class ModelConfig(BaseConfig):
 
         # vgg specific
         self.pretrained = kwargs.pop("pretrained", False)
-        self.classifier_type = kwargs.pop("classifier_type", "conv")
+        self.readout_type = kwargs.pop("readout_type", "conv")
 
         self.update(**kwargs)
