@@ -13,9 +13,6 @@ VGG_TYPES = {'vgg11' : torchvision.models.vgg11,
              'vgg19_bn' : torchvision.models.vgg19_bn,
              'vgg19' : torchvision.models.vgg19}
 
-class Squeeze(nn.Module):
-    def forward(self, input):
-        return input.squeeze(-1)
 
 class VGG(nn.Module):
 
@@ -49,15 +46,14 @@ class VGG(nn.Module):
                                            )
             self._init_readout_dense()
         elif readout_type == "conv":
-            self.readout = nn.Sequential(nn.AdaptiveAvgPool2d((7, 7)),
-                                        nn.Conv2d(512, 4096, 7, 7, bias=True),
+            self.readout = nn.Sequential(nn.Conv2d(512, 4096, 1, 1, bias=True),
                                         nn.ReLU(True),
                                         nn.Dropout(),
                                         nn.Conv2d(4096, 4096, 1, 1, bias=True),
                                         nn.ReLU(True),
                                         nn.Dropout(),
                                         nn.Conv2d(4096, num_classes, 1, 1, bias=True),
-                                        Squeeze(), Squeeze())
+                                        nn.AdaptiveMaxPool2d(1), nn.Flatten())
             self._init_readout_conv()
 
     def forward(self, x):
