@@ -32,7 +32,8 @@ def vgg_builder(seed : int, config):
     from .vgg import VGG
 
     model = VGG(input_size=config.input_size, vgg_type=config.type,
-                num_classes=config.num_classes, pretrained=config.pretrained)
+                num_classes=config.num_classes, pretrained=config.pretrained,
+                classifier_type=config.classifier_type)
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
 
