@@ -140,16 +140,16 @@ class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, core_stride=32, conv_stem_kernel_size=3):
         super().__init__()
         self.core = ResNetCore(block, num_blocks, core_stride, conv_stem_kernel_size)
-        self.linear_readout = nn.Linear(512 * block.expansion, num_classes)
+        self.readout = nn.Linear(512 * block.expansion, num_classes)
 
     def forward(self, x, compute_corr: bool = False, seed: int = None):
         core_out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
-        out = self.linear_readout(core_out)
+        out = self.readout(core_out)
         return {"logits": out, "conv_rep": core_out, "corr_matrices": corr_matrices}
 
     def freeze(self, selection=("core",)):
         if selection is True or "core" in selection:
             self.core.freeze()
         elif "readout" in selection:
-            for param in self.linear_readout.parameters():
+            for param in self.readout.parameters():
                 param.requires_grad = False

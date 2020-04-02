@@ -67,6 +67,17 @@ class VGG(nn.Module):
         x = self.readout(x)
         return {"logits" : x}
 
+    def freeze_core(self):
+        for param in self.core.parameters():
+            param.requires_grad = False
+
+    def freeze(self, selection=("core",)):
+        if selection is True or "core" in selection:
+            self.freeze_core()
+        elif "readout" in selection:
+            for param in self.readout.parameters():
+                param.requires_grad = False
+
     def _init_readout_dense(self):
         for m in self.readout:
             if isinstance(m, nn.Linear):

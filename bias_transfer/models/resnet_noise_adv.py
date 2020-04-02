@@ -42,7 +42,7 @@ class NoiseAdvResNet(ResNet):
 
     def forward(self, x, compute_corr: bool = False, seed: int = None, noise_lambda=None):
         core_out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
-        out = self.linear_readout(core_out)
+        out = self.readout(core_out)
         noise_out = self.noise_readout(grad_reverse(core_out, noise_lambda))  # additional noise prediction
         if self.classification:
             noise_out = torch.sigmoid(noise_out)
