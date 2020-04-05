@@ -241,12 +241,13 @@ class RepresentationAnalyser:
                                  )
         return pca
 
-    def _plot_corr_matrix(self, mat, title="", file_name="", n_clusters=24, indices=None, acc=None):
+    def _plot_corr_matrix(self, mat, title="", file_name="", n_clusters=10, indices=None, acc=None):
         fig, ax = self._plot_preparation(1, 1)
         if indices is None:
             clusters = AgglomerativeClustering(n_clusters=n_clusters).fit(1 - mat)
             indices = np.argsort(clusters.labels_)
-        sns.heatmap(mat[indices][:, indices], cmap="YlGnBu", xticklabels=400, yticklabels=400)
+        sns.heatmap(mat[indices][:, indices], cmap="YlGnBu", xticklabels=400, yticklabels=400, vmin=0.0, vmax=1.0)
+        # sns.heatmap(mat[indices][:, indices], cmap="YlGnBu", xticklabels=400, yticklabels=400)
         sns.despine(offset=10, trim=True)
         if title:
             fig.suptitle(title, fontsize=16)
@@ -262,8 +263,12 @@ class RepresentationAnalyser:
         result = self._load_representation("corr", mode, noise_level)
         if result is None:
             x_flat = x.flatten(1, -1)
-            centered = (x_flat - x_flat.mean()) / x_flat.std()
-            result = (centered @ centered.transpose(0, 1)) / x_flat.size()[1]
+            # centered = (x_flat - x_flat.mean()) / x_flat.std()
+            # result = (centered @ centered.transpose(0, 1)) / x_flat.size()[1]
+            centered = (x_flat - x_flat.mean(dim=1).view(-1, 1))
+            result = (centered @ centered.transpose(0, 1)) / \
+                     torch.ger(torch.norm(centered, 2, dim=1),torch.norm(centered,2,dim=1))  # see https://de.mathworks.com/help/images/ref/corr2.html
+            print(torch.max(result))
             result = result.detach().cpu()
             self._save_representation(result, "corr", mode, noise_level)
         return result
