@@ -19,7 +19,9 @@ import os
 
 class RepresentationAnalyser:
 
-    def __init__(self, experiment, table, dataset="val", path="./analysis/", plot_style="lightpaper"):
+    def __init__(self, experiment, table,
+                 dataset: str = "val", path: str = "./analysis/", plot_style: str = "lightpaper",
+                 rep_name: str = "conv_rep"):
         self.experiment = experiment
         self.dataset = dataset
         data_loaders, self.model, self.trainer = (table & experiment.get_restrictions()).load_model(
@@ -44,6 +46,7 @@ class RepresentationAnalyser:
         self.feat_cols = None
         self.path = path
         self.style = plot_style
+        self.rep_name = rep_name
 
     def _plot_preparation(self, nrows=1, ncols=1):
         fs = (16, 10) if "talk" in self.style else (12, 7.5)
@@ -67,7 +70,7 @@ class RepresentationAnalyser:
                                                                 self.sample_loader, 0,
                                                                 main_loop_modules, train_mode=False,
                                                                 return_outputs=True)
-        outputs = [o["conv_rep"] for o in collected_outputs]
+        outputs = [o[self.rep_name] for o in collected_outputs]
         print("Acc:", acc, "Loss:", loss, flush=True)
         return torch.cat(outputs), acc
 
@@ -267,7 +270,8 @@ class RepresentationAnalyser:
             # result = (centered @ centered.transpose(0, 1)) / x_flat.size()[1]
             centered = (x_flat - x_flat.mean(dim=1).view(-1, 1))
             result = (centered @ centered.transpose(0, 1)) / \
-                     torch.ger(torch.norm(centered, 2, dim=1),torch.norm(centered,2,dim=1))  # see https://de.mathworks.com/help/images/ref/corr2.html
+                     torch.ger(torch.norm(centered, 2, dim=1), torch.norm(centered, 2,
+                                                                          dim=1))  # see https://de.mathworks.com/help/images/ref/corr2.html
             print(torch.max(result))
             result = result.detach().cpu()
             self._save_representation(result, "corr", mode, noise_level)
