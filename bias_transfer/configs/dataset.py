@@ -9,7 +9,7 @@ class DatasetConfig(BaseConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dataset_cls = kwargs.pop("dataset", "CIFAR100")
+        self.dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
         self.batch_size = kwargs.pop("batch_size", 128)
         self.apply_augmentation = kwargs.pop("apply_data_augmentation", True)
         self.apply_normalization = kwargs.pop("apply_data_normalization", False)

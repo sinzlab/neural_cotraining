@@ -175,7 +175,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 model, best_acc, start_epoch = load_checkpoint(path, model, optimizer)
                 best_epoch = start_epoch
 
-        print('==> Starting model {}'.format(config.description), flush=True)
+        print('==> Starting model {}'.format(config.comment), flush=True)
         train_stats = []
         for epoch in range(start_epoch + 1, config.num_epochs):
             if cb:
