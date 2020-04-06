@@ -15,11 +15,11 @@ class TransferExperiment(Experiment):
 
     def __init__(self, configs):
         self.configs = configs
-        description = []
+        comment = []
         for c in self.configs:
-            description.append(c.description)
-            c.description = " -> ".join(description)
-        self.description = " -> ".join(description)
+            comment.append(c.comment)
+            c.comment = " -> ".join(comment)
+        self.comment = " -> ".join(comment)
 
     def get_restrictions(self):
         key = []

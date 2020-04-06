@@ -17,7 +17,7 @@ class Experiment(BaseConfig):
         self.model = model
         self.trainer = trainer
         self.seed = seed
-        self.description = self.trainer.description
+        self.comment = self.trainer.comment
 
     def get_key(self):
         key = self.dataset.get_key()

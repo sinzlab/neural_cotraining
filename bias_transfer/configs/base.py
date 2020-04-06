@@ -24,7 +24,7 @@ class BaseConfig(object):
     fn = None
 
     def __init__(self, **kwargs):
-        self.description = kwargs.pop("description")
+        self.comment = kwargs.pop("comment")
 
     def __getattribute__(self, name):
         try:
@@ -58,7 +58,7 @@ class BaseConfig(object):
             self.table.add_entry(self.fn,
                                  self.to_dict(),
                                  None,  # Fabrikant will automatically be set to current user
-                                 self.description)
+                                 self.comment)
 
     def save(self, save_directory):
         """
