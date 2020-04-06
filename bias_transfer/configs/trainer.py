@@ -14,6 +14,7 @@ class TrainerConfig(BaseConfig):
         self.force_cpu = kwargs.pop("force_cpu", False)
         self.use_tensorboard = kwargs.pop("use_tensorboard", False)
         self.optimizer = kwargs.pop("optimizer", "Adam")
+        self.amsgrad = kwargs.pop("amsgrad", False)
         self.lr = kwargs.pop("lr", 0.0003)
         self.lr_decay = kwargs.pop("lr_decay", 0.8)
         self.weight_decay = kwargs.pop("weight_decay", 5e-4)
