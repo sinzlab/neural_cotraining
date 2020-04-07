@@ -52,12 +52,15 @@ class Experiment(BaseConfig):
         Returns:
             :class:`Experiment`: An instance of a configuration object
         """
-        dataset_cls, dataset_dict = config_dict.get("dataset", ("DatasetConfig", {}))
-        dataset = globals()[dataset_cls].from_dict(dataset_dict)
-        model_cls, model_dict = config_dict.get("model", ("ModelConfig", {}))
-        model = globals()[model_cls].from_dict(model_dict)
-        trainer_cls, trainer_dict = config_dict.get("trainer", ("TrainerConfig", {}))
-        trainer = globals()[trainer_cls].from_dict(trainer_dict)
+        dataset_cls, dataset_dict = config_dict.get("dataset", {"DatasetConfig": {}})
+        dataset_cls = next(iter(dataset_dict.keys()))
+        dataset = globals()[dataset_cls].from_dict(dataset_dict[dataset_cls])
+        model_dict = config_dict.get("model", {"ModelConfig": {}})
+        model_cls = next(iter(model_dict.keys()))
+        model = globals()[model_cls].from_dict(model_dict[model_cls])
+        trainer_dict = config_dict.get("trainer", {"TrainerConfig": {}})
+        trainer_cls = next(iter(trainer_dict.keys()))
+        trainer = globals()[trainer_cls].from_dict(trainer_dict[trainer_cls])
         seed = config_dict.get("seed", 42)
         return cls(dataset, model, trainer, seed)
 
@@ -69,9 +72,9 @@ class Experiment(BaseConfig):
             :obj:`Dict[str, any]`: Dictionary of all the attributes that make up this configuration instance,
         """
         output = {
-            "dataset": (self.dataset.__class__.__name__, self.dataset.to_dict()),
-            "model": (self.model.__class__.__name__, self.model.to_dict()),
-            "trainer": (self.trainer.__class__.__name__, self.trainer.to_dict()),
+            "dataset": {self.dataset.__class__.__name__: self.dataset.to_dict()},
+            "model": {self.model.__class__.__name__: self.model.to_dict()},
+            "trainer": {self.trainer.__class__.__name__: self.trainer.to_dict()},
             "seed": self.seed
         }
         return output
