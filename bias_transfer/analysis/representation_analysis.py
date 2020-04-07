@@ -89,7 +89,7 @@ class RepresentationAnalyser:
         filenames = []
         clean_rep = to_run(noise_level=0.0, method=method, mode="clean")
         filenames.append(os.path.join(self.path,self._get_name(method, "clean", 0.0) + "_plot.png"))
-        for i in range(1, 3):
+        for i in range(1, 11):
             noise_level = 0.05 * i
             to_run(noise_level=noise_level, method=method, mode="noisy", clean_rep=clean_rep)
             filenames.append(os.path.join(self.path,self._get_name(method, "noisy", noise_level) + "_plot.png"))
@@ -221,9 +221,9 @@ class RepresentationAnalyser:
     def _get_name(self, method, mode=None, noise_level=None):
         if method and mode and noise_level:
             return "_".join(
-                [make_hash(self.experiment.get_key()), method, mode, self.dataset, str(int(noise_level * 100))])
+                [make_hash(self.experiment.get_key()), self.rep_name, method, mode, self.dataset, str(int(noise_level * 100))])
         else:
-            return "_".join([make_hash(self.experiment.get_key()), method, self.dataset])
+            return "_".join([make_hash(self.experiment.get_key()), self.rep_name, method, self.dataset])
 
     def dim_reduction(self, method="tsne", mode="combined", noise_level=0.0, clean_rep=None):
         self._clean_vs_noisy_df(noise_level=noise_level)
