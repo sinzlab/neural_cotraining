@@ -12,7 +12,7 @@ class DatasetConfig(BaseConfig):
         self.dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
         self.batch_size = kwargs.pop("batch_size", 128)
         self.apply_augmentation = kwargs.pop("apply_data_augmentation", True)
-        self.apply_normalization = kwargs.pop("apply_data_normalization", False)
+        self.apply_normalization = kwargs.pop("apply_data_normalization", True)
         self.input_size = kwargs.pop("input_size", 32)
         if self.dataset_cls == "CIFAR100":
             self.train_data_mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
