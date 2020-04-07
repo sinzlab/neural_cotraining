@@ -5,7 +5,7 @@ from nnfabrik.utility.dj_helpers import make_hash
 from sklearn.cluster import AgglomerativeClustering
 from matplotlib import cm
 from torch import nn
-from bias_transfer.trainer import main_loop
+from bias_transfer import trainer
 from bias_transfer.trainer.noise_augmentation import NoiseAugmentation
 from torch.backends import cudnn
 import numpy as np
@@ -20,7 +20,7 @@ import os
 class RepresentationAnalyser:
 
     def __init__(self, experiment, table,
-                 dataset: str = "val", path: str = "./analysis/", plot_style: str = "lightpaper",
+                 dataset: str = "val", path: str = "/work/analysis/", plot_style: str = "lightpaper",
                  rep_name: str = "conv_rep"):
         self.experiment = experiment
         self.dataset = dataset
@@ -42,7 +42,7 @@ class RepresentationAnalyser:
             cudnn.deterministic = True
             torch.cuda.manual_seed(42)
         self.criterion = nn.CrossEntropyLoss()
-        self.clean_rep, self.noisy_reps, self.clean_df, self.noisy_dfs = None, {}, None, {}
+        self.clean_rep, self.noisy_rep, self.clean_df, self.noisy_df = None, {}, None, {}
         self.feat_cols = None
         self.path = path
         self.style = plot_style
@@ -66,13 +66,34 @@ class RepresentationAnalyser:
         return fig, ax
 
     def _compute_representation(self, main_loop_modules):
-        acc, loss, module_losses, collected_outputs = main_loop(self.model, self.criterion, self.device, None,
-                                                                self.sample_loader, 0,
-                                                                main_loop_modules, train_mode=False,
-                                                                return_outputs=True)
+        acc, loss, module_losses, collected_outputs = trainer.main_loop(self.model, self.criterion, self.device, None,
+                                                                        self.sample_loader, 0,
+                                                                        main_loop_modules, train_mode=False,
+                                                                        return_outputs=True)
         outputs = [o[self.rep_name] for o in collected_outputs]
         print("Acc:", acc, "Loss:", loss, flush=True)
         return torch.cat(outputs), acc
+
+    def _generate_gif(self, filenames, name):
+        import imageio
+        images = []
+        for filename in filenames:
+            images.append(imageio.imread(filename))
+        imageio.mimsave(os.path.join(self.path, '{}.gif'.format(name)), images, format='GIF', duration=2)
+
+    def run(self, method):
+        if method in ("pca", "tsne"):
+            to_run = self.dim_reduction
+        else:
+            to_run = self.corr_matrix
+        filenames = []
+        clean_rep = to_run(noise_level=0.0, method=method, mode="clean")
+        filenames.append(os.path.join(self.path,self._get_name(method, "clean", 0.0) + "_plot.png"))
+        for i in range(1, 3):
+            noise_level = 0.05 * i
+            to_run(noise_level=noise_level, method=method, mode="noisy", clean_rep=clean_rep)
+            filenames.append(os.path.join(self.path,self._get_name(method, "noisy", noise_level) + "_plot.png"))
+        self._generate_gif(filenames, self._get_name(method=method))
 
     def clean_vs_noisy(self, noise_level=0.0):
         print('==> Computing Representations', flush=True)
@@ -83,17 +104,14 @@ class RepresentationAnalyser:
         else:
             print("Representation of clean input already in memory")
 
-        if noise_level not in self.noisy_reps.keys():
-            # Representations from noisy data:
-            print("Compute representation of noisy input", flush=True)
-            experiment = copy.deepcopy(self.experiment)
-            experiment.trainer.noise_std = {noise_level: 1.0}
-            main_loop_modules = [
-                NoiseAugmentation(config=experiment.trainer, device=self.device, data_loader=self.sample_loader,
-                                  seed=42)]
-            self.noisy_reps[noise_level] = self._compute_representation(main_loop_modules)
-        else:
-            print("Representation of noisy input already in memory")
+        # Representations from noisy data:
+        print("Compute representation of noisy input", flush=True)
+        experiment = copy.deepcopy(self.experiment)
+        experiment.trainer.noise_std = {noise_level: 1.0}
+        main_loop_modules = [
+            NoiseAugmentation(config=experiment.trainer, device=self.device, data_loader=self.sample_loader,
+                              seed=42)]
+        self.noisy_rep = self._compute_representation(main_loop_modules)
 
     def _cosine_loss(self, rep_1, rep_2):
         # Compare
@@ -106,8 +124,8 @@ class RepresentationAnalyser:
 
     def clean_vs_noisy_distance(self, noise_level=0.0):
         self.clean_vs_noisy(noise_level)
-        cosine = self._cosine_loss(self.clean_rep[0], self.noisy_reps[noise_level][0])
-        mse = self._mse_loss(self.clean_rep[0], self.noisy_reps[noise_level][0])
+        cosine = self._cosine_loss(self.clean_rep[0], self.noisy_rep[0])
+        mse = self._mse_loss(self.clean_rep[0], self.noisy_rep[0])
         print("Clean vs. Noisy: Cosine loss:", cosine.item(), "MSE loss:", mse.item(), flush=True)
 
     def _convert_to_df(self, rep, noise_level=0.0):
@@ -134,8 +152,7 @@ class RepresentationAnalyser:
         self.clean_vs_noisy(noise_level=noise_level)
         if self.clean_df is None:
             self.clean_df, self.feat_cols = self._convert_to_df(self.clean_rep[0], 0.0)
-        if noise_level not in self.noisy_dfs.keys():
-            self.noisy_dfs[noise_level], _ = self._convert_to_df(self.noisy_reps[noise_level][0], noise_level)
+        self.noisy_df, _ = self._convert_to_df(self.noisy_rep[0], noise_level)
 
     def _save_representation(self, to_save, method, mode, noise_level):
         name = self._get_name(method, mode, noise_level) + ".npy"
@@ -201,26 +218,30 @@ class RepresentationAnalyser:
                         edgecolor=fig.get_edgecolor(), bbox_inches='tight')
             plt.close(fig)
 
-    def _get_name(self, method, mode, noise_level):
-        return "_".join([make_hash(self.experiment.get_key()), method, mode, self.dataset, str(int(noise_level * 100))])
+    def _get_name(self, method, mode=None, noise_level=None):
+        if method and mode and noise_level:
+            return "_".join(
+                [make_hash(self.experiment.get_key()), method, mode, self.dataset, str(int(noise_level * 100))])
+        else:
+            return "_".join([make_hash(self.experiment.get_key()), method, self.dataset])
 
-    def dim_reduction(self, method="tsne", mode="combined", noise_level=0.0, pca=None):
+    def dim_reduction(self, method="tsne", mode="combined", noise_level=0.0, clean_rep=None):
         self._clean_vs_noisy_df(noise_level=noise_level)
         if mode == "combined":
             combined_df = pd.DataFrame(self.clean_df)
-            combined_df = combined_df.append(self.noisy_dfs[noise_level], ignore_index=True)
+            combined_df = combined_df.append(self.noisy_df, ignore_index=True)
             df = combined_df
-            acc = self.noisy_reps[noise_level][1]
+            acc = self.noisy_rep[1]
             title = "Rep noisy vs clean data "
         elif mode == "noisy":
             title = "Rep from noisy data (std = {:01.2f})".format(noise_level)
-            df = self.noisy_dfs[noise_level]
-            acc = self.noisy_reps[noise_level][1]
+            df = self.noisy_df
+            acc = self.noisy_rep[1]
         else:
             title = "Rep from clean data "
             df = self.clean_df
             acc = self.clean_rep[1]
-        if pca is not None:
+        if clean_rep is not None:
             title += " (Transform from clean)"
             mode = "clean_transform_" + mode
 
@@ -230,7 +251,7 @@ class RepresentationAnalyser:
             self._compute_tsne(df, mode, noise_level)
             data_columns.append(("tsne-2d-one", "tsne-2d-two"))
         if "pca" in method:
-            pca = self._compute_pca(df, mode, noise_level, pca=pca)
+            clean_rep = self._compute_pca(df, mode, noise_level, pca=clean_rep)
             data_columns.append(("pca-one", "pca-two"))
 
         print("==> Plotting {} representation".format(method))
@@ -238,11 +259,11 @@ class RepresentationAnalyser:
                                  num_labels=self.num_labels,
                                  style="noise" if "combined" in mode else None,
                                  hue="y",
-                                 title=title + "\n" + "Model: " + self.experiment.description,
+                                 title=title + "\n" + "Model: " + self.experiment.comment,
                                  file_name=self._get_name(method, mode, noise_level) + "_plot",
                                  acc=acc
                                  )
-        return pca
+        return clean_rep
 
     def _plot_corr_matrix(self, mat, title="", file_name="", n_clusters=10, indices=None, acc=None):
         fig, ax = self._plot_preparation(1, 1)
@@ -277,23 +298,23 @@ class RepresentationAnalyser:
             self._save_representation(result, "corr", mode, noise_level)
         return result
 
-    def corr_matrix(self, mode="clean", noise_level=0.0, sorted_indices=None):
+    def corr_matrix(self, mode="clean", noise_level=0.0, clean_rep=None, *args, **kwargs):
         self.clean_vs_noisy(noise_level=noise_level)
         title = "Correlation matrix for rep from {} data ".format(mode)
         if mode == "noisy":
-            corr_matrix = self._compute_corr_matrix(self.noisy_reps[noise_level][0], mode, noise_level)
+            corr_matrix = self._compute_corr_matrix(self.noisy_rep[0], mode, noise_level)
             title += "(std = {:01.2f})".format(noise_level)
-            acc = self.noisy_reps[noise_level][1]
+            acc = self.noisy_rep[1]
         else:
             corr_matrix = self._compute_corr_matrix(self.clean_rep[0], mode, 0.0)
             acc = self.clean_rep[1]
 
-        sorted_indices = self._plot_corr_matrix(corr_matrix,
-                                                title=title + "\n" + "Model: " + self.experiment.description,
-                                                file_name=self._get_name(
-                                                    "corr" + ("_given_idx" if sorted_indices is not None else ""),
-                                                    mode, noise_level) + "_plot",
-                                                indices=sorted_indices,
-                                                acc=acc
-                                                )
-        return sorted_indices
+        clean_rep = self._plot_corr_matrix(corr_matrix,
+                                           title=title + "\n" + "Model: " + self.experiment.comment,
+                                           file_name=self._get_name(
+                                               "corr",
+                                               mode, noise_level) + "_plot",
+                                           indices=clean_rep,
+                                           acc=acc
+                                           )
+        return clean_rep
