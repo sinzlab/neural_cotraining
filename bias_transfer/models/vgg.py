@@ -3,16 +3,14 @@ from torch.autograd import Variable
 import torchvision
 import torch.nn as nn
 
-
-VGG_TYPES = {'vgg11' : torchvision.models.vgg11,
-             'vgg11_bn' : torchvision.models.vgg11_bn,
-             'vgg13' : torchvision.models.vgg13,
-             'vgg13_bn' : torchvision.models.vgg13_bn,
-             'vgg16' : torchvision.models.vgg16,
-             'vgg16_bn' : torchvision.models.vgg16_bn,
-             'vgg19_bn' : torchvision.models.vgg19_bn,
-             'vgg19' : torchvision.models.vgg19}
-
+VGG_TYPES = {'vgg11': torchvision.models.vgg11,
+             'vgg11_bn': torchvision.models.vgg11_bn,
+             'vgg13': torchvision.models.vgg13,
+             'vgg13_bn': torchvision.models.vgg13_bn,
+             'vgg16': torchvision.models.vgg16,
+             'vgg16_bn': torchvision.models.vgg16_bn,
+             'vgg19_bn': torchvision.models.vgg19_bn,
+             'vgg19': torchvision.models.vgg19}
 
 
 class VGG(nn.Module):
@@ -57,11 +55,11 @@ class VGG(nn.Module):
                                         nn.AdaptiveMaxPool2d(1), nn.Flatten())
 
     def forward(self, x):
-        x = self.core(x)
+        core_out = self.core(x)
         if self.readout_type == "dense":
-            x = x.view(x.size(0), -1)
-        x = self.readout(x)
-        return {"logits" : x}
+            core_out = core_out.view(core_out.size(0), -1)
+        out = self.classifier(core_out)
+        return {"logits": out, "conv_rep": core_out}
 
     def freeze(self, selection=("core",)):
         if selection is True or "core" in selection:
@@ -76,4 +74,3 @@ class VGG(nn.Module):
             if isinstance(m, nn.Linear):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
-
