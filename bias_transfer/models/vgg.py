@@ -13,9 +13,6 @@ VGG_TYPES = {'vgg11' : torchvision.models.vgg11,
              'vgg19_bn' : torchvision.models.vgg19_bn,
              'vgg19' : torchvision.models.vgg19}
 
-def weight_reset(m):
-    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-        m.reset_parameters()
 
 
 class VGG(nn.Module):
@@ -79,7 +76,4 @@ class VGG(nn.Module):
             if isinstance(m, nn.Linear):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
-
-    def reset_readout(self):
-        self.readout.apply(weight_reset)
 

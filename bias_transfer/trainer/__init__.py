@@ -19,6 +19,11 @@ import numpy as np
 from bias_transfer.configs.trainer import TrainerConfig
 
 
+def weight_reset(m):
+    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+        m.reset_parameters()
+
+
 def main_loop(model,
               criterion,
               device,
@@ -167,7 +172,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         if config.transfer_from_path:
             model = load_model(config.transfer_from_path, model, ignore_missing=True)
             if config.reset_linear:
-                model.reset_readout()
+                model.readout.apply(weight_reset)
             if config.freeze:
                 model.freeze(config.freeze)
         else:

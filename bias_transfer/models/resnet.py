@@ -19,9 +19,6 @@ def compute_corr_matrix(x):
     out = (centered @ centered.transpose(0, 1)) / x_flat.size()[1]
     return out
 
-def weight_reset(m):
-    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-        m.reset_parameters()
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -156,8 +153,5 @@ class ResNet(nn.Module):
         elif "readout" in selection:
             for param in self.readout.parameters():
                 param.requires_grad = False
-
-    def reset_readout(self):
-        self.readout.apply(weight_reset)
 
 
