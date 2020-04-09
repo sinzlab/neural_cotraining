@@ -58,7 +58,7 @@ class VGG(nn.Module):
         core_out = self.core(x)
         if self.readout_type == "dense":
             core_out = core_out.view(core_out.size(0), -1)
-        out = self.classifier(core_out)
+        out = self.readout(core_out)
         return {"logits": out, "conv_rep": core_out}
 
     def freeze(self, selection=("core",)):

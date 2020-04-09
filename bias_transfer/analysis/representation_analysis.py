@@ -34,19 +34,22 @@ class RepresentationAnalyser:
             num_workers=1, pin_memory=False,
         )
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        torch.manual_seed(42)
-        np.random.seed(42)
         self.model = self.model.to(self.device)
-        if self.device == 'cuda':
-            cudnn.benchmark = False
-            cudnn.deterministic = True
-            torch.cuda.manual_seed(42)
+        self._reset_seed()
         self.criterion = nn.CrossEntropyLoss()
         self.clean_rep, self.noisy_rep, self.clean_df, self.noisy_df = None, {}, None, {}
         self.feat_cols = None
         self.path = path
         self.style = plot_style
         self.rep_name = rep_name
+
+    def _reset_seed(self):
+        torch.manual_seed(42)
+        np.random.seed(42)
+        if self.device == 'cuda':
+            cudnn.benchmark = False
+            cudnn.deterministic = True
+            torch.cuda.manual_seed(42)
 
     def _plot_preparation(self, nrows=1, ncols=1):
         fs = (16, 10) if "talk" in self.style else (12, 7.5)
@@ -89,7 +92,7 @@ class RepresentationAnalyser:
         filenames = []
         clean_rep = to_run(noise_level=0.0, method=method, mode="clean")
         filenames.append(os.path.join(self.path,self._get_name(method, "clean", 0.0) + "_plot.png"))
-        for i in range(1, 11):
+        for i in range(1, 21):
             noise_level = 0.05 * i
             to_run(noise_level=noise_level, method=method, mode="noisy", clean_rep=clean_rep)
             filenames.append(os.path.join(self.path,self._get_name(method, "noisy", noise_level) + "_plot.png"))
@@ -97,6 +100,7 @@ class RepresentationAnalyser:
 
     def clean_vs_noisy(self, noise_level=0.0):
         print('==> Computing Representations', flush=True)
+        self._reset_seed()
         if self.clean_rep is None:
             # Representations form clean data:
             print("Compute representation of clean input", flush=True)
@@ -106,6 +110,7 @@ class RepresentationAnalyser:
 
         # Representations from noisy data:
         print("Compute representation of noisy input", flush=True)
+        self._reset_seed()
         experiment = copy.deepcopy(self.experiment)
         experiment.trainer.noise_std = {noise_level: 1.0}
         main_loop_modules = [
