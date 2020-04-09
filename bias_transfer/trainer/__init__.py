@@ -167,7 +167,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         if config.transfer_from_path:
             model = load_model(config.transfer_from_path, model, ignore_missing=True)
             if config.reset_linear:
-                model.readout.reset_parameters()
+                model.reset_readout()
             if config.freeze:
                 model.freeze(config.freeze)
         else:
