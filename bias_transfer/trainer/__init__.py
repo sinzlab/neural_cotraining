@@ -49,7 +49,7 @@ def main_loop(model,
                 loss = torch.zeros(1, device=device)
                 if train_mode:
                     optimizer.zero_grad()
-                inputs, targets = inputs.to(device), targets.to(device)
+                inputs, targets = inputs.to(device,dtype=torch.float), targets.to(device)
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 for module in modules:
                     model, inputs = module.pre_forward(model, inputs, shared_memory, train_mode=train_mode)
@@ -83,8 +83,7 @@ def main_loop(model,
     return acc, average_loss(epoch_loss), {k: average_loss(l) for k, l in module_losses.items()}
 
 
-def test_model(model, path, criterion, device, data_loader, config, seed, noise_test: bool = True):
-    model, _, epoch = load_checkpoint(path, model)
+def test_model(model, epoch, criterion, device, data_loader, config, seed, noise_test: bool = True):
     if config.noise_test and noise_test:
         test_acc = {}
         test_loss = {}
@@ -150,9 +149,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                                    amsgrad=config.amsgrad)
         elif config.optimizer == "RMSprop":
             optimizer = optim.RMSprop(model.parameters(),
-                                  lr=config.lr,
-                                  momentum=config.momentum,
-                                  weight_decay=config.weight_decay)
+                                      lr=config.lr,
+                                      momentum=config.momentum,
+                                      weight_decay=config.weight_decay)
         else:
             optimizer = optim.SGD(model.parameters(),
                                   lr=config.lr,
@@ -162,7 +161,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                                    factor=config.lr_decay, patience=config.patience,
                                                                    threshold=config.threshold,
-                                                                   verbose=config.verbose,)
+                                                                   verbose=config.verbose, )
         elif config.lr_milestones:
             train_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                                                              milestones=config.lr_milestones,
@@ -215,16 +214,17 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 train_scheduler.step(dev_loss)
             train_stats.append(
                 {"train_acc": train_acc, "train_loss": train_loss, "train_module_loss": train_module_loss,
-                                "dev_acc": dev_acc, "dev_loss": dev_loss, "dev_module_loss": dev_module_loss})
+                 "dev_acc": dev_acc, "dev_loss": dev_loss, "dev_module_loss": dev_module_loss})
     else:
         train_stats = []
 
+    model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
     # test the final model with noise on the dev-set
-    dev_noise_acc, dev_noise_loss = test_model(model=model, path="./checkpoint/ckpt.{}.pth".format(uid),
+    dev_noise_acc, dev_noise_loss = test_model(model=model, epoch=epoch,
                                                criterion=criterion, device=device, data_loader=dataloaders["val"],
                                                config=config, noise_test=True, seed=seed)
     # test the final model on the test set
-    test_acc, test_loss = test_model(model=model, path="./checkpoint/ckpt.{}.pth".format(uid),
+    test_acc, test_loss = test_model(model=model, epoch=epoch,
                                      criterion=criterion, device=device, data_loader=dataloaders["test"],
                                      config=config, noise_test=False, seed=seed)
     final_results = {"test_acc": test_acc,
@@ -232,6 +232,21 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                      "dev_acc": best_acc,
                      "epoch": best_epoch,
                      "dev_noise_acc": dev_noise_acc,
-                     "dev_noise_loss": dev_noise_loss}
+                     "dev_noise_loss": dev_noise_loss,
+                     }
+
+    if "c_test" in dataloaders:
+        c_test_acc, c_test_loss = {}, {}
+        for c_category in dataloaders["c_test"].keys():
+            c_test_acc[c_category], c_test_loss[c_category] = {}, {}
+            for c_level, dataloader in dataloaders["c_test"][c_category].items():
+                acc, loss = test_model(model=model, epoch=epoch,
+                                                     criterion=criterion, device=device,
+                                                     data_loader=dataloader,
+                                                     config=config, noise_test=False, seed=seed)
+                c_test_acc[c_category][c_level] = acc
+                c_test_loss[c_category][c_level] = loss
+        final_results["c_test_acc"] = c_test_acc
+        final_results["c_test_loss"] = c_test_loss
 
     return test_acc, (train_stats, final_results), model.state_dict()
