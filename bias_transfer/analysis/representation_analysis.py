@@ -348,9 +348,6 @@ class RepresentationAnalyser:
             title = "Rep from clean data "
             df = self.clean_df
             acc = self.clean_rep[1]
-        if clean_rep is not None:
-            title += " (Transform from clean)"
-            mode = "clean_transform_" + mode
 
         data_columns = []
         print("==> Computing {} representation".format(method))
