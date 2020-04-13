@@ -26,7 +26,7 @@ class NoiseAdvTraining(MainLoopModule):
             self.progress += self.step_size
         return partial(model, noise_lambda=noise_adv_lambda), inputs
 
-    def post_forward(self, outputs, loss, extra_losses, applied_std=None, **kwargs):
+    def post_forward(self, outputs, loss, targets, extra_losses, applied_std=None, **kwargs):
         if applied_std is None:
             applied_std = torch.zeros_like(outputs["noise_pred"], device=self.device)
         if self.config.noise_adv_classification:
@@ -36,4 +36,4 @@ class NoiseAdvTraining(MainLoopModule):
         noise_loss = self.criterion(outputs["noise_pred"], applied_std)
         extra_losses["NoiseAdvTraining"] += noise_loss.item()
         loss += self.config.noise_adv_loss_factor * noise_loss
-        return outputs, loss
+        return outputs, loss, targets
