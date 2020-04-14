@@ -51,12 +51,10 @@ class Analyzer:
         plot_method=sns.catplot,
         kind="bar",
         save="",
-        fig=None,
-        ax=None,
         perf_measure="dev_acc",
         style="lighttalk",
     ):
-        if not fig or not ax:
+        if not to_plot in ("c_test_acc", "c_test_loss"):
             fs = (16, 10) if "talk" in style else (12, 7.5)
             dpi = 200 if "talk" in style else 200
             sns.set()
@@ -106,6 +104,54 @@ class Analyzer:
                     hue="Training",
                     ax=ax,
                 )
+        if to_plot in ("c_test_acc", "c_test_loss"):
+            for group in (
+                (
+                    "shot_noise",
+                    "impulse_noise",
+                    "speckle_noise",
+                    "gaussian_noise",
+                    "defocus_blur",
+                    "gaussian_blur",
+                    "motion_blur",
+                    "glass_blur",
+                    "zoom_blur",
+                    "brightness",
+                    "fog",
+                    "frost",
+                    "snow",
+                    "contrast",
+                    "elastic_transform",
+                    "pixelate",
+                    "jpeg_compression",
+                    "saturate",
+                    "spatter",
+                ),
+            ):
+                data = self.df[to_plot].apply(pd.Series)
+                data_to_plot = pd.DataFrame()
+                for corruption in group:
+                    data_ = data[corruption].apply(pd.Series)
+                    data_ = pd.concat([self.df["name"], data_], axis=1)
+                    data_["Corruption"] = corruption
+                    data_to_plot = pd.concat([data_to_plot, data_], axis=0, sort=True)
+                    data_to_plot.index = data_to_plot.name
+                    del data_to_plot["name"]
+                g = sns.FacetGrid(
+                    data=data_to_plot,
+                    col="Corruption",
+                    col_wrap=4,
+                    sharey=True,
+                    sharex=True,
+                )
+
+                def draw_heatmap(data, *args, **kwargs):
+                    del data["Corruption"]
+                    # print(data)
+                    sns.heatmap(data, annot=True, cbar=False)
+
+                g.map_dataframe(draw_heatmap)
+                fig = g.fig
         if to_plot in ("training_progress",):
             data = self.df[to_plot].apply(pd.Series)
             data = data.applymap(lambda x: x.get(perf_measure))
@@ -117,6 +163,20 @@ class Analyzer:
             plot_method(x="epoch", y="score", hue="name", data=data, ax=ax)
 
         sns.despine(offset=10, trim=True)
+        if to_plot in ("c_test_acc", "c_test_loss"):
+            # remove ticks again (see: https://stackoverflow.com/questions/37860163/seaborn-despine-brings-back-the-ytick-labels)
+            # loop over the non-left axes:
+            for i, ax in enumerate(g.axes.flat):
+                if i % 4 != 0:
+                    # get the yticklabels from the axis and set visibility to False
+                    for label in ax.get_yticklabels():
+                        label.set_visible(False)
+                    ax.yaxis.offsetText.set_visible(False)
+                if i < len(g.axes) - 4:
+                    # get the xticklabels from the axis and set visibility to False
+                    for label in ax.get_xticklabels():
+                        label.set_visible(False)
+                    ax.xaxis.offsetText.set_visible(False)
         if "talk" in style:
             plt.legend(fontsize=14, title_fontsize="14")
         if save:
