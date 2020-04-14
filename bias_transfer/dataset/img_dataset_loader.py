@@ -4,7 +4,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import datasets
-from bias_transfer.configs.dataset import DatasetConfig
+from bias_transfer.configs.dataset import ImageDatasetConfig
 import os
 
 from bias_transfer.dataset.utils import download_dataset, create_ImageFolder_format
@@ -18,7 +18,7 @@ DATASET_URLS = {
 }
 
 
-def dataset_loader(seed, **config):
+def img_dataset_loader(seed, **config):
     """
     Utility function for loading and returning train and valid
     multi-process iterators over the CIFAR-10 dataset. A sample
@@ -43,7 +43,7 @@ def dataset_loader(seed, **config):
     - train_loader: training set iterator.
     - valid_loader: validation set iterator.
     """
-    config = DatasetConfig.from_dict(config)
+    config = ImageDatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
     transform_list_base = [transforms.ToTensor()]

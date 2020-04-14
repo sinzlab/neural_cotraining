@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from bias_transfer.configs.model import ModelConfig
-
+from nnvision.models.models import se_core_gauss_readout
 
 def get_model_parameters(model):
     total_parameters = 0
@@ -14,7 +14,16 @@ def get_model_parameters(model):
     return total_parameters
 
 
-def cnn_builder(data_loader,
+def neural_cnn_builder(data_loaders,
+                seed: int = 1000,
+                **config):
+    config.pop('comment', None)
+    model = se_core_gauss_readout(dataloaders=data_loaders, seed=seed, **config)
+    print("Model with {} parameters.".format(get_model_parameters(model)))
+    return model
+
+
+def image_cls_cnn_builder(data_loader,
                 seed: int,
                 **config):
     config = ModelConfig.from_dict(config)

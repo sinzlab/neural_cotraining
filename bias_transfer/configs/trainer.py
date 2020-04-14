@@ -19,12 +19,37 @@ class TrainerConfig(BaseConfig):
         self.lr_decay = kwargs.pop("lr_decay", 0.8)
         self.weight_decay = kwargs.pop("weight_decay", 5e-4)
         self.momentum = kwargs.pop("momentum", 0.9)
-        self.num_epochs = kwargs.pop("num_epochs", 200)
+        self.epoch = kwargs.pop("epoch", 0)
         self.lr_milestones = kwargs.pop("lr_milestones", (60, 120, 160))
         self.adaptive_lr = kwargs.pop("adaptive_lr", False)
         self.patience = kwargs.pop("patience", 10)
         self.threshold = kwargs.pop("threshold", 0.0001)
         self.verbose = kwargs.pop("verbose", True)
+        self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
+        self.threshold_mode = kwargs.pop("threshold_mode", 'rel')
+        self.neural_prediction = kwargs.pop("neural_prediction", False)
+
+        if self.neural_prediction:
+            self.threshold_mode = 'abs'
+            self.loss_function = kwargs.pop("loss_function", "PoissonLoss")
+            self.scale_loss = kwargs.pop("scale_loss", True)
+            self.avg_loss = kwargs.pop("avg_loss", False)
+        else:
+            self.loss_function = kwargs.pop("loss_function", "CrossEntropyLoss")
+
+        self.stop_function = kwargs.pop("stop_function", "get_correlations")   #objective func for scheduler and early stopping
+        self.maximize = kwargs.pop("maximize", True)  # if stop_function maximized or minimized
+        self.loss_accum_batch_n = kwargs.pop("loss_accum_batch_n", 1)  #for gradient accumulation how often to call opt.step
+
+        self.interval = kwargs.pop("interval", 1)  #interval at which objective evaluated for early stopping
+        self.max_iter = kwargs.pop("max_iter", 10)  #maximum number of iterations (epochs)
+
+
+        self.restore_best = kwargs.pop("restore_best", True)  #in case of loading best model at the end of training
+        self.lr_decay_steps = kwargs.pop("lr_decay_steps", 3)   #Number of times the learning rate should be reduced before stopping the training.
+
+        self.track_training = kwargs.pop("track_training", False)
+
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)

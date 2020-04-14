@@ -4,10 +4,22 @@ from .base import BaseConfig
 from nnfabrik.main import *
 
 
+
 class ModelConfig(BaseConfig):
     config_name = "model"
+    table = None
+    fn = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.update(**kwargs)
+
+
+
+class ImageClsModelConfig(ModelConfig):
+    config_name = "model"
     table = Model()
-    fn = "bias_transfer.models.cnn_builder"
+    fn = "bias_transfer.models.image_cls_cnn_builder"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -40,4 +52,21 @@ class ModelConfig(BaseConfig):
         self.pretrained = kwargs.pop("pretrained", False)
         self.readout_type = kwargs.pop("readout_type", "dense")
 
+        self.update(**kwargs)
+
+
+class NeuralModelConfig(ModelConfig):
+    config_name = "model"
+    table = Model()
+    fn = "bias_transfer.models.neural_cnn_builder"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.input_kern = kwargs.pop("input_kern", 13)
+        self.hidden_kern = kwargs.pop("hidden_kern", 7)
+        self.depth_separable = kwargs.pop("depth_separable", True)
+        self.stack = kwargs.pop("stack", -1)
+        self.n_se_blocks = kwargs.pop("n_se_blocks", 0)
+        self.gamma_readout = kwargs.pop("gamma_readout", 0.4)
+        self.gamma_input = kwargs.pop("gamma_input", 5.9)
         self.update(**kwargs)
