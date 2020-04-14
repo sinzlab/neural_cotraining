@@ -144,7 +144,7 @@ def img_dataset_loader(seed, **config):
         num_workers=config.num_workers, pin_memory=config.pin_memory, shuffle=False
     )
     data_loaders = {"train": train_loader,
-                    "val": valid_loader,
+                    "validation": valid_loader,
                     "test": test_loader}
 
     if config.add_corrupted_test:

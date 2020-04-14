@@ -67,7 +67,6 @@ class NeuralDatasetConfig(DatasetConfig):
         neuronal_data_path = os.path.join(basepath, 'neuronal_data/')
         self.neuronal_data_files = [neuronal_data_path + f for f in listdir(neuronal_data_path) if
                                isfile(join(neuronal_data_path, f))]
-        #self.image_file = os.path.join(basepath, 'images/{}_images.pickle'.format(self.dataset))
         self.image_cache_path = os.path.join(basepath, 'images/individual')
 
         self.seed = kwargs.pop("seed", 1000)

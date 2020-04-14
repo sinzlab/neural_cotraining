@@ -16,10 +16,10 @@ class ModelConfig(BaseConfig):
 
 
 
-class ImageClsModelConfig(ModelConfig):
+class ClassificationModelConfig(ModelConfig):
     config_name = "model"
     table = Model()
-    fn = "bias_transfer.models.image_cls_cnn_builder"
+    fn = "bias_transfer.models.classification_cnn_builder"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

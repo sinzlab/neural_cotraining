@@ -45,10 +45,10 @@ def weight_reset(m):
         m.reset_parameters()
 
 
-def neural_full_objective(model, outputs, dataloader, criterion, device, scale_loss, data_key, *args):
-    loss_scale = np.sqrt(len(dataloader[data_key].dataset) / args[0].shape[0]) if scale_loss else 1.0
+def neural_full_objective(model, outputs, dataloader, criterion, device, scale_loss, data_key, inputs, targets):
+    loss_scale = torch.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0]) if scale_loss else 1.0
 
-    return loss_scale * criterion(outputs, args[1].to(device)) + model.regularizer(data_key)
+    return loss_scale * criterion(outputs, targets.to(device)) + model.regularizer(data_key)
 
 
 def main_loop(model,
@@ -110,8 +110,9 @@ def main_loop(model,
                 epoch_loss += loss.item()
                 # Book-keeping
                 if neural_prediction:
-                    eval = get_correlations(model, batch_dict, device=device,
+                    total += get_correlations(model, batch_dict, device=device,
                                                               as_dict=False, per_neuron=False)
+                    eval = average_loss(total)
                 else:
                     _, predicted = outputs["logits"].max(1)
                     total += targets.size(0)
@@ -129,9 +130,7 @@ def main_loop(model,
                     if (batch_idx + 1) % optim_step_count == 0:
                         optimizer.step()
                         optimizer.zero_grad()
-    if neural_prediction:
-        eval = get_correlations(model, data_loader, device=device,
-                               as_dict=False, per_neuron=False)
+
     if return_outputs:
         return eval, average_loss(epoch_loss), {k: average_loss(l) for k, l in module_losses.items()}, collected_outputs
     return eval, average_loss(epoch_loss), {k: average_loss(l) for k, l in module_losses.items()}
@@ -231,7 +230,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         torch.cuda.manual_seed(seed)
 
     train_n_iterations = len(LongCycler(dataloaders['train']) if config.neural_prediction else dataloaders["train"])
-    val_n_iterations = len(LongCycler(dataloaders['validation']) if config.neural_prediction else dataloaders["val"])
+    val_n_iterations = len(LongCycler(dataloaders['validation']) if config.neural_prediction else dataloaders["validation"])
     test_n_iterations = len(LongCycler(dataloaders['test']) if config.neural_prediction else dataloaders["test"])
 
     if config.neural_prediction:
@@ -250,7 +249,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     else:
         criterion = nn.CrossEntropyLoss()
         stop_closure = partial(img_cls_stop_func, criterion=criterion, device=device,
-                                data_loader=dataloaders['val'], modules=main_loop_modules, train_mode=False)
+                                data_loader=dataloaders['validation'], modules=main_loop_modules, train_mode=False)
         optim_step_count = 1
 
     if not eval_only:
@@ -339,7 +338,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                                                            criterion=criterion,
                                                            device=device,
                                                            optimizer=None,
-                                                           data_loader=dataloaders['validation'] if config.neural_prediction else dataloaders["val"],
+                                                           data_loader=dataloaders['validation'] if config.neural_prediction else dataloaders["validation"],
                                                            epoch=epoch,
                                                            n_iterations=val_n_iterations,
                                                            modules=main_loop_modules,
@@ -365,7 +364,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model with noise on the dev-set
     dev_noise_eval, dev_noise_loss = test_model(model=model, epoch=epoch, n_iterations=val_n_iterations,
                                                criterion=criterion, device=device,
-                                                data_loader=dataloaders['validation'] if config.neural_prediction else dataloaders["val"],
+                                                data_loader=dataloaders['validation'] if config.neural_prediction else dataloaders["validation"],
                                                config=config, noise_test=True, seed=seed)
     # test the final model on the test set
     test_eval, test_loss = test_model(model=model, epoch=epoch, n_iterations=test_n_iterations,

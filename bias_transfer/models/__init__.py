@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from bias_transfer.configs.model import ModelConfig
+from bias_transfer.configs.model import ClassificationModelConfig
 from nnvision.models.models import se_core_gauss_readout
 
 def get_model_parameters(model):
@@ -23,10 +23,10 @@ def neural_cnn_builder(data_loaders,
     return model
 
 
-def image_cls_cnn_builder(data_loader,
+def classification_cnn_builder(data_loader,
                 seed: int,
                 **config):
-    config = ModelConfig.from_dict(config)
+    config = ClassificationModelConfig.from_dict(config)
     if config.cnn_builder == "vgg":
         return vgg_builder(seed, config)
     elif config.cnn_builder == "resnet":
