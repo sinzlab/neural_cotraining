@@ -46,7 +46,7 @@ def weight_reset(m):
 
 
 def neural_full_objective(model, outputs, dataloader, criterion, device, scale_loss, data_key, inputs, targets):
-    loss_scale = torch.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0]) if scale_loss else 1.0
+    loss_scale = np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0]) if scale_loss else 1.0
 
     return loss_scale * criterion(outputs, targets.to(device)) + model.regularizer(data_key)
 
@@ -109,6 +109,9 @@ def main_loop(model,
                     loss += criterion(outputs["logits"], targets)
                 epoch_loss += loss.item()
                 # Book-keeping
+                def average_loss(loss_):
+                    return loss_ / (batch_idx + 1)
+
                 if neural_prediction:
                     total += get_correlations(model, batch_dict, device=device,
                                                               as_dict=False, per_neuron=False)
@@ -118,9 +121,6 @@ def main_loop(model,
                     total += targets.size(0)
                     correct += predicted.eq(targets).sum().item()
                     eval = 100. * correct / total
-
-                def average_loss(loss_):
-                    return loss_ / (batch_idx + 1)
 
                 t.set_postfix(eval=eval, loss=average_loss(epoch_loss),
                               **{k: average_loss(l) for k, l in module_losses.items()})
