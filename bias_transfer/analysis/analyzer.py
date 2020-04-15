@@ -131,6 +131,8 @@ class Analyzer:
                 data = self.df[to_plot].apply(pd.Series)
                 data_to_plot = pd.DataFrame()
                 for corruption in group:
+                    if corruption not in data.columns:
+                        continue
                     data_ = data[corruption].apply(pd.Series)
                     data_ = pd.concat([self.df["name"], data_], axis=1)
                     data_["Corruption"] = corruption
