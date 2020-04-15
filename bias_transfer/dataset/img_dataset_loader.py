@@ -105,10 +105,10 @@ def img_dataset_loader(seed, **config):
 
         c_test_datasets = {}
         for c_category in os.listdir(dataset_dir):
-            if c_category == "labels.npy" or not c_category.endswith(".npy"):
-                continue
-            c_test_datasets[c_category[:-4]] = {}
             if config.dataset_cls in ("CIFAR10", "CIFAR100"):
+                if c_category == "labels.npy" or not c_category.endswith(".npy"):
+                    continue
+                c_test_datasets[c_category[:-4]] = {}
                 for c_level in range(1, 6):
                     start = (c_level - 1) * 10000
                     end = c_level * 10000
@@ -121,6 +121,7 @@ def img_dataset_loader(seed, **config):
                         transform=transform_base,
                     )
             else:
+                c_test_datasets[c_category] = {}
                 for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
                     c_test_datasets[c_category][c_level] = datasets.ImageFolder(
                         os.path.join(dataset_dir, c_category, c_level),
@@ -182,5 +183,4 @@ def img_dataset_loader(seed, **config):
                     shuffle=False,
                 )
         data_loaders["c_test"] = c_test_loaders
-
     return data_loaders
