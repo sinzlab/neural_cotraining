@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from bias_transfer.configs.model import ClassificationModelConfig
+from bias_transfer.configs.model import ClassificationModelConfig, MTLModelConfig
 from nnvision.models.models import se_core_gauss_readout, se_core_point_readout
 
 def get_model_parameters(model):
@@ -23,6 +23,28 @@ def neural_cnn_builder(data_loaders,
         model = se_core_point_readout(dataloaders=data_loaders, seed=seed, **config)
     elif readout_type == "gauss":
         model = se_core_gauss_readout(dataloaders=data_loaders, seed=seed, **config)
+    print("Model with {} parameters.".format(get_model_parameters(model)))
+    return model
+
+
+def mtl_builder(data_loaders,
+                seed: int = 1000,
+                **config):
+    config = MTLModelConfig.from_dict(config)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    from .mtl_vgg import MTL_VGG
+
+    model = MTL_VGG(data_loaders, vgg_type=config.vgg_type, classification=config.classification,
+                    classification_readout_type=config.classification_readout_type, input_size=config.input_size,
+                    num_classes=config.num_classes, pretrained=config.pretrained,
+                    v1_model_layer=config.v1_model_layer, input_channels=config.input_channels,
+                    v1_final_batchnorm=config.v1_final_batchnorm, v1_final_nonlinearity=config.v1_final_nonlinearity,
+                    v1_bias=config.v1_bias, v1_momentum=config.v1_momentum, v1_fine_tune=config.v1_fine_tune,
+                    v1_init_mu_range=config.v1_init_mu_range, v1_init_sigma_range=config.v1_init_sigma_range,
+                    v1_readout_bias=config.v1_readout_bias, v1_gamma_readout=config.v1_gamma_readout, v1_elu_offset=config.v1_elu_offset)
+
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
 

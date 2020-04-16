@@ -74,3 +74,31 @@ class NeuralModelConfig(ModelConfig):
         self.gamma_readout = kwargs.pop("gamma_readout", 0.5)
         self.gamma_input = kwargs.pop("gamma_input", 10)
         self.update(**kwargs)
+
+
+class MTLModelConfig(ModelConfig):
+    config_name = "model"
+    table = Model()
+    fn = "bias_transfer.models.mtl_builder"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.vgg_type = kwargs.pop("vgg_type", 'vgg19_bn')
+        self.classification = kwargs.pop("classification", False)
+        self.classification_readout_type = kwargs.pop("classification_readout_type", None)
+        self.input_size = kwargs.pop("input_size", None)
+        self.num_classes = kwargs.pop("num_classes", 200)
+        self.pretrained = kwargs.pop("pretrained", True)
+
+        self.v1_model_layer = kwargs.pop("v1_model_layer", 17)
+        self.v1_input_channels = kwargs.pop("v1_input_channels", 1)
+        self.v1_final_batchnorm = kwargs.pop("v1_final_batchnorm", False)
+        self.v1_final_nonlinearity = kwargs.pop("v1_final_nonlinearity", False)
+        self.v1_bias = kwargs.pop("v1_bias", False)
+        self.v1_momentum = kwargs.pop("v1_momentum", 0.1)
+        self.v1_fine_tune = kwargs.pop("v1_fine_tune", False)
+        self.v1_init_mu_range = kwargs.pop("v1_init_mu_range", 0.3)
+        self.v1_init_sigma_range = kwargs.pop("v1_init_sigma_range", 0.6)
+        self.v1_readout_bias = kwargs.pop("v1_readout_bias", True)
+        self.v1_gamma_readout = kwargs.pop("v1_gamma_readout", 0.5)
+        self.v1_elu_offset = kwargs.pop("v1_elu_offset", -1)
