@@ -1,8 +1,6 @@
 from .base import BaseConfig
 from nnfabrik.main import *
-import os
-from os import listdir
-from os.path import isfile, join
+
 
 class DatasetConfig(BaseConfig):
     config_name = "dataset"
@@ -63,12 +61,6 @@ class NeuralDatasetConfig(DatasetConfig):
         super().__init__(**kwargs)
         self.train_frac = kwargs.pop("train_frac", 0.8)
         self.dataset = kwargs.pop("dataset", "CSRF19_V1")
-        basepath = './data/monkey/toliaslab/{}'.format(self.dataset)
-        neuronal_data_path = os.path.join(basepath, 'neuronal_data/')
-        self.neuronal_data_files = [neuronal_data_path + f for f in listdir(neuronal_data_path) if
-                               isfile(join(neuronal_data_path, f))]
-        self.image_cache_path = os.path.join(basepath, 'images/individual')
-
         self.seed = kwargs.pop("seed", 1000)
         self.subsample = kwargs.pop("subsample", 1)
         self.crop = kwargs.pop("crop", 101)
