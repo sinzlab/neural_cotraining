@@ -24,7 +24,7 @@ class TrainerConfig(BaseConfig):
         self.adaptive_lr = kwargs.pop("adaptive_lr", False)
         self.patience = kwargs.pop("patience", 10)
         self.threshold = kwargs.pop("threshold", 0.0001)
-        self.verbose = kwargs.pop("verbose", True)
+        self.verbose = kwargs.pop("verbose", False)
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
         self.threshold_mode = kwargs.pop("threshold_mode", "rel")
         self.neural_prediction = kwargs.pop("neural_prediction", False)
