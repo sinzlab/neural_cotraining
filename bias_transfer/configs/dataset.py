@@ -61,6 +61,7 @@ class NeuralDatasetConfig(DatasetConfig):
         super().__init__(**kwargs)
         self.train_frac = kwargs.pop("train_frac", 0.8)
         self.dataset = kwargs.pop("dataset", "CSRF19_V1")
+        self.data_dir = './data/monkey/toliaslab/{}'.format(self.dataset)
         self.seed = kwargs.pop("seed", 1000)
         self.subsample = kwargs.pop("subsample", 1)
         self.crop = kwargs.pop("crop", 101)
