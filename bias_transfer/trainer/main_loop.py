@@ -1,9 +1,40 @@
-import numpy as np
 import torch
 from tqdm import tqdm
+import numpy as np
 
 from mlutils.training import LongCycler
 from nnvision.utility.measures import get_correlations
+
+
+def neural_full_objective(
+    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets
+):
+    loss_scale = (
+        np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0])
+        if scale_loss
+        else 1.0
+    )
+    loss = criterion(outputs, targets)
+    return loss_scale * loss + model.regularizer(data_key)
+
+
+def move_data(batch_data, device, neural_prediction=False):
+    if neural_prediction:
+        data_key, (inputs, targets) = batch_data[0], batch_data[1]
+        inputs, targets = (
+            inputs.to(device),
+            targets.to(device),
+        )
+        batch_dict = {data_key: [(inputs, targets)]}
+    else:
+        data_key = None
+        batch_dict = None
+        inputs = batch_data[0].to(device, dtype=torch.float)
+        if len(batch_data) > 2:
+            targets = [b.to(device) for b in batch_data[1:]]
+        else:
+            targets = batch_data[1].to(device)
+    return inputs, targets, data_key, batch_dict
 
 
 def main_loop(
@@ -52,16 +83,9 @@ def main_loop(
             for batch_idx, batch_data in t:
                 # Pre-Forward
                 loss = torch.zeros(1, device=device)
-
-                if neural_prediction:
-                    data_key, (inputs, targets) = batch_data[0], batch_data[1]
-                    inputs, targets = inputs.to(device), targets.to(device)
-                    batch_dict = {data_key: [(inputs, targets)]}
-                else:
-                    inputs, targets = (
-                        batch_data[0].to(device, dtype=torch.float),
-                        batch_data[1].to(device),
-                    )
+                inputs, targets, data_key, batch_dict = move_data(
+                    batch_data, device, neural_prediction
+                )
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 for module in modules:
                     model, inputs = module.pre_forward(
@@ -74,11 +98,12 @@ def main_loop(
                     outputs = model(inputs)
                 # Post-Forward
                 for module in modules:
-                    outputs, loss = module.post_forward(
-                        outputs,
-                        loss,
-                        module_losses,
+                    outputs, loss, targets = module.post_forward(
+                        outputs=outputs,
+                        loss=loss,
+                        extra_losses=module_losses,
                         train_mode=train_mode,
+                        targets=targets,
                         **shared_memory
                     )
                 if return_outputs:
@@ -144,15 +169,3 @@ def main_loop(
         average_loss(epoch_loss),
         {k: average_loss(l) for k, l in module_losses.items()},
     )
-
-
-def neural_full_objective(
-    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets
-):
-    loss_scale = (
-        np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0])
-        if scale_loss
-        else 1.0
-    )
-    loss = criterion(outputs, targets)
-    return loss_scale * loss + model.regularizer(data_key)

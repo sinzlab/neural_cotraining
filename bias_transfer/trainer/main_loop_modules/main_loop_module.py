@@ -11,5 +11,5 @@ class MainLoopModule(object):
     def pre_forward(self, model, inputs, shared_memory, train_mode):
         return model, inputs
 
-    def post_forward(self, outputs, loss, targets, extra_losses, applied_std=None, **kwargs):
+    def post_forward(self, outputs, loss, targets, extra_losses, train_mode, applied_std=None, **kwargs):
         return outputs, loss, targets

@@ -100,6 +100,7 @@ class TrainerConfig(BaseConfig):
         self.reset_linear_frequency = kwargs.pop("reset_linear_frequency", None)
         self.transfer_from_path = kwargs.pop("transfer_from_path", None)
         self.rdm_transfer = kwargs.pop("rdm_transfer", False)
+        self.rdm_prediction = kwargs.pop("rdm_prediction", {"lambda": 1.0})
         self.update(**kwargs)
 
     @property
@@ -116,5 +117,5 @@ class TrainerConfig(BaseConfig):
         if self.reset_linear_frequency:
             modules.append("RandomReadoutReset")
         if self.rdm_transfer:
-            modules.append("RDMTransfer")
+            modules.append("RDMPrediction")
         return modules

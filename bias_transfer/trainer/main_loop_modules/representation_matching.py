@@ -36,7 +36,7 @@ class RepresentationMatching(NoiseAugmentation):
         inputs = torch.cat([inputs1, inputs2])
         return model, inputs
 
-    def post_forward(self, outputs, loss, targets, extra_losses, applied_std, **kwargs):
+    def post_forward(self, outputs, loss, targets, extra_losses, train_mode, applied_std=None, **kwargs):
         rep_1 = outputs[self.rep][:self.batch_size][self.clean_flags]
         rep_2 = outputs[self.rep][self.batch_size:]
         if self.config.representation_matching.get("criterion", "cosine") == "cosine":
