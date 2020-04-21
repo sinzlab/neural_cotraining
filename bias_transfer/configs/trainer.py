@@ -42,7 +42,7 @@ class TrainerConfig(BaseConfig):
         self.loss_accum_batch_n = kwargs.pop("loss_accum_batch_n", 1)  #for gradient accumulation how often to call opt.step
 
         self.interval = kwargs.pop("interval", 1)  #interval at which objective evaluated for early stopping
-        self.max_iter = kwargs.pop("max_iter", 10)  #maximum number of iterations (epochs)
+        self.max_iter = kwargs.pop("max_iter", 100)  #maximum number of iterations (epochs)
 
 
         self.restore_best = kwargs.pop("restore_best", True)  #in case of loading best model at the end of training
