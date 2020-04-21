@@ -29,7 +29,7 @@ def get_module_output(model, input_shape):
     return output[0].shape
 
 class MultipleGaussian2d(torch.nn.ModuleDict):
-    def __init__(self, in_shapes, in_shape_dict, n_neurons_dict, init_mu_range, init_sigma_range, bias, gamma_readout):
+    def __init__(self, in_shapes, n_neurons_dict, init_mu_range, init_sigma_range, bias, gamma_readout):
         # super init to get the _module attribute
         super(MultipleGaussian2d, self).__init__()
         for k in n_neurons_dict:
@@ -153,7 +153,7 @@ class MTL_VGG(nn.Module):
         for k in n_neurons_dict:
             in_shapes[k] = get_module_output(self.mtl_vgg_core, in_shapes_dict[k])[1:]
 
-        self.v1_readout = MultipleGaussian2d(in_shapes=in_shapes, in_shape_dict=in_shapes_dict,
+        self.v1_readout = MultipleGaussian2d(in_shapes=in_shapes,
                              n_neurons_dict=n_neurons_dict,
                              init_mu_range=v1_init_mu_range,
                              bias=v1_readout_bias,
