@@ -1,12 +1,7 @@
 import copy
-import torch
-from torch import nn
 from torch import optim
 import torch.backends.cudnn as cudnn
 import nnfabrik as nnf
-
-import os
-from tqdm import tqdm
 
 from bias_transfer.utils import stringify
 from bias_transfer.utils.io import *
@@ -14,7 +9,6 @@ from .representation_matching import RepresentationMatching
 from .noise_augmentation import NoiseAugmentation
 from .noise_adv_training import NoiseAdvTraining
 from .random_readout_reset import RandomReadoutReset
-import numpy as np
 
 from bias_transfer.configs.trainer import TrainerConfig
 
@@ -45,10 +39,10 @@ def weight_reset(m):
         m.reset_parameters()
 
 
-def neural_full_objective(model, outputs, dataloader, criterion, device, scale_loss, data_key, inputs, targets):
+def neural_full_objective(model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets):
     loss_scale = np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0]) if scale_loss else 1.0
 
-    return loss_scale * criterion(outputs, targets.to(device)) + model.regularizer(data_key)
+    return loss_scale * criterion(outputs, targets) + model.regularizer(data_key)
 
 
 def main_loop(model,
@@ -64,6 +58,8 @@ def main_loop(model,
               neural_prediction=False,
               scale_loss=True,
               optim_step_count=1):
+
+
     model.train() if train_mode else model.eval()
     epoch_loss, correct, total, module_losses, collected_outputs = 0, 0, 0, {}, []
     for module in modules:
@@ -76,15 +72,18 @@ def main_loop(model,
                   desc='{} Epoch {}'.format("Train" if train_mode else "Eval", epoch)) as t:
             for module in modules:
                 module.pre_epoch(model, train_mode)
+
+            if train_mode:
+                optimizer.zero_grad()
+
             for batch_idx, batch_data in t:
                 # Pre-Forward
                 loss = torch.zeros(1, device=device)
-                if train_mode:
-                    optimizer.zero_grad()
+
                 if neural_prediction:
                     data_key, (inputs, targets) = batch_data[0], batch_data[1]
-                    batch_dict = {data_key: [(inputs,targets)] }
-                    inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
+                    inputs, targets = inputs.to(device), targets.to(device)
+                    batch_dict = {data_key: [(inputs, targets)]}
                 else:
                     inputs, targets = batch_data[0].to(device,dtype=torch.float), batch_data[1].to(device)
                 shared_memory = {}  # e.g. to remember where which noise was applied
@@ -103,7 +102,7 @@ def main_loop(model,
                     collected_outputs.append(outputs)
                 if neural_prediction:
                     loss += neural_full_objective(model, outputs, data_loader, criterion,
-                                                  device, scale_loss, data_key,
+                                                  scale_loss, data_key,
                                                   inputs, targets)
                 else:
                     loss += criterion(outputs["logits"], targets)
@@ -217,7 +216,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     uid = nnf.utility.dj_helpers.make_hash(uid)
     device = 'cuda' if torch.cuda.is_available() and not config.force_cpu else 'cpu'
     best_eval, best_epoch = 0, 0  # best test eval
-    start_epoch = -1  # start from epoch 0 or last checkpoint epoch
     torch.manual_seed(seed)
     np.random.seed(seed)
 
@@ -319,6 +317,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 cb()
 
             if config.verbose and tracker is not None:
+                print("=======================================")
                 for key in tracker.log.keys():
                     print(key, tracker.log[key][-1], flush=True)
 

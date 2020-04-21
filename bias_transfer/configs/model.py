@@ -62,11 +62,15 @@ class NeuralModelConfig(ModelConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.input_kern = kwargs.pop("input_kern", 13)
-        self.hidden_kern = kwargs.pop("hidden_kern", 7)
+        self.readout_type = kwargs.pop("readout_type", "point")
+        if self.readout_type == "point":
+            self.hidden_dilation = kwargs.pop("hidden_dilation", 2)
+            self.se_reduction = kwargs.pop("se_reduction", 16)
+        self.input_kern = kwargs.pop("input_kern", 24)
+        self.hidden_kern = kwargs.pop("hidden_kern", 9)
         self.depth_separable = kwargs.pop("depth_separable", True)
         self.stack = kwargs.pop("stack", -1)
-        self.n_se_blocks = kwargs.pop("n_se_blocks", 0)
-        self.gamma_readout = kwargs.pop("gamma_readout", 0.4)
-        self.gamma_input = kwargs.pop("gamma_input", 5.9)
+        self.n_se_blocks = kwargs.pop("n_se_blocks", 2)
+        self.gamma_readout = kwargs.pop("gamma_readout", 0.5)
+        self.gamma_input = kwargs.pop("gamma_input", 10)
         self.update(**kwargs)

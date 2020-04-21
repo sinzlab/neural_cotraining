@@ -8,10 +8,11 @@ from os.path import isfile, join
 
 def neural_dataset_loader(seed, **config):
     config.pop('comment', None)
-    neuronal_data_path = os.path.join(config['data_dir'], 'neuronal_data/')
+    data_dir = config.pop('data_dir', None)
+    neuronal_data_path = os.path.join(data_dir, 'neuronal_data/')
     config['neuronal_data_files'] = [neuronal_data_path + f for f in listdir(neuronal_data_path) if
                                 isfile(join(neuronal_data_path, f))]
-    config['image_cache_path'] = os.path.join(config['data_dir'], 'images/individual')
+    config['image_cache_path'] = os.path.join(data_dir, 'images/individual')
     torch.manual_seed(seed)
     np.random.seed(seed)
     dataset_fn = 'nnvision.datasets.monkey_static_loader'
