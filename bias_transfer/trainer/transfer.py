@@ -3,13 +3,10 @@ from torch import nn
 from torch.utils.data import TensorDataset
 
 from bias_transfer.dataset.combined_dataset import CombinedDataset, JoinedDataset
+from bias_transfer.utils import weight_reset
 from bias_transfer.utils.io import load_model
 from bias_transfer.trainer.main_loop import main_loop
 
-
-def weight_reset(m):
-    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-        m.reset_parameters()
 
 
 def compute_representation(model, criterion, device, data_loader, rep_name):
@@ -42,7 +39,7 @@ def generate_rep_dataset(model, criterion, device, data_loader, rep_name):
     representation = compute_representation(
         model, criterion, device, data_loader_, rep_name
     )
-    rep_dataset = TensorDataset(representation.to('cpu'))
+    rep_dataset = TensorDataset(representation.to("cpu"))
     img_dataset = data_loader.dataset
     combined_dataset = CombinedDataset(
         JoinedDataset(

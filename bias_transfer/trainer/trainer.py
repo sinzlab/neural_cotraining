@@ -8,8 +8,10 @@ from torch.backends import cudnn as cudnn
 
 import nnfabrik as nnf
 from bias_transfer.configs.trainer import TrainerConfig
-from bias_transfer.trainer.main_loop import main_loop
+from bias_transfer.trainer import main_loop
 from bias_transfer.trainer.transfer import transfer_model
+from bias_transfer.utils import weight_reset
+from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.test import test_neural_model, test_model
 from bias_transfer.utils.io import load_model, load_checkpoint, save_checkpoint
 from mlutils import measures as mlmeasures

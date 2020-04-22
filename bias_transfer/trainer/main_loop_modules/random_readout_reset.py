@@ -7,12 +7,12 @@ from .main_loop_module import MainLoopModule
 
 
 class RandomReadoutReset(MainLoopModule):
-    def __init__(self, config, device, data_loader, seed):
-        super(RandomReadoutReset, self).__init__(config, device, data_loader, seed)
+    def __init__(self, model, config, device, data_loader, seed):
+        super().__init__(model, config, device, data_loader, seed)
         self.batch_progress = 0
         self.epoch_progress = 0
 
-    def pre_epoch(self, model, train_mode):
+    def pre_epoch(self, model, train_mode, epoch):
         if train_mode and self.config.reset_linear_frequency.get("epoch"):
             if self.epoch_progress % self.config.reset_linear_frequency["epoch"] == 0:
                 model.module.linear_readout.reset_parameters()

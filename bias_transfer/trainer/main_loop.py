@@ -75,7 +75,7 @@ def main_loop(
         ) as t:
 
             for module in modules:
-                module.pre_epoch(model, train_mode)
+                module.pre_epoch(model, train_mode, epoch)
 
             if train_mode:
                 optimizer.zero_grad()
@@ -89,7 +89,7 @@ def main_loop(
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 for module in modules:
                     model, inputs = module.pre_forward(
-                        model, inputs, shared_memory, train_mode=train_mode
+                        model, inputs, shared_memory, train_mode
                     )
                 # Forward
                 if neural_prediction:
@@ -99,11 +99,11 @@ def main_loop(
                 # Post-Forward
                 for module in modules:
                     outputs, loss, targets = module.post_forward(
-                        outputs=outputs,
-                        loss=loss,
-                        extra_losses=module_losses,
-                        train_mode=train_mode,
-                        targets=targets,
+                        outputs,
+                        loss,
+                        targets,
+                        module_losses,
+                        train_mode,
                         **shared_memory
                     )
                 if return_outputs:
@@ -149,6 +149,8 @@ def main_loop(
                 if train_mode:
                     # Backward
                     loss.backward()
+                    for module in modules:
+                        module.post_backward(model)
                     if (batch_idx + 1) % optim_step_count == 0:
                         optimizer.step()
                         optimizer.zero_grad()

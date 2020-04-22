@@ -100,7 +100,8 @@ class TrainerConfig(BaseConfig):
         self.reset_linear_frequency = kwargs.pop("reset_linear_frequency", None)
         self.transfer_from_path = kwargs.pop("transfer_from_path", None)
         self.rdm_transfer = kwargs.pop("rdm_transfer", False)
-        self.rdm_prediction = kwargs.pop("rdm_prediction", {"lambda": 1.0})
+        self.rdm_prediction = kwargs.pop("rdm_prediction", {})
+        self.lottery_ticket = kwargs.pop("lottery_ticket", {})
         self.update(**kwargs)
 
     @property
@@ -118,4 +119,6 @@ class TrainerConfig(BaseConfig):
             modules.append("RandomReadoutReset")
         if self.rdm_transfer:
             modules.append("RDMPrediction")
+        if self.lottery_ticket:
+            modules.append("LotteryTicketPruning")
         return modules

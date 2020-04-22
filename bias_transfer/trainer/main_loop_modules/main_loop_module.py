@@ -1,15 +1,18 @@
 class MainLoopModule(object):
-    def __init__(self, config, device, data_loader, seed):
+    def __init__(self, model, config, device, data_loader, seed):
         self.config = config
         self.device = device
         self.seed = seed
         self.criterion = None
 
-    def pre_epoch(self, model, train_mode):
+    def pre_epoch(self, model, train_mode, epoch):
         pass
 
     def pre_forward(self, model, inputs, shared_memory, train_mode):
         return model, inputs
 
-    def post_forward(self, outputs, loss, targets, extra_losses, train_mode, applied_std=None, **kwargs):
+    def post_forward(self, outputs, loss, targets, extra_losses, train_mode, **kwargs):
         return outputs, loss, targets
+
+    def post_backward(self, model, **kwargs):
+        pass

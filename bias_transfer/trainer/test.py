@@ -40,7 +40,7 @@ def test_model(
                 setattr(config, n_type, val)
                 main_loop_modules = [
                     globals().get("NoiseAugmentation")(
-                        config, device, data_loader, seed
+                        model, config, device, data_loader, seed
                     )
                 ]
                 test_eval[n_type][val_str], test_loss[n_type][val_str], _ = main_loop(
@@ -61,7 +61,7 @@ def test_model(
         for k in config.main_loop_modules:
             if k != "NoiseAugmentation":
                 main_loop_modules.append(
-                    globals().get(k)(config, device, data_loader, seed)
+                    globals().get(k)(model, config, device, data_loader, seed)
                 )
         test_eval, test_loss, _ = main_loop(
             model,

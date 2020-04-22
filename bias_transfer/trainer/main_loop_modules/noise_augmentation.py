@@ -5,8 +5,8 @@ from .main_loop_module import MainLoopModule
 
 
 class NoiseAugmentation(MainLoopModule):
-    def __init__(self, config, device, data_loader, seed):
-        super().__init__(config, device, data_loader, seed)
+    def __init__(self, model, config, device, data_loader, seed):
+        super().__init__(model, config, device, data_loader, seed)
         self.rnd_gen = None
 
     def apply_noise(self, x, device, std: dict = None, snr: dict = None, rnd_gen=None):
@@ -55,7 +55,7 @@ class NoiseAugmentation(MainLoopModule):
             x = torch.clamp(x, max=1.0, min=0.0)
         return x, applied_std
 
-    def pre_epoch(self, model, train_mode):
+    def pre_epoch(self, model, train_mode, epoch):
         if not train_mode:
             rnd_gen = torch.Generator(device=self.device)
             if isinstance(self.seed, np.generic):
