@@ -13,13 +13,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def compute_corr_matrix(x):
-    x_flat = x.flatten(1, -1)
-    centered = (x_flat - x_flat.mean()) / x_flat.std()
-    out = (centered @ centered.transpose(0, 1)) / x_flat.size()[1]
-    return out
-
-
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -36,7 +29,6 @@ class BasicBlock(nn.Module):
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
-            # TODO extract matrix from here as well
             self.shortcut = nn.Sequential(
                 nn.Conv2d(
                     in_planes,
@@ -48,20 +40,14 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(self.expansion * planes),
             )
 
-    def forward(self, inputs):
-        (x, compute_corr) = inputs
-        corr_matrices = []
+    def forward(self, x):
         out = self.conv1(x)
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
-        out = F.relu(self.bn1())
+        out = F.relu(self.bn1(out))
         out = self.conv2(out)
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
         out = self.bn2(out)
         out += self.shortcut(x)
         out = F.relu(out)
-        return out, corr_matrices
+        return out
 
 
 class Bottleneck(nn.Module):
@@ -82,7 +68,6 @@ class Bottleneck(nn.Module):
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
-            # TODO extract matrix from here as well
             self.shortcut = nn.Sequential(
                 nn.Conv2d(
                     in_planes,
@@ -94,24 +79,16 @@ class Bottleneck(nn.Module):
                 nn.BatchNorm2d(self.expansion * planes),
             )
 
-    def forward(self, inputs):
-        (x, compute_corr) = inputs
-        corr_matrices = []
+    def forward(self, x):
         out = self.conv1(x)
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
         out = F.relu(self.bn1(out))
         out = self.conv2(out)
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
         out = F.relu(self.bn2(out))
         out = self.conv3(out)
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
         out = self.bn3(out)
         out += self.shortcut(x)
         out = F.relu(out)
-        return out, corr_matrices
+        return out
 
 
 class ResNetCore(nn.Module):
@@ -140,19 +117,14 @@ class ResNetCore(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x, compute_corr: bool = False, seed: int = None):
+    def forward(self, x, seed: int = None):
         out = self.conv1(x)
-        corr_matrices = []
-        if compute_corr:
-            corr_matrices.append(compute_corr_matrix(out))
         out = F.relu(self.bn1(out))
         for layer in self.layers:
-            out, corr_matrices_l = layer((out, compute_corr))
-            # passing arguments as tuple to get multiple args through Sequential
-            corr_matrices += corr_matrices_l
+            out = layer(out)
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
-        return out, corr_matrices
+        return out
 
     def freeze(self):
         for layer in [self.layers] + [self.conv1, self.bn1]:
@@ -169,9 +141,9 @@ class ResNet(nn.Module):
         self.readout = nn.Linear(512 * block.expansion, num_classes)
 
     def forward(self, x, compute_corr: bool = False, seed: int = None):
-        core_out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
+        core_out = self.core(x, seed=seed)
         out = self.readout(core_out)
-        return {"logits": out, "conv_rep": core_out, "corr_matrices": corr_matrices}
+        return {"logits": out, "conv_rep": core_out}
 
     def freeze(self, selection=("core",)):
         if selection is True or "core" in selection:

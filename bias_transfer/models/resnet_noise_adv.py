@@ -1,4 +1,4 @@
-from .resnet import ResNet, compute_corr_matrix, Bottleneck
+from .resnet import ResNet, Bottleneck
 
 import torch
 import torch.nn as nn
@@ -52,10 +52,8 @@ class NoiseAdvResNet(ResNet):
         self.noise_readout = nn.Sequential(*readout_layers)
         self.classification = classification
 
-    def forward(
-        self, x, compute_corr: bool = False, seed: int = None, noise_lambda=None
-    ):
-        core_out, corr_matrices = self.core(x, compute_corr=compute_corr, seed=seed)
+    def forward(self, x, seed: int = None, noise_lambda=None):
+        core_out = self.core(x, seed=seed)
         out = self.readout(core_out)
         noise_out = self.noise_readout(
             grad_reverse(core_out, noise_lambda)
@@ -65,6 +63,5 @@ class NoiseAdvResNet(ResNet):
         return {
             "logits": out,
             "conv_rep": core_out,
-            "corr_matrices": corr_matrices,
             "noise_pred": noise_out,
         }
