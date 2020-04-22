@@ -70,6 +70,13 @@ def main_loop(model,
     with torch.enable_grad() if train_mode else torch.no_grad():
         with tqdm(enumerate(LongCycler(data_loader) if neural_prediction else data_loader), total=n_iterations,
                   desc='{} Epoch {}'.format("Train" if train_mode else "Eval", epoch)) as t:
+
+            if neural_prediction and not train_mode:
+                loss = get_poisson_loss(model, data_loader, device,
+                                        as_dict=False, avg=True, per_neuron=False)
+                eval = get_correlations(model, data_loader, device=device, as_dict=False, per_neuron=False)
+                return eval, loss, None
+
             for module in modules:
                 module.pre_epoch(model, train_mode)
 
@@ -363,7 +370,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model with noise on the dev-set
     dev_noise_eval, dev_noise_loss = test_model(model=model, epoch=epoch, n_iterations=val_n_iterations,
                                                criterion=criterion, device=device,
-                                                data_loader=dataloaders['validation'] if config.neural_prediction else dataloaders["validation"],
+                                                data_loader=dataloaders['validation'],
                                                config=config, noise_test=True, seed=seed)
     # test the final model on the test set
     test_eval, test_loss = test_model(model=model, epoch=epoch, n_iterations=test_n_iterations,
