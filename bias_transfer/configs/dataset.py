@@ -24,7 +24,6 @@ class ImageDatasetConfig(DatasetConfig):
         self.apply_augmentation = kwargs.pop("apply_data_augmentation", True)
         self.apply_normalization = kwargs.pop("apply_data_normalization", True)
         self.input_size = kwargs.pop("input_size", 32)
-        self.valid_size = kwargs.pop("valid_size", 0.1)
         if self.dataset_cls == "CIFAR100":
             self.train_data_mean = (
                 0.5070751592371323,

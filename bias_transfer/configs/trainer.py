@@ -14,14 +14,13 @@ class TrainerConfig(BaseConfig):
         self.force_cpu = kwargs.pop("force_cpu", False)
         self.use_tensorboard = kwargs.pop("use_tensorboard", False)
         self.optimizer = kwargs.pop("optimizer", "Adam")
-        self.amsgrad = kwargs.pop("amsgrad", False)
-        self.lr = kwargs.pop("lr", 0.0003)
+        self.optimizer_options = kwargs.pop("optimizer_options", {"amsgrad": False,
+                                                                  "lr": 0.0003,
+                                                                  "weight_decay": 5e-4})
         self.lr_decay = kwargs.pop("lr_decay", 0.8)
-        self.weight_decay = kwargs.pop("weight_decay", 5e-4)
-        self.momentum = kwargs.pop("momentum", 0.9)
         self.epoch = kwargs.pop("epoch", 0)
-        self.lr_milestones = kwargs.pop("lr_milestones", (60, 120, 160))
-        self.adaptive_lr = kwargs.pop("adaptive_lr", False)
+        self.lr_milestones = kwargs.pop("lr_milestones", None)
+        self.adaptive_lr = kwargs.pop("adaptive_lr", True)
         self.patience = kwargs.pop("patience", 10)
         self.threshold = kwargs.pop("threshold", 0.0001)
         self.verbose = kwargs.pop("verbose", False)
@@ -34,12 +33,12 @@ class TrainerConfig(BaseConfig):
             self.loss_function = kwargs.pop("loss_function", "PoissonLoss")
             self.scale_loss = kwargs.pop("scale_loss", True)
             self.avg_loss = kwargs.pop("avg_loss", False)
+            self.stop_function = kwargs.pop(
+                "stop_function", "get_correlations"
+            )  # objective func for scheduler and early stopping
         else:
             self.loss_function = kwargs.pop("loss_function", "CrossEntropyLoss")
 
-        self.stop_function = kwargs.pop(
-            "stop_function", "get_correlations"
-        )  # objective func for scheduler and early stopping
         self.maximize = kwargs.pop(
             "maximize", True
         )  # if stop_function maximized or minimized

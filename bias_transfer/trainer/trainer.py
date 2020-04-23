@@ -9,6 +9,7 @@ from torch.backends import cudnn as cudnn
 import nnfabrik as nnf
 from bias_transfer.configs.trainer import TrainerConfig
 from bias_transfer.trainer import main_loop
+from bias_transfer.trainer.transfer import transfer_model
 from bias_transfer.utils import weight_reset
 from bias_transfer.trainer.test import test_neural_model, test_model
 from bias_transfer.utils.io import load_model, load_checkpoint, save_checkpoint
@@ -34,11 +35,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    train_n_iterations = len(
+    train_loader = (
         LongCycler(dataloaders["train"])
         if config.neural_prediction
         else dataloaders["train"]
     )
+    train_n_iterations = len(train_loader)
     val_n_iterations = len(
         LongCycler(dataloaders["validation"])
         if config.neural_prediction
@@ -46,11 +48,13 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     )
     test_n_iterations = 1 if config.neural_prediction else len(dataloaders["test"])
 
+    # Main-loop modules:
+    main_loop_modules = [
+        globals().get(k)(model, config, device, train_loader, seed)
+        for k in config.main_loop_modules
+    ]
+
     if config.neural_prediction:
-        main_loop_modules = [
-            globals().get(k)(config, device, LongCycler(dataloaders["train"]), seed)
-            for k in config.main_loop_modules
-        ]
         criterion = getattr(mlmeasures, config.loss_function)(avg=config.avg_loss)
         stop_closure = partial(
             getattr(measures, config.stop_function),
@@ -59,18 +63,14 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             per_neuron=False,
             avg=True,
         )
-        # set the number of iterations over which you would like to evalummulate gradients
+        # set the number of iterations over which you would like to accumulate gradients
         optim_step_count = (
             len(dataloaders["train"].keys())
             if config.loss_evalum_batch_n is None
             else config.loss_evalum_batch_n
         )
     else:
-        main_loop_modules = [
-            globals().get(k)(config, device, dataloaders["train"], seed)
-            for k in config.main_loop_modules
-        ]
-        criterion = nn.CrossEntropyLoss()
+        criterion = getattr(nn, config.loss_function)()
         optim_step_count = 1
         stop_closure = partial(
             main_loop,
@@ -116,27 +116,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         else:
             tracker = None
 
-        if config.optimizer == "Adam":
-            optimizer = optim.Adam(
-                model.parameters(),
-                lr=config.lr,
-                weight_decay=config.weight_decay,
-                amsgrad=config.amsgrad,
-            )
-        elif config.optimizer == "RMSprop":
-            optimizer = optim.RMSprop(
-                model.parameters(),
-                lr=config.lr,
-                momentum=config.momentum,
-                weight_decay=config.weight_decay,
-            )
-        else:
-            optimizer = optim.SGD(
-                model.parameters(),
-                lr=config.lr,
-                momentum=config.momentum,
-                weight_decay=config.weight_decay,
-            )
+        optimizer = getattr(optim, config.optimizer)(
+            model.parameters(), **config.optimizer_options
+        )
         if config.adaptive_lr:
             train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
@@ -154,18 +136,18 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )  # learning rate decay
 
         start_epoch = config.epoch
-
-        if config.transfer_from_path:
-            model = load_model(config.transfer_from_path, model, ignore_missing=True)
-            if config.reset_linear:
-                model.readout.apply(weight_reset)
-            if config.freeze:
-                model.freeze(config.freeze)
-        else:
-            path = "./checkpoint/ckpt.{}.pth".format(uid)
-            if os.path.isfile(path):
-                model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
-                best_epoch = start_epoch
+        path = "./checkpoint/ckpt.{}.pth".format(uid)
+        if os.path.isfile(path):
+            model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
+            best_epoch = start_epoch
+        elif config.transfer_from_path:
+            dataloaders["train"] = transfer_model(
+                model,
+                config,
+                criterion=criterion,
+                device=device,
+                data_loader=dataloaders["train"],
+            )
 
         print("==> Starting model {}".format(config.comment), flush=True)
         train_stats = []
@@ -227,6 +209,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 best_eval = dev_eval
                 best_epoch = epoch
+            if config.lr_milestones: #TODO: see if still working correctly
+                train_scheduler.step(epoch=epoch)
 
             train_stats.append(
                 {
@@ -236,7 +220,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     "dev_eval": dev_eval,
                 }
             )
-
     else:
         train_stats = []
 
