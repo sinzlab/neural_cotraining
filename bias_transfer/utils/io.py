@@ -15,32 +15,33 @@ def set_model(state_dict, model, ignore_missing):
         model.load_state_dict(state_dict)
     return model
 
+
 def load_model(path, model, ignore_missing=False):
-    print('==> Loading model..', flush=True)
-    assert os.path.isfile(path), 'Error: no model file found!'
+    print("==> Loading model..", flush=True)
+    assert os.path.isfile(path), "Error: no model file found!"
     state_dict = torch.load(path)
     return set_model(state_dict, model, ignore_missing)
 
 
 def load_checkpoint(path, model, optimizer=None, ignore_missing=False):
-    print('==> Loading checkpoint..', flush=True)
-    assert os.path.isfile(path), 'Error: no checkpoint file found!'
+    print("==> Loading checkpoint..", flush=True)
+    assert os.path.isfile(path), "Error: no checkpoint file found!"
     checkpoint = torch.load(path)
     model = set_model(checkpoint["net"], model, ignore_missing)
     if optimizer is not None:
-        optimizer.load_state_dict(checkpoint['optimizer'])
-    best_acc = checkpoint['acc']
-    start_epoch = checkpoint['epoch']
+        optimizer.load_state_dict(checkpoint["optimizer"])
+    best_acc = checkpoint["acc"]
+    start_epoch = checkpoint["epoch"]
     return model, best_acc, start_epoch
 
 
 def save_checkpoint(model, optimizer, acc, epoch, path, name):
-    print('==> Saving..', flush=True)
+    print("==> Saving..", flush=True)
     state = {
-        'net': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'acc': acc,
-        'epoch': epoch,
+        "net": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "acc": acc,
+        "epoch": epoch,
     }
     if not os.path.isdir(path):
         os.mkdir(path)

@@ -22,26 +22,26 @@ def compute_mean_std(train_set):
 
 
 def create_ImageFolder_format(dataset_dir: str):
-    '''
+    """
     This method is responsible for separating validation images into separate sub folders
 
     Args:
         dataset_dir (str): "/path_to_your_dataset/dataset_folder"
-    '''
-    val_dir = os.path.join(dataset_dir, 'val')
-    img_dir = os.path.join(val_dir, 'images')
+    """
+    val_dir = os.path.join(dataset_dir, "val")
+    img_dir = os.path.join(val_dir, "images")
 
-    fp = open(os.path.join(val_dir, 'val_annotations.txt'), 'r')
+    fp = open(os.path.join(val_dir, "val_annotations.txt"), "r")
     data = fp.readlines()
     val_img_dict = {}
     for line in data:
-        words = line.split('\t')
+        words = line.split("\t")
         val_img_dict[words[0]] = words[1]
     fp.close()
 
     # Create folder if not present and move images into proper folders
     for img, folder in val_img_dict.items():
-        newpath = (os.path.join(img_dir, folder))
+        newpath = os.path.join(img_dir, folder)
         if not os.path.exists(newpath):
             os.makedirs(newpath)
         if os.path.exists(os.path.join(img_dir, img)):
@@ -49,7 +49,7 @@ def create_ImageFolder_format(dataset_dir: str):
 
 
 def download_dataset(url: str, data_dir: str, dataset_cls: str) -> str:
-    '''
+    """
     Downloads the dataset from an online downloadable link and
     sets up the folders according to torch ImageFolder required
     format
@@ -60,14 +60,14 @@ def download_dataset(url: str, data_dir: str, dataset_cls: str) -> str:
         dataset_cls (str): name of the dataset's folder
     Returns:
         dataset_dir (str): full path to the dataset incl. dataset folder
-    '''
+    """
     dataset_dir = os.path.join(data_dir, dataset_cls)
     if os.path.isdir(dataset_dir):
-        print('Images already downloaded...')
+        print("Images already downloaded...")
         return dataset_dir
     os.makedirs(dataset_dir)
     r = requests.get(url, stream=True)
-    print('Downloading ' + url)
+    print("Downloading " + url)
     if url.endswith(".zip"):
         zip_ref = zipfile.ZipFile(BytesIO(r.content))
         zip_ref.extractall(dataset_dir)

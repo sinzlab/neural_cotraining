@@ -15,7 +15,7 @@ class Bottleneck(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, groups=1, base_width=64):
         super(Bottleneck, self).__init__()
         self.stride = stride
-        width = int(out_channels * (base_width / 64.)) * groups
+        width = int(out_channels * (base_width / 64.0)) * groups
 
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels, width, kernel_size=1, bias=False),
@@ -35,8 +35,14 @@ class Bottleneck(nn.Module):
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != self.expansion * out_channels:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, self.expansion * out_channels, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion * out_channels)
+                nn.Conv2d(
+                    in_channels,
+                    self.expansion * out_channels,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * out_channels),
             )
 
     def forward(self, x):
@@ -61,10 +67,16 @@ class ResNet(nn.Module):
         if stem:
             self.init = nn.Sequential(
                 # CIFAR10
-                AttentionStem(in_channels=3, out_channels=64, kernel_size=4, stride=1, padding=2, groups=1),
+                AttentionStem(
+                    in_channels=3,
+                    out_channels=64,
+                    kernel_size=4,
+                    stride=1,
+                    padding=2,
+                    groups=1,
+                ),
                 nn.BatchNorm2d(64),
                 nn.ReLU(),
-
                 # For ImageNet
                 # AttentionStem(in_channels=3, out_channels=64, kernel_size=4, stride=1, padding=2, groups=1),
                 # nn.BatchNorm2d(64),
@@ -77,7 +89,6 @@ class ResNet(nn.Module):
                 nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False),
                 nn.BatchNorm2d(64),
                 nn.ReLU(),
-
                 # For ImageNet
                 # nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False),
                 # nn.BatchNorm2d(64),
@@ -110,4 +121,3 @@ class ResNet(nn.Module):
         out = self.readout(core_out)
 
         return {"logits": out, "conv_rep": core_out}
-

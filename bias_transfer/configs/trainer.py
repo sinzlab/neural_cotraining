@@ -26,27 +26,40 @@ class TrainerConfig(BaseConfig):
         self.threshold = kwargs.pop("threshold", 0.0001)
         self.verbose = kwargs.pop("verbose", True)
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
-        self.threshold_mode = kwargs.pop("threshold_mode", 'rel')
+        self.threshold_mode = kwargs.pop("threshold_mode", "rel")
         self.neural_prediction = kwargs.pop("neural_prediction", False)
 
         if self.neural_prediction:
-            self.threshold_mode = 'abs'
+            self.threshold_mode = "abs"
             self.loss_function = kwargs.pop("loss_function", "PoissonLoss")
             self.scale_loss = kwargs.pop("scale_loss", True)
             self.avg_loss = kwargs.pop("avg_loss", False)
         else:
             self.loss_function = kwargs.pop("loss_function", "CrossEntropyLoss")
 
-        self.stop_function = kwargs.pop("stop_function", "get_correlations")   #objective func for scheduler and early stopping
-        self.maximize = kwargs.pop("maximize", True)  # if stop_function maximized or minimized
-        self.loss_accum_batch_n = kwargs.pop("loss_accum_batch_n", 1)  #for gradient accumulation how often to call opt.step
+        self.stop_function = kwargs.pop(
+            "stop_function", "get_correlations"
+        )  # objective func for scheduler and early stopping
+        self.maximize = kwargs.pop(
+            "maximize", True
+        )  # if stop_function maximized or minimized
+        self.loss_accum_batch_n = kwargs.pop(
+            "loss_accum_batch_n", 1
+        )  # for gradient accumulation how often to call opt.step
 
-        self.interval = kwargs.pop("interval", 1)  #interval at which objective evaluated for early stopping
-        self.max_iter = kwargs.pop("max_iter", 100)  #maximum number of iterations (epochs)
+        self.interval = kwargs.pop(
+            "interval", 1
+        )  # interval at which objective evaluated for early stopping
+        self.max_iter = kwargs.pop(
+            "max_iter", 100
+        )  # maximum number of iterations (epochs)
 
-
-        self.restore_best = kwargs.pop("restore_best", True)  #in case of loading best model at the end of training
-        self.lr_decay_steps = kwargs.pop("lr_decay_steps", 3)   #Number of times the learning rate should be reduced before stopping the training.
+        self.restore_best = kwargs.pop(
+            "restore_best", True
+        )  # in case of loading best model at the end of training
+        self.lr_decay_steps = kwargs.pop(
+            "lr_decay_steps", 3
+        )  # Number of times the learning rate should be reduced before stopping the training.
 
         self.track_training = kwargs.pop("track_training", False)
 
@@ -54,10 +67,29 @@ class TrainerConfig(BaseConfig):
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)
         self.noise_snr = kwargs.pop("noise_snr", None)
-        self.noise_test = kwargs.pop("noise_test", {
-            "noise_snr": [{5.0: 1.0}, {4.0: 1.0}, {3.0: 1.0}, {2.0: 1.0}, {1.0: 1.0}, {0.5: 1.0}, {0.0: 1.0}],
-            "noise_std": [{0.0: 1.0}, {0.05: 1.0}, {0.1: 1.0}, {0.2: 1.0}, {0.3: 1.0}, {0.5: 1.0}, {1.0: 1.0}]
-        })
+        self.noise_test = kwargs.pop(
+            "noise_test",
+            {
+                "noise_snr": [
+                    {5.0: 1.0},
+                    {4.0: 1.0},
+                    {3.0: 1.0},
+                    {2.0: 1.0},
+                    {1.0: 1.0},
+                    {0.5: 1.0},
+                    {0.0: 1.0},
+                ],
+                "noise_std": [
+                    {0.0: 1.0},
+                    {0.05: 1.0},
+                    {0.1: 1.0},
+                    {0.2: 1.0},
+                    {0.3: 1.0},
+                    {0.5: 1.0},
+                    {1.0: 1.0},
+                ],
+            },
+        )
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
         self.noise_adv_loss_factor = kwargs.pop("noise_adv_loss_factor", 1.0)
@@ -75,7 +107,9 @@ class TrainerConfig(BaseConfig):
         modules = []
         if self.representation_matching:
             modules.append("RepresentationMatching")
-        elif self.noise_snr or self.noise_std:  # Logit matching includes noise augmentation
+        elif (
+            self.noise_snr or self.noise_std
+        ):  # Logit matching includes noise augmentation
             modules.append("NoiseAugmentation")
         if self.noise_adv_classification or self.noise_adv_regression:
             modules.append("NoiseAdvTraining")

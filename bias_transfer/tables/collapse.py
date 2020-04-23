@@ -11,23 +11,27 @@ class Collapsed(dj.Computed):
         collapsed_key:      varchar(64)
         ---
         -> self.Source{}
-       """.format(".proj(collapsed_key_='collapsed_key')" if hasattr(self.Source, "transfer_steps") else "")
+       """.format(
+            ".proj(collapsed_key_='collapsed_key')"
+            if hasattr(self.Source, "transfer_steps")
+            else ""
+        )
 
     @property
     def key_source(self):
         if hasattr(self.Source, "transfer_steps"):
-            return self.Source.proj(collapsed_key_='collapsed_key')
+            return self.Source.proj(collapsed_key_="collapsed_key")
         else:
             return self.Source
 
     @property
     def target(self):
         if hasattr(self.Source, "transfer_steps"):
-            return self.Source.proj(collapsed_key_='collapsed_key') & self
+            return self.Source.proj(collapsed_key_="collapsed_key") & self
         else:
             return self.Source & self
 
     def make(self, key):
         hash = util.make_hash(key)
-        key['collapsed_key'] = hash
+        key["collapsed_key"] = hash
         self.insert1(key)

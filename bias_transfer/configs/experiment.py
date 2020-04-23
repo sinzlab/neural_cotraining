@@ -75,6 +75,6 @@ class Experiment(BaseConfig):
             "dataset": {self.dataset.__class__.__name__: self.dataset.to_dict()},
             "model": {self.model.__class__.__name__: self.model.to_dict()},
             "trainer": {self.trainer.__class__.__name__: self.trainer.to_dict()},
-            "seed": self.seed
+            "seed": self.seed,
         }
         return output

@@ -40,13 +40,14 @@ class BaseConfig(object):
             try:
                 setattr(self, key, value)
             except AttributeError as err:
-                logger.error("Can't set {} with value {} for {}".format(key, value, self))
+                logger.error(
+                    "Can't set {} with value {} for {}".format(key, value, self)
+                )
                 raise err
 
     def get_key(self):
         hash = make_hash(self.to_dict())
-        return {self.config_name + '_hash': hash,
-                self.config_name + '_fn': self.fn}
+        return {self.config_name + "_hash": hash, self.config_name + "_fn": self.fn}
 
     def add_to_table(self):
         """
@@ -55,10 +56,12 @@ class BaseConfig(object):
         """
         assert self.table is not None and self.fn is not None
         if not (self.table & self.get_key()):
-            self.table.add_entry(self.fn,
-                                 self.to_dict(),
-                                 None,  # Fabrikant will automatically be set to current user
-                                 self.comment)
+            self.table.add_entry(
+                self.fn,
+                self.to_dict(),
+                None,  # Fabrikant will automatically be set to current user
+                self.comment,
+            )
 
     def save(self, save_directory):
         """
