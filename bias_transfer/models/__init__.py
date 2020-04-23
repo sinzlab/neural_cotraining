@@ -4,6 +4,7 @@ import numpy as np
 from bias_transfer.configs.model import ClassificationModelConfig, MTLModelConfig
 from nnvision.models.models import se_core_gauss_readout, se_core_point_readout
 
+
 def get_model_parameters(model):
     total_parameters = 0
     for layer in list(model.parameters()):
@@ -14,11 +15,9 @@ def get_model_parameters(model):
     return total_parameters
 
 
-def neural_cnn_builder(data_loaders,
-                seed: int = 1000,
-                **config):
-    config.pop('comment', None)
-    readout_type = config.pop('readout_type', None)
+def neural_cnn_builder(data_loaders, seed: int = 1000, **config):
+    config.pop("comment", None)
+    readout_type = config.pop("readout_type", None)
     if readout_type == "point":
         model = se_core_point_readout(dataloaders=data_loaders, seed=seed, **config)
     elif readout_type == "gauss":
@@ -27,31 +26,40 @@ def neural_cnn_builder(data_loaders,
     return model
 
 
-def mtl_builder(data_loaders,
-                seed: int = 1000,
-                **config):
+def mtl_builder(data_loaders, seed: int = 1000, **config):
     config = MTLModelConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     from .mtl_vgg import MTL_VGG
 
-    model = MTL_VGG(data_loaders, vgg_type=config.vgg_type, classification=config.classification,
-                    classification_readout_type=config.classification_readout_type, input_size=config.input_size,
-                    num_classes=config.num_classes, pretrained=config.pretrained,
-                    v1_model_layer=config.v1_model_layer, input_channels=config.input_channels,
-                    v1_final_batchnorm=config.v1_final_batchnorm, v1_final_nonlinearity=config.v1_final_nonlinearity,
-                    v1_bias=config.v1_bias, v1_momentum=config.v1_momentum, v1_fine_tune=config.v1_fine_tune,
-                    v1_init_mu_range=config.v1_init_mu_range, v1_init_sigma_range=config.v1_init_sigma_range,
-                    v1_readout_bias=config.v1_readout_bias, v1_gamma_readout=config.v1_gamma_readout, v1_elu_offset=config.v1_elu_offset)
+    model = MTL_VGG(
+        data_loaders,
+        vgg_type=config.vgg_type,
+        classification=config.classification,
+        classification_readout_type=config.classification_readout_type,
+        input_size=config.input_size,
+        num_classes=config.num_classes,
+        pretrained=config.pretrained,
+        v1_model_layer=config.v1_model_layer,
+        input_channels=config.input_channels,
+        v1_final_batchnorm=config.v1_final_batchnorm,
+        v1_final_nonlinearity=config.v1_final_nonlinearity,
+        v1_bias=config.v1_bias,
+        v1_momentum=config.v1_momentum,
+        v1_fine_tune=config.v1_fine_tune,
+        v1_init_mu_range=config.v1_init_mu_range,
+        v1_init_sigma_range=config.v1_init_sigma_range,
+        v1_readout_bias=config.v1_readout_bias,
+        v1_gamma_readout=config.v1_gamma_readout,
+        v1_elu_offset=config.v1_elu_offset,
+    )
 
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
 
 
-def classification_cnn_builder(data_loader,
-                seed: int,
-                **config):
+def classification_cnn_builder(data_loader, seed: int, **config):
     config = ClassificationModelConfig.from_dict(config)
     if config.cnn_builder == "vgg":
         return vgg_builder(seed, config)
@@ -59,22 +67,25 @@ def classification_cnn_builder(data_loader,
         return resnet_builder(seed, config)
 
 
-
-def vgg_builder(seed : int, config):
+def vgg_builder(seed: int, config):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     from .vgg import VGG
 
-    model = VGG(input_size=config.input_size, vgg_type=config.type,
-                num_classes=config.num_classes, pretrained=config.pretrained,
-                readout_type=config.readout_type)
+    model = VGG(
+        input_size=config.input_size,
+        vgg_type=config.type,
+        num_classes=config.num_classes,
+        pretrained=config.pretrained,
+        readout_type=config.readout_type,
+    )
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model
 
 
-def resnet_builder(seed: int,config):
-    #config = ModelConfig.from_dict(config)
+def resnet_builder(seed: int, config):
+    # config = ModelConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
     type = int(config.type)
@@ -107,13 +118,22 @@ def resnet_builder(seed: int,config):
         raise KeyError
     if config.noise_adv_regression or config.noise_adv_classification:
         assert not config.self_attention
-        model = NoiseAdvResNet(block, num_blocks, num_classes=config.num_classes,
-                              classification=config.noise_adv_classification,
-                              adv_readout_layers=config.num_noise_adv_layers,
-                               core_stride=config.core_stride,
-                               conv_stem_kernel_size=config.conv_stem_kernel_size)
+        model = NoiseAdvResNet(
+            block,
+            num_blocks,
+            num_classes=config.num_classes,
+            classification=config.noise_adv_classification,
+            adv_readout_layers=config.num_noise_adv_layers,
+            core_stride=config.core_stride,
+            conv_stem_kernel_size=config.conv_stem_kernel_size,
+        )
     else:
-        model = ResNet(block, num_blocks, num_classes=config.num_classes, core_stride=config.core_stride,
-                       conv_stem_kernel_size=config.conv_stem_kernel_size)
+        model = ResNet(
+            block,
+            num_blocks,
+            num_classes=config.num_classes,
+            core_stride=config.core_stride,
+            conv_stem_kernel_size=config.conv_stem_kernel_size,
+        )
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model

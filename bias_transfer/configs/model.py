@@ -4,7 +4,6 @@ from .base import BaseConfig
 from nnfabrik.main import *
 
 
-
 class ModelConfig(BaseConfig):
     config_name = "model"
     table = None
@@ -13,7 +12,6 @@ class ModelConfig(BaseConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.update(**kwargs)
-
 
 
 class ClassificationModelConfig(ModelConfig):
@@ -39,7 +37,7 @@ class ClassificationModelConfig(ModelConfig):
             else:
                 raise NameError()
 
-        #resnet specific
+        # resnet specific
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
         if self.input_size == 32:
@@ -83,9 +81,11 @@ class MTLModelConfig(ModelConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.vgg_type = kwargs.pop("vgg_type", 'vgg19_bn')
+        self.vgg_type = kwargs.pop("vgg_type", "vgg19_bn")
         self.classification = kwargs.pop("classification", False)
-        self.classification_readout_type = kwargs.pop("classification_readout_type", None)
+        self.classification_readout_type = kwargs.pop(
+            "classification_readout_type", None
+        )
         self.input_size = kwargs.pop("input_size", None)
         self.num_classes = kwargs.pop("num_classes", 200)
         self.pretrained = kwargs.pop("pretrained", True)
