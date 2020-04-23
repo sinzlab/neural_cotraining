@@ -10,7 +10,6 @@ import nnfabrik as nnf
 from bias_transfer.configs.trainer import TrainerConfig
 from bias_transfer.trainer import main_loop
 from bias_transfer.trainer.transfer import transfer_model
-from bias_transfer.utils import weight_reset
 from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.test import test_neural_model, test_model
 from bias_transfer.utils.io import load_model, load_checkpoint, save_checkpoint
@@ -18,6 +17,7 @@ from mlutils import measures as mlmeasures
 from mlutils.training import LongCycler, MultipleObjectiveTracker, early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
+from bias_transfer.trainer.main_loop_modules import *
 
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
@@ -91,130 +91,128 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             optimizer=None,
         )
 
-    if not eval_only:
 
-        if config.track_training:
-            tracker_dict = dict(
-                correlation=partial(
-                    get_correlations(),
-                    model,
-                    dataloaders["validation"],
-                    device=device,
-                    per_neuron=False,
-                ),
-                poisson_loss=partial(
-                    get_poisson_loss(),
-                    model,
-                    dataloaders["validation"],
-                    device=device,
-                    per_neuron=False,
-                    avg=False,
-                ),
-            )
-            if hasattr(model, "tracked_values"):
-                tracker_dict.update(model.tracked_values)
-            tracker = MultipleObjectiveTracker(**tracker_dict)
-        else:
-            tracker = None
-
-        optimizer = getattr(optim, config.optimizer)(
-            model.parameters(), **config.optimizer_options
-        )
-        if config.adaptive_lr:
-            train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                factor=config.lr_decay,
-                patience=config.patience,
-                threshold=config.threshold,
-                verbose=config.verbose,
-                min_lr=config.min_lr,
-                mode="max" if config.maximize else "min",
-                threshold_mode=config.threshold_mode,
-            )
-        elif config.lr_milestones:
-            train_scheduler = optim.lr_scheduler.MultiStepLR(
-                optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
-            )  # learning rate decay
-
-        start_epoch = config.epoch
-        path = "./checkpoint/ckpt.{}.pth".format(uid)
-        if os.path.isfile(path):
-            model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
-            best_epoch = start_epoch
-        elif config.transfer_from_path:
-            dataloaders["train"] = transfer_model(
+    if config.track_training:
+        tracker_dict = dict(
+            correlation=partial(
+                get_correlations(),
                 model,
-                config,
-                criterion=criterion,
+                dataloaders["validation"],
                 device=device,
-                data_loader=dataloaders["train"],
-            )
-
-        print("==> Starting model {}".format(config.comment), flush=True)
-        train_stats = []
-
-        # train over epochs
-        for epoch, dev_eval in early_stopping(
-            model,
-            stop_closure,
-            interval=config.interval,
-            patience=config.patience,
-            start=start_epoch,
-            max_iter=config.max_iter,
-            maximize=config.maximize,
-            tolerance=config.threshold,
-            restore_best=config.restore_best,
-            tracker=tracker,
-            scheduler=train_scheduler if config.adaptive_lr else None,
-            lr_decay_steps=config.lr_decay_steps,
-        ):
-            if cb:
-                cb()
-
-            if config.verbose and tracker is not None:
-                print("=======================================")
-                for key in tracker.log.keys():
-                    print(key, tracker.log[key][-1], flush=True)
-
-            train_eval, train_loss, train_module_loss = main_loop(
-                model=model,
-                criterion=criterion,
+                per_neuron=False,
+            ),
+            poisson_loss=partial(
+                get_poisson_loss(),
+                model,
+                dataloaders["validation"],
                 device=device,
-                optimizer=optimizer,
-                data_loader=dataloaders["train"],
-                n_iterations=train_n_iterations,
-                modules=main_loop_modules,
-                train_mode=True,
-                epoch=epoch,
-                neural_prediction=config.neural_prediction,
-                optim_step_count=optim_step_count,
-            )
-            if dev_eval > best_eval:
-                save_checkpoint(
-                    model,
-                    optimizer,
-                    dev_eval,
-                    epoch,
-                    "./checkpoint",
-                    "ckpt.{}.pth".format(uid),
-                )
-                best_eval = dev_eval
-                best_epoch = epoch
-            if config.lr_milestones:  # TODO: see if still working correctly
-                train_scheduler.step(epoch=epoch)
-
-            train_stats.append(
-                {
-                    "train_eval": train_eval,
-                    "train_loss": train_loss,
-                    "train_module_loss": train_module_loss,
-                    "dev_eval": dev_eval,
-                }
-            )
+                per_neuron=False,
+                avg=False,
+            ),
+        )
+        if hasattr(model, "tracked_values"):
+            tracker_dict.update(model.tracked_values)
+        tracker = MultipleObjectiveTracker(**tracker_dict)
     else:
-        train_stats = []
+        tracker = None
 
-    model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
+    optimizer = getattr(optim, config.optimizer)(
+        model.parameters(), **config.optimizer_options
+    )
+    if config.adaptive_lr:
+        train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            factor=config.lr_decay,
+            patience=config.patience,
+            threshold=config.threshold,
+            verbose=config.verbose,
+            min_lr=config.min_lr,
+            mode="max" if config.maximize else "min",
+            threshold_mode=config.threshold_mode,
+        )
+    elif config.lr_milestones:
+        train_scheduler = optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
+        )  # learning rate decay
+
+    start_epoch = config.epoch
+    path = "./checkpoint/ckpt.{}.pth".format(uid)
+    if os.path.isfile(path):
+        model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
+        best_epoch = start_epoch
+    elif config.transfer_from_path:
+        dataloaders["train"] = transfer_model(
+            model,
+            config,
+            criterion=criterion,
+            device=device,
+            data_loader=dataloaders["train"],
+        )
+
+    print("==> Starting model {}".format(config.comment), flush=True)
+    train_stats = []
+
+    # train over epochs
+    for epoch, dev_eval in early_stopping(
+        model,
+        stop_closure,
+        interval=config.interval,
+        patience=config.patience,
+        start=start_epoch,
+        max_iter=config.max_iter,
+        maximize=config.maximize,
+        tolerance=config.threshold,
+        restore_best=config.restore_best,
+        tracker=tracker,
+        scheduler=train_scheduler if config.adaptive_lr else None,
+        lr_decay_steps=config.lr_decay_steps,
+    ):
+        if cb:
+            cb()
+
+        if config.verbose and tracker is not None:
+            print("=======================================")
+            for key in tracker.log.keys():
+                print(key, tracker.log[key][-1], flush=True)
+
+        train_eval, train_loss, train_module_loss = main_loop(
+            model=model,
+            criterion=criterion,
+            device=device,
+            optimizer=optimizer,
+            data_loader=dataloaders["train"],
+            n_iterations=train_n_iterations,
+            modules=main_loop_modules,
+            train_mode=True,
+            epoch=epoch,
+            neural_prediction=config.neural_prediction,
+            optim_step_count=optim_step_count,
+        )
+        if dev_eval > best_eval:
+            save_checkpoint(
+                model,
+                optimizer,
+                dev_eval,
+                epoch,
+                "./checkpoint",
+                "ckpt.{}.pth".format(uid),
+            )
+            best_eval = dev_eval
+            best_epoch = epoch
+        if config.lr_milestones:  # TODO: see if still working correctly
+            train_scheduler.step(epoch=epoch)
+
+        train_stats.append(
+            {
+                "train_eval": train_eval,
+                "train_loss": train_loss,
+                "train_module_loss": train_module_loss,
+                "dev_eval": dev_eval,
+            }
+        )
+
+    if not config.lottery_ticket:
+        model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
     # test the final model with noise on the dev-set
     dev_noise_eval, dev_noise_loss = test_model(
         model=model,

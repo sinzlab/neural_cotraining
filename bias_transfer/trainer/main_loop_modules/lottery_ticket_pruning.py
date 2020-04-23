@@ -20,14 +20,15 @@ class LotteryTicketPruning(MainLoopModule):
             n_epochs = self.config.max_iter
             n_rounds = self.config.lottery_ticket.get("rounds", 1)
             percent_to_prune = self.config.lottery_ticket.get("percent_to_prune", 80)
-            self.percent_per_round = percent_to_prune ** (1 / n_rounds)
-            self.reset_epochs = range(0, n_epochs, n_epochs // n_rounds)
+            self.percent_per_round = (
+                1 - (1 - (percent_to_prune / 100)) ** (1 / n_rounds)
+            ) * 100
+            self.reset_epochs = list(range(0, n_epochs, n_epochs // n_rounds))
             print("percent per round:", self.percent_per_round)
             print("reset epochs:", list(self.reset_epochs))
 
             # create initial (empty mask):
             self.mask = self.make_empty_mask(model)
-            print("Initial mask:", sum([torch.sum(m) for m in self.mask]))
 
             # save initial state_dict to reset to this point later:
             if not self.config.lottery_ticket.get("reinit"):
@@ -37,8 +38,8 @@ class LotteryTicketPruning(MainLoopModule):
         if (
             self.config.lottery_ticket.get("pruning", True)
             and epoch in self.reset_epochs
+            and epoch > 0  # validation calls this with epoch = 0
         ):
-            print(epoch)
             # Prune the network, i.e. update the mask
             self.prune_by_percentile(model, self.percent_per_round)
             self.reset_initialization(model, self.config.lottery_ticket.get("reinit"))
@@ -49,11 +50,12 @@ class LotteryTicketPruning(MainLoopModule):
             if "weight" in name:
                 tensor = torch.abs(p.data)
                 grad_tensor = p.grad.data
-                p.grad.data = torch.where(tensor < EPS, torch.zeros_like(grad_tensor), grad_tensor)
+                p.grad.data = torch.where(
+                    tensor < EPS, torch.zeros_like(grad_tensor), grad_tensor
+                )
 
     def prune_by_percentile(self, model, percent):
         # Calculate percentile value
-        print("PRUNING....")
         step = 0
         if self.config.lottery_ticket.get("global_pruning"):
             alive_tensors = []
@@ -89,7 +91,6 @@ class LotteryTicketPruning(MainLoopModule):
                 param.data = tensor * new_mask
                 self.mask[step] = new_mask
                 step += 1
-        print("Updated mask:", sum([torch.sum(m) for m in self.mask]))
 
     def make_empty_mask(self, model):
         """
