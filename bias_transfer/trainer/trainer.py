@@ -8,9 +8,8 @@ from torch.backends import cudnn as cudnn
 
 import nnfabrik as nnf
 from bias_transfer.configs.trainer import TrainerConfig
-from bias_transfer.trainer import main_loop
+from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.transfer import transfer_model
-from bias_transfer.utils import weight_reset
 from bias_transfer.trainer.test import test_neural_model, test_model
 from bias_transfer.utils.io import load_model, load_checkpoint, save_checkpoint
 from mlutils import measures as mlmeasures
@@ -164,7 +163,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             tolerance=config.threshold,
             restore_best=config.restore_best,
             tracker=tracker,
-            scheduler=train_scheduler,
+            scheduler=train_scheduler if config.adaptive_lr else None,
             lr_decay_steps=config.lr_decay_steps,
         ):
             if cb:
@@ -188,16 +187,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 neural_prediction=config.neural_prediction,
                 optim_step_count=optim_step_count,
             )
-            # dev_eval, dev_loss, dev_module_loss = main_loop(model=model,
-            #                                                criterion=criterion,
-            #                                                device=device,
-            #                                                optimizer=None,
-            #                                                data_loader=dataloaders['validation'],
-            #                                                n_iterations=val_n_iterations,
-            #                                                modules=main_loop_modules,
-            #                                                train_mode=False,epoch=epoch,
-            #                                                neural_prediction=config.neural_prediction,
-            #                                                )
             if dev_eval > best_eval:
                 save_checkpoint(
                     model,
@@ -209,7 +198,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 best_eval = dev_eval
                 best_epoch = epoch
-            if config.lr_milestones: #TODO: see if still working correctly
+            if config.lr_milestones:  # TODO: see if still working correctly
                 train_scheduler.step(epoch=epoch)
 
             train_stats.append(

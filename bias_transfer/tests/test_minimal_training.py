@@ -64,7 +64,7 @@ class MinimalTrainingTest(unittest.TestCase):
         # model training
         score, output, model_state = trainer_fn(
             model=cls.model,
-            data_loaders=cls.data_loaders,
+            dataloaders=cls.data_loaders,
             seed=cls.seed,
             uid=uid,
             cb=call_back,
@@ -83,7 +83,7 @@ class MinimalTrainingTest(unittest.TestCase):
             patience=2,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 13.52)
+        self.assertAlmostEqual(score, 11.56)  # before the merge: 13.52
 
     def test_training_fixed_lr_schedule(self):
         trainer_conf = trainer.TrainerConfig(
@@ -97,7 +97,7 @@ class MinimalTrainingTest(unittest.TestCase):
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 12.04)
+        self.assertAlmostEqual(score, 10.0)  # before the merge: 12.04
 
 
 if __name__ == "__main__":
