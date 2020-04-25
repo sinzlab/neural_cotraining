@@ -1,41 +1,12 @@
 import unittest
-import os
-import torch
-import numpy as np
-import nnfabrik as nnf
 from bias_transfer.configs import trainer
-from bias_transfer.tests.base import BaseTest
-from bias_transfer.utils import weight_reset
+from bias_transfer.tests._base import BaseTest
 
 
 class MinimalTrainingTest(BaseTest):
-    @classmethod
-    def run_training(cls, trainer_conf):
-        uid = "test1"
-        path = "./checkpoint/ckpt.{}.pth".format(nnf.utility.dj_helpers.make_hash(uid))
-        if os.path.exists(path):
-            os.remove(path)
-        torch.manual_seed(cls.seed)
-        np.random.seed(cls.seed)
-        torch.cuda.manual_seed(cls.seed)
-        cls.model.apply(weight_reset)
-
-        trainer_fn = nnf.builder.get_trainer(trainer_conf.fn, trainer_conf.to_dict())
-
-        def call_back(**kwargs):
-            pass
-
-        # model training
-        score, output, model_state = trainer_fn(
-            model=cls.model,
-            dataloaders=cls.data_loaders,
-            seed=cls.seed,
-            uid=uid,
-            cb=call_back,
-        )
-        return score
-
     def test_training_adaptive_lr_schedule(self):
+        print("===================================================", flush=True)
+        print("=========TEST adaptive_lr training=================", flush=True)
         trainer_conf = trainer.TrainerConfig(
             comment="Minimal Training Test",
             max_iter=3,
@@ -50,6 +21,8 @@ class MinimalTrainingTest(BaseTest):
         self.assertAlmostEqual(score, 11.56)  # before the merge: 13.52
 
     def test_training_fixed_lr_schedule(self):
+        print("===================================================", flush=True)
+        print("===========TEST fixed_lr training==================", flush=True)
         trainer_conf = trainer.TrainerConfig(
             comment="Minimal Training Test",
             max_iter=3,

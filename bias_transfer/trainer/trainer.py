@@ -213,6 +213,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if not config.lottery_ticket:
         model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
+    else:
+        for module in main_loop_modules:
+            module.pre_epoch(model, True, epoch+1)
+
     # test the final model with noise on the dev-set
     dev_noise_eval, dev_noise_loss = test_model(
         model=model,

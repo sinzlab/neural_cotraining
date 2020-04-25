@@ -21,11 +21,14 @@ class LotteryTicketPruning(MainLoopModule):
             n_rounds = self.config.lottery_ticket.get("rounds", 1)
             percent_to_prune = self.config.lottery_ticket.get("percent_to_prune", 80)
             self.percent_per_round = (
-                1 - (1 - (percent_to_prune / 100)) ** (1 / n_rounds)
+                1 - (1 - percent_to_prune / 100) ** (1 / n_rounds)
             ) * 100
-            self.reset_epochs = list(range(0, n_epochs, n_epochs // n_rounds))
-            print("percent per round:", self.percent_per_round)
-            print("reset epochs:", list(self.reset_epochs))
+            self.reset_epochs = [
+                r * self.config.lottery_ticket.get("round_length", 100) + 1
+                for r in range(1, n_rounds + 1)
+            ]
+            print("Percent to prune per round:", self.percent_per_round, flush=True)
+            print("Reset before epochs:", list(self.reset_epochs), flush=True)
 
             # create initial (empty mask):
             self.mask = self.make_empty_mask(model)
@@ -42,6 +45,7 @@ class LotteryTicketPruning(MainLoopModule):
         ):
             # Prune the network, i.e. update the mask
             self.prune_by_percentile(model, self.percent_per_round)
+            print("Reset init in Epoch ", epoch, flush=True)
             self.reset_initialization(model, self.config.lottery_ticket.get("reinit"))
 
     def post_backward(self, model, **kwargs):
@@ -56,39 +60,39 @@ class LotteryTicketPruning(MainLoopModule):
 
     def prune_by_percentile(self, model, percent):
         # Calculate percentile value
-        step = 0
         if self.config.lottery_ticket.get("global_pruning"):
             alive_tensors = []
+            step = 0
             for name, param in model.named_parameters():
                 if "weight" in name:  # We do not prune bias term
-                    tensor = param.data
                     alive_tensors.append(
-                        tensor[torch.nonzero(tensor, as_tuple=True)]
+                        param.data[torch.nonzero(self.mask[step], as_tuple=True)]
                     )  # flattened array of nonzero values
+                    step += 1
             alive = torch.cat(alive_tensors)
             percentile_value = np.percentile(torch.abs(alive).cpu().numpy(), percent)
 
+        step = 0
         for name, param in model.named_parameters():
             if "weight" in name:  # We do not prune bias term
-                tensor = param.data
-                device = tensor.device
                 if not self.config.lottery_ticket.get("global_pruning"):
                     # print(nonzero)
-                    alive = tensor[
-                        torch.nonzero(tensor, as_tuple=True)
+                    alive = param.data[
+                        torch.nonzero(self.mask[step], as_tuple=True)
                     ]  # flattened array of nonzero values
                     abs_alive = torch.abs(alive).cpu().numpy()
                     percentile_value = np.percentile(abs_alive, percent)
 
                 # Convert Tensors to numpy and calculate
                 new_mask = torch.where(
-                    torch.abs(tensor) < torch.tensor(percentile_value, device=device),
+                    torch.abs(param.data)
+                    < torch.tensor(percentile_value, device=param.data.device),
                     torch.zeros_like(self.mask[step]),
                     self.mask[step],
                 )
 
                 # Apply new weight and mask
-                param.data = tensor * new_mask
+                param.data = param.data * new_mask
                 self.mask[step] = new_mask
                 step += 1
 
@@ -112,7 +116,6 @@ class LotteryTicketPruning(MainLoopModule):
         return mask
 
     def reset_initialization(self, model, reinit=False):
-        print("Reset init.......")
         if reinit:
             model.apply(weight_reset)
         step = 0

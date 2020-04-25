@@ -4,7 +4,7 @@ from torch import optim, nn
 from torch.backends import cudnn as cudnn
 from tqdm import tqdm
 
-from bias_transfer.tests.base import BaseTest
+from bias_transfer.tests._base import BaseTest
 from bias_transfer.trainer.main_loop import move_data
 
 

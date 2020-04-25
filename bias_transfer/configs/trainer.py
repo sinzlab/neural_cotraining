@@ -102,6 +102,8 @@ class TrainerConfig(BaseConfig):
         self.rdm_transfer = kwargs.pop("rdm_transfer", False)
         self.rdm_prediction = kwargs.pop("rdm_prediction", {})
         self.lottery_ticket = kwargs.pop("lottery_ticket", {})
+        if self.lottery_ticket:
+            self.max_iter = self.lottery_ticket.get("rounds",1) * self.lottery_ticket.get("round_length",100)
         self.update(**kwargs)
 
     @property

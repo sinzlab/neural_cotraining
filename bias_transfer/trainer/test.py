@@ -1,6 +1,7 @@
 import copy
 
 from bias_transfer.trainer.main_loop import main_loop
+from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.utils import stringify
 from nnvision.utility.measures import get_poisson_loss, get_correlations
 

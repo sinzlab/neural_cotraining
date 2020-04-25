@@ -1,14 +1,42 @@
 import os
 import unittest
 
+import numpy as np
 import torch
 from torch.utils.data import SubsetRandomSampler
 
 import nnfabrik as nnf
 from bias_transfer.configs import dataset, model, trainer
+from bias_transfer.utils import weight_reset
 
 
 class BaseTest(unittest.TestCase):
+    @classmethod
+    def run_training(cls, trainer_conf):
+        uid = "test1"
+        path = "./checkpoint/ckpt.{}.pth".format(nnf.utility.dj_helpers.make_hash(uid))
+        if os.path.exists(path):
+            os.remove(path)
+        torch.manual_seed(cls.seed)
+        np.random.seed(cls.seed)
+        torch.cuda.manual_seed(cls.seed)
+        cls.model.apply(weight_reset)
+
+        trainer_fn = nnf.builder.get_trainer(trainer_conf.fn, trainer_conf.to_dict())
+
+        def call_back(**kwargs):
+            pass
+
+        # model training
+        score, output, model_state = trainer_fn(
+            model=cls.model,
+            dataloaders=cls.data_loaders,
+            seed=cls.seed,
+            uid=uid,
+            cb=call_back,
+        )
+        return score
+
     @classmethod
     def setUpClass(cls):  # called once before all methods of the class
         os.chdir("/work/")
