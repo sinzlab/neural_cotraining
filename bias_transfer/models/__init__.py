@@ -4,6 +4,9 @@ import numpy as np
 from bias_transfer.configs.model import ClassificationModelConfig, MTLModelConfig
 from nnvision.models.models import se_core_gauss_readout, se_core_point_readout
 
+from torchvision.models.utils import load_state_dict_from_url
+from torchvision.models.resnet import model_urls
+from collections import OrderedDict
 
 def get_model_parameters(model):
     total_parameters = 0
@@ -124,6 +127,9 @@ def resnet_builder(seed: int, config):
             adv_readout_layers=config.num_noise_adv_layers,
             core_stride=config.core_stride,
             conv_stem_kernel_size=config.conv_stem_kernel_size,
+            conv_stem_stride=config.conv_stem_stride,
+            conv_stem_padding=config.conv_stem_padding,
+            max_pool_after_stem=config.max_pool_after_stem,
         )
     else:
         model = ResNet(
@@ -132,6 +138,24 @@ def resnet_builder(seed: int, config):
             num_classes=config.num_classes,
             core_stride=config.core_stride,
             conv_stem_kernel_size=config.conv_stem_kernel_size,
+            conv_stem_stride=config.conv_stem_stride,
+            conv_stem_padding=config.conv_stem_padding,
+            max_pool_after_stem=config.max_pool_after_stem,
         )
+    if config.pretrained:
+        print("Downloading pretrained model:", flush=True)
+        state_dict = load_state_dict_from_url(model_urls["resnet{}".format(config.type)],
+                                              progress=True)
+        # transform state_dict:
+        t_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if "fc" in k:
+                t_state_dict[k.replace("fc", "readout")] = v
+            else:
+                if k.startswith("layer"):
+                    k = "layers." + str(int(k[5]) - 1) + k[6:]
+                k = k.replace("downsample", "shortcut")
+                t_state_dict["core." + k] = v
+        model.load_state_dict(t_state_dict)
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model

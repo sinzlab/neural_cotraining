@@ -33,6 +33,9 @@ class NoiseAdvResNet(ResNet):
         adv_readout_layers: int = 1,
         core_stride: int = 32,
         conv_stem_kernel_size: int = 3,
+        conv_stem_padding=1,
+        conv_stem_stride=1,
+        max_pool_after_stem=False,
     ):
         adv_readout_layers = 1 if not adv_readout_layers else adv_readout_layers
         super().__init__(
@@ -41,6 +44,9 @@ class NoiseAdvResNet(ResNet):
             num_classes=num_classes,
             core_stride=core_stride,
             conv_stem_kernel_size=conv_stem_kernel_size,
+            conv_stem_padding=conv_stem_padding,
+            conv_stem_stride=conv_stem_stride,
+            max_pool_after_stem=max_pool_after_stem,
         )
         readout_layers = []
         for i in range(1, adv_readout_layers):

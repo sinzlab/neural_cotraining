@@ -3,6 +3,7 @@ import tarfile
 import zipfile
 import requests
 import shutil
+import numpy as np
 from io import BytesIO
 
 
@@ -48,7 +49,7 @@ def create_ImageFolder_format(dataset_dir: str):
             os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
 
 
-def download_dataset(url: str, data_dir: str, dataset_cls: str) -> str:
+def get_dataset(url: str, data_dir: str, dataset_cls: str, download: bool) -> str:
     """
     Downloads the dataset from an online downloadable link and
     sets up the folders according to torch ImageFolder required
@@ -58,6 +59,7 @@ def download_dataset(url: str, data_dir: str, dataset_cls: str) -> str:
         url (str): download link of the dataset from the internet
         data_dir (str): the directory where to download the dataset
         dataset_cls (str): name of the dataset's folder
+        download (bool): download the data if not present
     Returns:
         dataset_dir (str): full path to the dataset incl. dataset folder
     """
@@ -65,6 +67,8 @@ def download_dataset(url: str, data_dir: str, dataset_cls: str) -> str:
     if os.path.isdir(dataset_dir):
         print("Images already downloaded...")
         return dataset_dir
+    if not download:
+        raise FileNotFoundError("Images not present but download not allowed! Please check data folder!")
     os.makedirs(dataset_dir)
     r = requests.get(url, stream=True)
     print("Downloading " + url)

@@ -92,14 +92,29 @@ class Bottleneck(nn.Module):
 
 
 class ResNetCore(nn.Module):
-    def __init__(self, block, num_blocks, core_stride, conv_stem_kernel_size):
+    def __init__(
+        self,
+        block,
+        num_blocks,
+        core_stride,
+        conv_stem_kernel_size,
+        conv_stem_padding,
+        conv_stem_stride,
+        max_pool_after_stem,
+    ):
         super().__init__()
         self.in_planes = 64
+        self.max_pool_after_stem = max_pool_after_stem
 
         self.conv1 = nn.Conv2d(
-            3, 64, kernel_size=conv_stem_kernel_size, stride=1, padding=1, bias=False
+            3,
+            self.in_planes,
+            kernel_size=conv_stem_kernel_size,
+            stride=conv_stem_stride,
+            padding=conv_stem_padding,
+            bias=False,
         )
-        self.bn1 = nn.BatchNorm2d(64)
+        self.bn1 = nn.BatchNorm2d(self.in_planes)
         self.layers = nn.ModuleList()
 
         self.layers.append(
@@ -120,6 +135,8 @@ class ResNetCore(nn.Module):
     def forward(self, x, seed: int = None):
         out = self.conv1(x)
         out = F.relu(self.bn1(out))
+        if self.max_pool_after_stem:
+            out = F.max_pool2d(out, kernel_size=3, stride=2, padding=1)
         for layer in self.layers:
             out = layer(out)
         out = F.avg_pool2d(out, 4)
@@ -134,10 +151,26 @@ class ResNetCore(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(
-        self, block, num_blocks, num_classes=10, core_stride=32, conv_stem_kernel_size=3
+        self,
+        block,
+        num_blocks,
+        num_classes=10,
+        core_stride=1,
+        conv_stem_kernel_size=3,
+        conv_stem_padding=1,
+        conv_stem_stride=1,
+        max_pool_after_stem=False,
     ):
         super().__init__()
-        self.core = ResNetCore(block, num_blocks, core_stride, conv_stem_kernel_size)
+        self.core = ResNetCore(
+            block,
+            num_blocks,
+            core_stride,
+            conv_stem_kernel_size,
+            conv_stem_padding,
+            conv_stem_stride,
+            max_pool_after_stem,
+        )
         self.readout = nn.Linear(512 * block.expansion, num_classes)
 
     def forward(self, x, compute_corr: bool = False, seed: int = None):

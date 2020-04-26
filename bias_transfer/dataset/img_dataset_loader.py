@@ -7,7 +7,7 @@ from torchvision import datasets
 from bias_transfer.configs.dataset import ImageDatasetConfig
 import os
 
-from bias_transfer.dataset.utils import download_dataset, create_ImageFolder_format
+from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
 from bias_transfer.dataset.npy_dataset import NpyDataset
 
 DATASET_URLS = {
@@ -15,6 +15,13 @@ DATASET_URLS = {
     "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
     "CIFAR100-C": "https://zenodo.org/record/3555552/files/CIFAR-100-C.tar",
     "TinyImageNet-C": "https://zenodo.org/record/2536630/files/Tiny-ImageNet-C.tar",
+    "ImageNet-C": {
+        "blur": "https://zenodo.org/record/2235448/files/blur.tar",
+        "digital": "https://zenodo.org/record/2235448/files/digital.tar",
+        "extra": "https://zenodo.org/record/2235448/files/extra.tar",
+        "noise": "https://zenodo.org/record/2235448/files/noise.tar",
+        "weather": "https://zenodo.org/record/2235448/files/weather.tar",
+    }
 }
 
 
@@ -68,24 +75,38 @@ def img_dataset_loader(seed, **config):
     assert (config.valid_size >= 0) and (config.valid_size <= 1), error_msg
 
     # load the dataset
-    if config.dataset_cls in list(torchvision.datasets.__dict__.keys()):
+    if config.dataset_cls == "ImageNet":
         dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
         train_dataset = dataset_cls(
-            root=config.data_dir, train=True, download=True, transform=transform_train,
+            root=config.data_dir, split="train", download=config.download, transform=transform_train,
         )
 
         valid_dataset = dataset_cls(
-            root=config.data_dir, train=True, download=True, transform=transform_base,
+            root=config.data_dir, split="train", download=config.download, transform=transform_base,
         )
 
         test_dataset = dataset_cls(
-            root=config.data_dir, train=False, download=True, transform=transform_base,
+            root=config.data_dir, split="val", download=config.download, transform=transform_base,
         )
+    elif config.dataset_cls in list(torchvision.datasets.__dict__.keys()):
+            dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
+            train_dataset = dataset_cls(
+                root=config.data_dir, train=True, download=config.download, transform=transform_train,
+            )
+
+            valid_dataset = dataset_cls(
+                root=config.data_dir, train=True, download=config.download, transform=transform_base,
+            )
+
+            test_dataset = dataset_cls(
+                root=config.data_dir, train=False, download=config.download, transform=transform_base,
+            )
     else:
-        dataset_dir = download_dataset(
+        dataset_dir = get_dataset(
             DATASET_URLS[config.dataset_cls],
             config.data_dir,
             dataset_cls=config.dataset_cls,
+            download=config.dowload
         )
         create_ImageFolder_format(dataset_dir)
 
@@ -99,36 +120,41 @@ def img_dataset_loader(seed, **config):
         test_dataset = datasets.ImageFolder(val_dir, transform=transform_base)
 
     if config.add_corrupted_test:
-        dataset_dir = download_dataset(
-            DATASET_URLS[config.dataset_cls + "-C"],
-            config.data_dir,
-            dataset_cls=config.dataset_cls + "-C",
-        )
+        urls = DATASET_URLS[config.dataset_cls + "-C"],
+        if not isinstance(urls, dict):
+            urls = {"default": urls}
+        for key, url in urls:
+            dataset_dir = get_dataset(
+                url,
+                config.data_dir,
+                dataset_cls=config.dataset_cls + "-C",
+                download=config.download
+            )
 
-        c_test_datasets = {}
-        for c_category in os.listdir(dataset_dir):
-            if config.dataset_cls in ("CIFAR10", "CIFAR100"):
-                if c_category == "labels.npy" or not c_category.endswith(".npy"):
-                    continue
-                c_test_datasets[c_category[:-4]] = {}
-                for c_level in range(1, 6):
-                    start = (c_level - 1) * 10000
-                    end = c_level * 10000
-                    c_test_datasets[c_category[:-4]][c_level] = NpyDataset(
-                        sample_file=c_category,
-                        target_file="labels.npy",
-                        root=dataset_dir,
-                        start=start,
-                        end=end,
-                        transform=transform_base,
-                    )
-            else:
-                c_test_datasets[c_category] = {}
-                for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
-                    c_test_datasets[c_category][c_level] = datasets.ImageFolder(
-                        os.path.join(dataset_dir, c_category, c_level),
-                        transform=transform_base,
-                    )
+            c_test_datasets = {}
+            for c_category in os.listdir(dataset_dir):
+                if config.dataset_cls in ("CIFAR10", "CIFAR100"):
+                    if c_category == "labels.npy" or not c_category.endswith(".npy"):
+                        continue
+                    c_test_datasets[c_category[:-4]] = {}
+                    for c_level in range(1, 6):
+                        start = (c_level - 1) * 10000
+                        end = c_level * 10000
+                        c_test_datasets[c_category[:-4]][c_level] = NpyDataset(
+                            sample_file=c_category,
+                            target_file="labels.npy",
+                            root=dataset_dir,
+                            start=start,
+                            end=end,
+                            transform=transform_base,
+                        )
+                else:
+                    c_test_datasets[c_category] = {}
+                    for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
+                        c_test_datasets[c_category][c_level] = datasets.ImageFolder(
+                            os.path.join(dataset_dir, c_category, c_level),
+                            transform=transform_base,
+                        )
 
     num_train = len(train_dataset)
     indices = list(range(num_train))

@@ -25,6 +25,11 @@ class ClassificationModelConfig(ModelConfig):
         self.type = kwargs.pop("type", "50")
         self.num_classes = kwargs.pop("num_classes", None)
         self.input_size = kwargs.pop("input_size", 32)
+        self.conv_stem_kernel_size = kwargs.pop("conv_stem_kernel_size", 3)
+        self.conv_stem_padding = kwargs.pop("conv_stem_padding", 1)
+        self.conv_stem_stride = kwargs.pop("conv_stem_stride", 1)
+        self.core_stride = kwargs.pop("core_stride", 1)
+        self.max_pool_after_stem = kwargs.pop("max_pool_after_stem", False)
         if not self.num_classes:
             dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
             if dataset_cls == "CIFAR100":
@@ -34,17 +39,21 @@ class ClassificationModelConfig(ModelConfig):
             elif dataset_cls == "TinyImageNet":
                 self.num_classes = 200
                 self.input_size = 64
+                self.core_stride = 2
+                self.conv_stem_kernel_size = 5
+            elif dataset_cls == "ImageNet":
+                self.num_classes = 1000
+                self.input_size = 224
+                self.conv_stem_kernel_size = 7
+                self.conv_stem_padding = 3
+                self.conv_stem_stride = 2
+                self.max_pool_after_stem = True
             else:
                 raise NameError()
 
         # resnet specific
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
-        if self.input_size == 32:
-            self.core_stride = 1
-        elif self.input_size == 64:
-            self.core_stride = 2
-        self.conv_stem_kernel_size = kwargs.pop("conv_stem_kernel_size", 3)
 
         # vgg specific
         self.pretrained = kwargs.pop("pretrained", False)
