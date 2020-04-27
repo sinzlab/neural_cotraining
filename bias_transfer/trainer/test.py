@@ -51,9 +51,8 @@ def test_model(
                 config.noise_std = None
                 setattr(config, n_type, val)
                 main_loop_modules = [
-                    globals().get("NoiseAugmentation")(
-                        model, config, device, data_loader, seed
-                    )
+                    globals().get(loop)(model, config, device, data_loader, seed)
+                    for loop in ["NoiseAugmentation", "MTL"]
                 ]
                 test_results[n_type][val_str], _ = main_loop(
                     model,

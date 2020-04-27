@@ -1,6 +1,6 @@
 from torch import nn
 from itertools import cycle
-
+from mlutils.training import copy_state
 
 def get_subdict(dictionary, keys=None):
     if keys:
@@ -52,7 +52,7 @@ def fixed_training_process(
             print("Final best model! objective {}".format(_objective()))
 
     best_objective = current_objective = _objective()
-    for epoch in range(start, max_iter):
+    for epoch in range(start+1, max_iter):
 
         yield epoch, current_objective
 

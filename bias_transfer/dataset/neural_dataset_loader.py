@@ -15,7 +15,7 @@ def neural_dataset_loader(seed, **config):
         neuronal_data_path + f
         for f in listdir(neuronal_data_path)
         if isfile(join(neuronal_data_path, f))
-    ][:7]
+    ]
     config["image_cache_path"] = os.path.join(data_dir, "images/individual")
     torch.manual_seed(seed)
     np.random.seed(seed)

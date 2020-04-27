@@ -1,9 +1,10 @@
 from functools import partial
+from .main_loop_module import MainLoopModule
 
 
-class MTL(object):
-    def __init__(self, config, device, data_loader, seed):
-        super(MTL, self).__init__(config, device, data_loader, seed)
+class MTL(MainLoopModule):
+    def __init__(self, model, config, device, data_loader, seed):
+        super().__init__(model, config, device, data_loader, seed)
 
     def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         data_key = kwargs.pop("data_key", None)

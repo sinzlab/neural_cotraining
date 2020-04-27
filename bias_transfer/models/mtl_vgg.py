@@ -144,7 +144,11 @@ class MTL_VGG(nn.Module):
 
         # for neural dataloaders
         if classification:
-            neural_train_dataloaders = dataloaders["train"]["neural"]
+            neural_train_dataloaders = {
+                k: loader
+                for k, loader in dataloaders["train"].items()
+                if k != "img_classification"
+            }
         elif "train" in dataloaders.keys():
             neural_train_dataloaders = dataloaders["train"]
         else:

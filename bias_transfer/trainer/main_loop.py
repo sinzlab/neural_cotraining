@@ -133,6 +133,9 @@ def main_loop(
                         per_neuron=False,
                     )
                     task_dict["neural"]["eval"] = average_loss(total["neural"])
+                    task_dict["neural"]["epoch_loss"] = average_loss(
+                        task_dict["neural"]["epoch_loss"] + loss.item()
+                    )
                 else:
                     loss += criterion["img_classification"](outputs["logits"], targets)
                     _, predicted = outputs["logits"].max(1)
@@ -141,10 +144,9 @@ def main_loop(
                     task_dict["img_classification"]["eval"] = (
                         100.0 * correct / total["img_classification"]
                     )
-
-                task_dict[data_key]["epoch_loss"] = average_loss(
-                    task_dict[data_key]["epoch_loss"] + loss.item()
-                )
+                    task_dict[data_key]["epoch_loss"] = average_loss(
+                        task_dict[data_key]["epoch_loss"] + loss.item()
+                    )
 
                 t.set_postfix(
                     **task_dict,

@@ -25,8 +25,7 @@ from mlutils import measures as mlmeasures
 from mlutils.training import MultipleObjectiveTracker, early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
-from bias_transfer.trainer.main_loop_modules import *
-from mlutils.training import copy_state
+
 from bias_transfer.utils import LongCycler
 
 
@@ -63,7 +62,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     best_eval = {k: 0 for k in val_n_iterations}
     # Main-loop modules:
     main_loop_modules = [
-        globals().get(k)(config, device, train_loader, seed)
+        globals().get(k)(model, config, device, train_loader, seed)
         for k in config.main_loop_modules
     ]
 
@@ -73,6 +72,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
                 avg=config.avg_loss
             )
+
             stop_closure[k] = partial(
                 getattr(measures, "get_correlations"),
                 dataloaders=dataloaders["validation"][k],
@@ -158,120 +158,118 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             data_loader=dataloaders["train"],
         )
 
-        print("==> Starting model {}".format(config.comment), flush=True)
-        train_stats = []
-        if config.early_stop:
-            epoch_iterator = early_stopping(
-                model,
-                list(stop_closure.values())[0],
-                interval=config.interval,
-                patience=config.patience,
-                start=start_epoch,
-                max_iter=config.max_iter,
-                maximize=config.maximize,
-                tolerance=config.threshold,
-                restore_best=config.restore_best,
-                tracker=tracker,
-                scheduler=train_scheduler if config.adaptive_lr else None,
-                lr_decay_steps=config.lr_decay_steps,
-            )
-        else:
-            epoch_iterator = fixed_training_process(
-                model,
-                stop_closure,
-                config=config,
-                start=start_epoch,
-                max_iter=config.max_iter,
-                switch_mode=True,
-                restore_best=True,
-                scheduler=train_scheduler,
-            )
-        # train over epochs
-        train_results, train_module_loss = 0, 0
-        for epoch, dev_eval in epoch_iterator:
-            if cb:
-                cb()
-
-            if config.verbose and tracker is not None:
-                print("=======================================")
-                for key in tracker.log.keys():
-                    print(key, tracker.log[key][-1], flush=True)
-            if epoch > 1:
-                if isinstance(dev_eval, dict):
-                    is_better = (
-                        True if dev_eval[k] > best_eval[k] else False
-                        for k in dev_eval.keys()
-                    )
-                else:
-                    is_better = [dev_eval > list(best_eval.values())[0]]
-                if all(is_better):
-                    save_checkpoint(
-                        model,
-                        optimizer,
-                        dev_eval,
-                        epoch,
-                        "./checkpoint",
-                        "ckpt.{}.pth".format(uid),
-                    )
-                    best_eval = (
-                        dev_eval
-                        if isinstance(dev_eval, dict)
-                        else {k: dev_eval for k in best_eval}
-                    )
-                    best_epoch = epoch - 1
-
-                train_stats.append(
-                    {
-                        "train_results": train_results,
-                        "train_module_loss": train_module_loss,
-                        "dev_eval": dev_eval,
-                    }
-                )
-
-            train_results, train_module_loss = main_loop(
-                model=model,
-                criterion=criterion,
-                device=device,
-                optimizer=optimizer,
-                data_loader=dataloaders["train"],
-                n_iterations=train_n_iterations,
-                modules=main_loop_modules,
-                train_mode=True,
-                epoch=epoch,
-                optim_step_count=optim_step_count,
-            )
-            if config.lr_milestones:  # TODO: see if still working correctly
-                train_scheduler.step(epoch=epoch)
-
-        if isinstance(dev_eval, dict):
-            is_better = (
-                True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
-            )
-        else:
-            is_better = [dev_eval > list(best_eval.values())[0]]
-        if all(is_better):
-            save_checkpoint(
-                model,
-                optimizer,
-                dev_eval,
-                epoch,
-                "./checkpoint",
-                "ckpt.{}.pth".format(uid),
-            )
-            best_eval = (
-                dev_eval
-                if isinstance(dev_eval, dict)
-                else {k: dev_eval for k in best_eval}
-            )
-            best_epoch = epoch - 1
-
-        train_stats.append(
-            {
-                "train_results": train_results,
-                "train_module_loss": train_module_loss,
-                "dev_eval": dev_eval,
-            }
+    print("==> Starting model {}".format(config.comment), flush=True)
+    train_stats = []
+    if config.early_stop:
+        epoch_iterator = early_stopping(
+            model,
+            list(stop_closure.values())[0],
+            interval=config.interval,
+            patience=config.patience,
+            start=start_epoch,
+            max_iter=config.max_iter,
+            maximize=config.maximize,
+            tolerance=config.threshold,
+            restore_best=config.restore_best,
+            tracker=tracker,
+            scheduler=train_scheduler if config.adaptive_lr else None,
+            lr_decay_steps=config.lr_decay_steps,
         )
+    else:
+        epoch_iterator = fixed_training_process(
+            model,
+            stop_closure,
+            config=config,
+            start=start_epoch,
+            max_iter=config.max_iter,
+            switch_mode=True,
+            restore_best=True,
+            scheduler=train_scheduler,
+        )
+    # train over epochs
+    train_results, train_module_loss = 0, 0
+    for epoch, dev_eval in epoch_iterator:
+        if cb:
+            cb()
+
+        if config.verbose and tracker is not None:
+            print("=======================================")
+            for key in tracker.log.keys():
+                print(key, tracker.log[key][-1], flush=True)
+        if epoch > 1:
+            if isinstance(dev_eval, dict):
+                is_better = (
+                    True if dev_eval[k] > best_eval[k] else False
+                    for k in dev_eval.keys()
+                )
+            else:
+                is_better = [dev_eval > list(best_eval.values())[0]]
+            if all(is_better):
+                save_checkpoint(
+                    model,
+                    optimizer,
+                    dev_eval,
+                    epoch,
+                    "./checkpoint",
+                    "ckpt.{}.pth".format(uid),
+                )
+                best_eval = (
+                    dev_eval
+                    if isinstance(dev_eval, dict)
+                    else {k: dev_eval for k in best_eval}
+                )
+                best_epoch = epoch - 1
+
+            train_stats.append(
+                {
+                    "train_results": train_results,
+                    "train_module_loss": train_module_loss,
+                    "dev_eval": dev_eval,
+                }
+            )
+
+        train_results, train_module_loss = main_loop(
+            model=model,
+            criterion=criterion,
+            device=device,
+            optimizer=optimizer,
+            data_loader=dataloaders["train"],
+            n_iterations=train_n_iterations,
+            modules=main_loop_modules,
+            train_mode=True,
+            epoch=epoch,
+            optim_step_count=optim_step_count,
+        )
+        if config.lr_milestones:  # TODO: see if still working correctly
+            train_scheduler.step(epoch=epoch)
+
+    if isinstance(dev_eval, dict):
+        is_better = (
+            True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
+        )
+    else:
+        is_better = [dev_eval > list(best_eval.values())[0]]
+    if all(is_better):
+        save_checkpoint(
+            model,
+            optimizer,
+            dev_eval,
+            epoch,
+            "./checkpoint",
+            "ckpt.{}.pth".format(uid),
+        )
+        best_eval = (
+            dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
+        )
+        best_epoch = epoch - 1
+
+    train_stats.append(
+        {
+            "train_results": train_results,
+            "train_module_loss": train_module_loss,
+            "dev_eval": dev_eval,
+        }
+    )
 
     if not config.lottery_ticket:
         model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
@@ -337,16 +335,16 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if "c_test" in dataloaders:
         test_c_results = {}
-        for c_category in list(dataloaders["c_test"].keys())[:1]:
+        for c_category in list(dataloaders["c_test"].keys()):
             test_c_results[c_category] = {}
             for c_level, dataloader in dataloaders["c_test"][c_category].items():
                 results = test_model(
                     model=model,
                     n_iterations=len(dataloader),
                     epoch=epoch,
-                    criterion=criterion,
+                    criterion=get_subdict(criterion, ["img_classification"]),
                     device=device,
-                    data_loader={list(criterion.keys())[0]: dataloader},
+                    data_loader={"img_classification": dataloader},
                     config=config,
                     noise_test=False,
                     seed=seed,
