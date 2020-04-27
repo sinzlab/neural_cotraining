@@ -15,10 +15,15 @@ def neural_dataset_loader(seed, **config):
         neuronal_data_path + f
         for f in listdir(neuronal_data_path)
         if isfile(join(neuronal_data_path, f))
-    ]
+    ][:7]
     config["image_cache_path"] = os.path.join(data_dir, "images/individual")
     torch.manual_seed(seed)
     np.random.seed(seed)
     dataset_fn = "nnvision.datasets.monkey_static_loader"
     data_loaders = builder.get_data(dataset_fn, config)
-    return data_loaders
+    dataloaders = {
+        'train': data_loaders['train'],
+        'validation': {"neural": data_loaders['validation']},
+        'test': {"neural": data_loaders['test']}
+    }
+    return dataloaders

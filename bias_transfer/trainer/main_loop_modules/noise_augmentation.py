@@ -64,7 +64,7 @@ class NoiseAugmentation(MainLoopModule):
                 self.seed
             )  # so that we always have the same noise for evaluation!
 
-    def pre_forward(self, model, inputs, shared_memory, train_mode):
+    def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         inputs, shared_memory["applied_std"] = self.apply_noise(
             inputs,
             self.device,

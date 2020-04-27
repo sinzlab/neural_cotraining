@@ -4,15 +4,18 @@ from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.utils import stringify
 from nnvision.utility.measures import get_poisson_loss, get_correlations
+from bias_transfer.trainer.main_loop_modules import MTL, \
+    NoiseAdvTraining, NoiseAugmentation, RDMPrediction, RandomReadoutReset, RepresentationMatching
 
-
-def test_neural_model(model, data_loader, device, epoch):
+def test_neural_model(model, data_loader, device, epoch, eval_type="Validation"):
     loss = get_poisson_loss(model, data_loader, device, as_dict=False, per_neuron=False)
     eval = get_correlations(
         model, data_loader, device=device, as_dict=False, per_neuron=False
     )
-    print("Test Epoch {}: eval={}, loss={}".format(epoch, eval, loss))
-    return eval, loss
+    results = {"neural": {'eval': eval, "loss": loss}}
+    print("{} Epoch {}: eval={}, loss={}".format(eval_type, epoch, results['neural']['eval'],
+                                                 results['neural']['loss']))
+    return results
 
 
 def test_model(
@@ -28,11 +31,9 @@ def test_model(
     eval_type="Validation",
 ):
     if config.noise_test and noise_test:
-        test_eval = {}
-        test_loss = {}
+        test_results = {}
         for n_type, n_vals in config.noise_test.items():
-            test_eval[n_type] = {}
-            test_loss[n_type] = {}
+            test_results[n_type] = {}
             for val in n_vals:
                 val_str = stringify(val)
                 config = copy.deepcopy(config)
@@ -44,7 +45,7 @@ def test_model(
                         model, config, device, data_loader, seed
                     )
                 ]
-                test_eval[n_type][val_str], test_loss[n_type][val_str], _ = main_loop(
+                test_results[n_type][val_str], _ = main_loop(
                     model,
                     criterion,
                     device,
@@ -55,7 +56,6 @@ def test_model(
                     modules=main_loop_modules,
                     train_mode=False,
                     epoch=epoch,
-                    neural_prediction=config.neural_prediction,
                 )
     else:
         main_loop_modules = []
@@ -64,7 +64,7 @@ def test_model(
                 main_loop_modules.append(
                     globals().get(k)(model, config, device, data_loader, seed)
                 )
-        test_eval, test_loss, _ = main_loop(
+        test_results, _ = main_loop(
             model,
             criterion,
             device,
@@ -75,6 +75,5 @@ def test_model(
             modules=main_loop_modules,
             train_mode=False,
             epoch=epoch,
-            neural_prediction=config.neural_prediction,
         )
-    return test_eval, test_loss
+    return test_results

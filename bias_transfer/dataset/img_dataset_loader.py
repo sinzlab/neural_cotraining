@@ -165,9 +165,9 @@ def img_dataset_loader(seed, **config):
         shuffle=False,
     )
     data_loaders = {
-        "train": train_loader,
-        "validation": valid_loader,
-        "test": test_loader,
+        "train": {'img_classification': train_loader},
+        "validation": {'img_classification': valid_loader},
+        "test": {'img_classification': test_loader}
     }
 
     if config.add_corrupted_test:

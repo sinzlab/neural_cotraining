@@ -18,7 +18,7 @@ class NoiseAdvTraining(MainLoopModule):
         else:  # config.noise_adv_classification
             self.criterion = nn.BCELoss()
 
-    def pre_forward(self, model, inputs, shared_memory, train_mode):
+    def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         noise_adv_lambda = (
             2.0 / (1.0 + np.exp(-self.config.noise_adv_gamma * self.progress)) - 1
         )

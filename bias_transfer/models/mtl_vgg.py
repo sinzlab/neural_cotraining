@@ -76,14 +76,12 @@ class MTL_VGG_Core(Core2d, nn.Module):
         v1_final_batchnorm=True,
         input_channels=1,
         v1_final_nonlinearity=True,
-        v1_bias=False,
         v1_momentum=0.1,
         v1_fine_tune=False,
         **kwargs
     ):
 
         super(MTL_VGG_Core, self).__init__()
-        self.classification = classification
         self.v1_model_layer = v1_model_layer
         self.input_channels = input_channels
 
@@ -101,41 +99,20 @@ class MTL_VGG_Core(Core2d, nn.Module):
             for param in self.shared_block.parameters():
                 param.requires_grad = False
 
-        # self.v1_core.add_module('V1_CORE', self.v1_vgg_layers)
-        # if v1_final_batchnorm:
-        #     self.v1_core.add_module('OutBatchNorm', nn.BatchNorm2d(self.outchannels, momentum=v1_momentum))
-        # if v1_final_nonlinearity:
-        #     self.v1_core.add_module('OutNonlin', nn.ReLU(inplace=True))
-
         if classification:
             self.unshared_block = nn.Sequential(
                 *list(vgg.features.children())[v1_model_layer:]
             )
 
-    def forward(self, x, **kwargs):
+    def forward(self, x, classification=False):
         if self.input_channels == 1:
             x = x.expand(-1, 3, -1, -1)
-            # core_out = self.v1_core(x)
         shared_core_out = self.shared_block(x)
-        if self.classification:
+        if classification:
             core_out = self.unshared_block(shared_core_out)
             return shared_core_out, core_out
         return shared_core_out, None
 
-    #
-    # @property
-    # def outchannels(self):
-    #     """
-    #     Returns: dimensions of the output, after a forward pass through the model
-    #     """
-    #     found_out_channels = False
-    #     i=1
-    #     while not found_out_channels:
-    #         if 'out_channels' in self.v1_core.V1_CORE[-i].__dict__:
-    #             found_out_channels = True
-    #         else:
-    #             i = i+1
-    #     return self.v1_core.V1_CORE[-i].out_channels
 
 
 class MTL_VGG(nn.Module):
@@ -149,11 +126,7 @@ class MTL_VGG(nn.Module):
         num_classes=200,
         pretrained=True,
         v1_model_layer=17,
-        v1_final_batchnorm=True,
         input_channels=1,
-        v1_final_nonlinearity=True,
-        v1_bias=False,
-        v1_momentum=0.1,
         v1_fine_tune=False,
         v1_init_mu_range=0.4,
         v1_init_sigma_range=0.6,
@@ -171,10 +144,15 @@ class MTL_VGG(nn.Module):
         self.input_channels = input_channels
 
         # for neural dataloaders
-        if "train" in dataloaders.keys():
-            dataloaders = dataloaders["train"]
-        session_shape_dict = get_dims_for_loader_dict(dataloaders)
-        in_name, out_name = next(iter(list(dataloaders.values())[0]))._fields
+        if classification:
+            neural_train_dataloaders = dataloaders["train"]['neural']
+        elif "train" in dataloaders.keys():
+            neural_train_dataloaders = dataloaders["train"]
+        else:
+            neural_train_dataloaders = dataloaders
+
+        session_shape_dict = get_dims_for_loader_dict(neural_train_dataloaders)
+        in_name, out_name = next(iter(list(neural_train_dataloaders.values())[0]))._fields
         self.input_channels = [v[in_name][1] for v in session_shape_dict.values()]
         assert (
             np.unique(self.input_channels).size == 1
@@ -185,10 +163,6 @@ class MTL_VGG(nn.Module):
             classification=classification,
             pretrained=pretrained,
             v1_model_layer=v1_model_layer,
-            v1_final_batchnorm=v1_final_batchnorm,
-            v1_final_nonlinearity=v1_final_nonlinearity,
-            v1_bias=v1_bias,
-            v1_momentum=v1_momentum,
             v1_fine_tune=v1_fine_tune,
             input_channels=self.input_channels[0],
         )
@@ -208,11 +182,11 @@ class MTL_VGG(nn.Module):
             gamma_readout=v1_gamma_readout,
         )
         if v1_readout_bias:
-            for key, value in dataloaders.items():
+            for key, value in neural_train_dataloaders.items():
                 _, targets = next(iter(value))
                 self.v1_readout[key].bias.data = targets.mean(0)
 
-        if self.mtl_vgg_core.classification:
+        if classification:
             # init fully connected part of vgg
             if classification_readout_type == "dense":
                 test_input = Variable(torch.zeros(1, 3, input_size, input_size))
@@ -243,16 +217,16 @@ class MTL_VGG(nn.Module):
                     nn.Flatten(),
                 )
 
-    def forward(self, x, data_key=None, **kwargs):
-        shared_core_out, core_out = self.mtl_vgg_core(x)
-        v1_out = self.v1_readout(shared_core_out, data_key=data_key)
-        v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
-        if core_out:
+    def forward(self, x, data_key=None, classification=False):
+        shared_core_out, core_out = self.mtl_vgg_core(x, classification)
+        if classification:
             if self.classification_readout_type == "dense":
                 core_out = core_out.view(core_out.size(0), -1)
             class_out = self.classification_readout(core_out)
             classification_out = {"logits": class_out}
-            return v1_out, classification_out
+            return classification_out
+        v1_out = self.v1_readout(shared_core_out, data_key=data_key)
+        v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
         return v1_out
 
     def regularizer(self, data_key=None):

@@ -13,7 +13,7 @@ class RepresentationMatching(NoiseAugmentation):
         else:
             self.criterion = nn.MSELoss()
 
-    def pre_forward(self, model, inputs, shared_memory, train_mode):
+    def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         model, inputs1 = super().pre_forward(model, inputs, shared_memory, train_mode)
         self.batch_size = inputs1.shape[0]
         if self.config.representation_matching.get("only_for_clean", False):

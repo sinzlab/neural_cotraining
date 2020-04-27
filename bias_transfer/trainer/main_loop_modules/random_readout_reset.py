@@ -18,7 +18,7 @@ class RandomReadoutReset(MainLoopModule):
                 model.module.linear_readout.reset_parameters()
             self.epoch_progress += 1
 
-    def pre_forward(self, model, inputs, shared_memory, train_mode):
+    def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         if train_mode and self.config.reset_linear_frequency.get("batch"):
             if self.batch_progress % self.config.reset_linear_frequency["batch"] == 0:
                 model.module.linear_readout.reset_parameters()

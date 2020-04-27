@@ -26,18 +26,11 @@ class TrainerConfig(BaseConfig):
         self.verbose = kwargs.pop("verbose", False)
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
         self.threshold_mode = kwargs.pop("threshold_mode", "rel")
-        self.neural_prediction = kwargs.pop("neural_prediction", False)
-
-        if self.neural_prediction:
+        self.loss_functions = kwargs.pop("loss_functions", {'img_classification':"CrossEntropyLoss"} )
+        if len(self.loss_functions) > 1 or 'img_classification' not in self.loss_functions.keys():
             self.threshold_mode = "abs"
-            self.loss_function = kwargs.pop("loss_function", "PoissonLoss")
             self.scale_loss = kwargs.pop("scale_loss", True)
             self.avg_loss = kwargs.pop("avg_loss", False)
-            self.stop_function = kwargs.pop(
-                "stop_function", "get_correlations"
-            )  # objective func for scheduler and early stopping
-        else:
-            self.loss_function = kwargs.pop("loss_function", "CrossEntropyLoss")
 
         self.maximize = kwargs.pop(
             "maximize", True
@@ -61,7 +54,7 @@ class TrainerConfig(BaseConfig):
         )  # Number of times the learning rate should be reduced before stopping the training.
 
         self.track_training = kwargs.pop("track_training", False)
-
+        self.early_stop = kwargs.pop("early_stop", True)
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)
@@ -123,4 +116,6 @@ class TrainerConfig(BaseConfig):
             modules.append("RDMPrediction")
         if self.lottery_ticket:
             modules.append("LotteryTicketPruning")
+        modules.append("MTL")
         return modules
+

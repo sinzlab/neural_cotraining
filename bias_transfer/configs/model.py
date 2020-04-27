@@ -92,10 +92,6 @@ class MTLModelConfig(ModelConfig):
 
         self.v1_model_layer = kwargs.pop("v1_model_layer", 17)
         self.v1_input_channels = kwargs.pop("v1_input_channels", 1)
-        self.v1_final_batchnorm = kwargs.pop("v1_final_batchnorm", False)
-        self.v1_final_nonlinearity = kwargs.pop("v1_final_nonlinearity", False)
-        self.v1_bias = kwargs.pop("v1_bias", False)
-        self.v1_momentum = kwargs.pop("v1_momentum", 0.1)
         self.v1_fine_tune = kwargs.pop("v1_fine_tune", False)
         self.v1_init_mu_range = kwargs.pop("v1_init_mu_range", 0.3)
         self.v1_init_sigma_range = kwargs.pop("v1_init_sigma_range", 0.6)

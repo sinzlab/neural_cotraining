@@ -83,3 +83,19 @@ class NeuralDatasetConfig(DatasetConfig):
         self.crop = kwargs.pop("crop", 70)
         self.time_bins_sum = kwargs.pop("time_bins_sum", 12)
         self.update(**kwargs)
+
+
+
+
+class MTLDatasetsConfig(DatasetConfig):
+    config_name = "dataset"
+    table = Dataset()
+    fn = "bias_transfer.dataset.mtl_datasets_loader"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.neural_dataset_config = kwargs.pop("neural_dataset_config",
+                                                NeuralDatasetConfig(comment="").to_dict())
+        self.img_dataset_config = kwargs.pop("img_dataset_config",
+                                                ImageDatasetConfig(comment="").to_dict())
+        self.update(**kwargs)
