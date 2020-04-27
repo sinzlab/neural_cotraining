@@ -4,17 +4,27 @@ from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.utils import stringify
 from nnvision.utility.measures import get_poisson_loss, get_correlations
-from bias_transfer.trainer.main_loop_modules import MTL, \
-    NoiseAdvTraining, NoiseAugmentation, RDMPrediction, RandomReadoutReset, RepresentationMatching
+from bias_transfer.trainer.main_loop_modules import (
+    MTL,
+    NoiseAdvTraining,
+    NoiseAugmentation,
+    RDMPrediction,
+    RandomReadoutReset,
+    RepresentationMatching,
+)
+
 
 def test_neural_model(model, data_loader, device, epoch, eval_type="Validation"):
     loss = get_poisson_loss(model, data_loader, device, as_dict=False, per_neuron=False)
     eval = get_correlations(
         model, data_loader, device=device, as_dict=False, per_neuron=False
     )
-    results = {"neural": {'eval': eval, "loss": loss}}
-    print("{} Epoch {}: eval={}, loss={}".format(eval_type, epoch, results['neural']['eval'],
-                                                 results['neural']['loss']))
+    results = {"neural": {"eval": eval, "loss": loss}}
+    print(
+        "{} Epoch {}: eval={}, loss={}".format(
+            eval_type, epoch, results["neural"]["eval"], results["neural"]["loss"]
+        )
+    )
     return results
 
 

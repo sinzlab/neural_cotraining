@@ -85,8 +85,6 @@ class NeuralDatasetConfig(DatasetConfig):
         self.update(**kwargs)
 
 
-
-
 class MTLDatasetsConfig(DatasetConfig):
     config_name = "dataset"
     table = Dataset()
@@ -94,8 +92,10 @@ class MTLDatasetsConfig(DatasetConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.neural_dataset_config = kwargs.pop("neural_dataset_config",
-                                                NeuralDatasetConfig(comment="").to_dict())
-        self.img_dataset_config = kwargs.pop("img_dataset_config",
-                                                ImageDatasetConfig(comment="").to_dict())
+        self.neural_dataset_config = kwargs.pop(
+            "neural_dataset_config", NeuralDatasetConfig(comment="").to_dict()
+        )
+        self.img_dataset_config = kwargs.pop(
+            "img_dataset_config", ImageDatasetConfig(comment="").to_dict()
+        )
         self.update(**kwargs)

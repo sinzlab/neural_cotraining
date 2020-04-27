@@ -8,7 +8,6 @@ from bias_transfer.utils.io import load_model
 from bias_transfer.trainer.main_loop import main_loop
 
 
-
 def compute_representation(model, criterion, device, data_loader, rep_name):
     acc, loss, module_losses, collected_outputs = main_loop(
         model=model,

@@ -22,8 +22,8 @@ def neural_dataset_loader(seed, **config):
     dataset_fn = "nnvision.datasets.monkey_static_loader"
     data_loaders = builder.get_data(dataset_fn, config)
     dataloaders = {
-        'train': data_loaders['train'],
-        'validation': {"neural": data_loaders['validation']},
-        'test': {"neural": data_loaders['test']}
+        "train": data_loaders["train"],
+        "validation": {"neural": data_loaders["validation"]},
+        "test": {"neural": data_loaders["test"]},
     }
     return dataloaders

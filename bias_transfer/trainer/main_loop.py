@@ -20,14 +20,14 @@ def neural_full_objective(
 
 def move_data(batch_data, device):
     batch_dict = None
-    data_key, inputs= batch_data[0], batch_data[1][0]
+    data_key, inputs = batch_data[0], batch_data[1][0]
 
     if len(batch_data[1]) > 2:
         targets = [b.to(device) for b in batch_data[1][1:]]
     else:
         targets = batch_data[1][1].to(device)
 
-    if data_key != 'img_classification':
+    if data_key != "img_classification":
         inputs, targets = (
             inputs.to(device),
             targets.to(device),
@@ -36,7 +36,6 @@ def move_data(batch_data, device):
         return inputs, targets, data_key, batch_dict
     inputs = inputs.to(device, dtype=torch.float)
     return inputs, targets, data_key, batch_dict
-
 
 
 def main_loop(
@@ -59,7 +58,7 @@ def main_loop(
     model.train() if train_mode else model.eval()
     task_dict, correct, total, module_losses, collected_outputs = {}, 0, {}, {}, []
     for k in criterion:
-        task_dict[k] = {'epoch_loss': 0, 'eval': 0}
+        task_dict[k] = {"epoch_loss": 0, "eval": 0}
         total[k] = 0
     for module in modules:
         if module.criterion:  # some modules may compute an additonal output/loss
@@ -87,14 +86,16 @@ def main_loop(
             for batch_idx, batch_data in t:
                 # Pre-Forward
                 loss = torch.zeros(1, device=device)
-                inputs, targets, data_key, batch_dict = move_data(
-                    batch_data, device
-                )
+                inputs, targets, data_key, batch_dict = move_data(batch_data, device)
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 model_ = model
                 for module in modules:
                     model_, inputs = module.pre_forward(
-                        model_, inputs, shared_memory, train_mode=train_mode, data_key=data_key
+                        model_,
+                        inputs,
+                        shared_memory,
+                        train_mode=train_mode,
+                        data_key=data_key,
                     )
                 # Forward
                 outputs = model_(inputs)
@@ -113,34 +114,37 @@ def main_loop(
                     )
                 if return_outputs:
                     collected_outputs.append(outputs)
-                if data_key != 'img_classification':
+                if data_key != "img_classification":
                     loss += neural_full_objective(
                         model,
                         outputs,
                         data_loader,
-                        criterion['neural'],
+                        criterion["neural"],
                         scale_loss,
                         data_key,
                         inputs,
                         targets,
                     )
-                    total['neural'] += get_correlations(
+                    total["neural"] += get_correlations(
                         model,
                         batch_dict,
                         device=device,
                         as_dict=False,
                         per_neuron=False,
                     )
-                    task_dict['neural']['eval'] = average_loss(total['neural'])
+                    task_dict["neural"]["eval"] = average_loss(total["neural"])
                 else:
-                    loss += criterion['img_classification'](outputs["logits"], targets)
+                    loss += criterion["img_classification"](outputs["logits"], targets)
                     _, predicted = outputs["logits"].max(1)
-                    total['img_classification'] += targets.size(0)
+                    total["img_classification"] += targets.size(0)
                     correct += predicted.eq(targets).sum().item()
-                    task_dict['img_classification']['eval'] = 100.0 * correct / total['img_classification']
+                    task_dict["img_classification"]["eval"] = (
+                        100.0 * correct / total["img_classification"]
+                    )
 
-                task_dict[data_key]['epoch_loss'] = average_loss(task_dict[data_key]['epoch_loss'] + loss.item())
-
+                task_dict[data_key]["epoch_loss"] = average_loss(
+                    task_dict[data_key]["epoch_loss"] + loss.item()
+                )
 
                 t.set_postfix(
                     **task_dict,
@@ -163,7 +167,7 @@ def main_loop(
         )
 
     if return_eval:
-        return list(task_dict.values())[0]['eval']
+        return list(task_dict.values())[0]["eval"]
 
     return (
         task_dict,

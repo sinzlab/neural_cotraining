@@ -5,10 +5,16 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
-
+from bias_transfer.utils import StopClosureWrapper, get_subdict, fixed_training_process
 import nnfabrik as nnf
-from bias_transfer.trainer.main_loop_modules import MTL, \
-    NoiseAdvTraining, NoiseAugmentation, RDMPrediction, RandomReadoutReset, RepresentationMatching
+from bias_transfer.trainer.main_loop_modules import (
+    MTL,
+    NoiseAdvTraining,
+    NoiseAugmentation,
+    RDMPrediction,
+    RandomReadoutReset,
+    RepresentationMatching,
+)
 from bias_transfer.configs.trainer import TrainerConfig
 from bias_transfer.trainer import main_loop
 from bias_transfer.trainer.transfer import transfer_model
@@ -22,83 +28,6 @@ from nnvision.utility.measures import get_correlations, get_poisson_loss
 from bias_transfer.trainer.main_loop_modules import *
 from mlutils.training import copy_state
 from bias_transfer.utils import LongCycler
-
-
-def get_subdict(dictionary, keys=None):
-    if keys:
-        return {k: v for k,v in dictionary.items() if k in keys }
-    return dictionary
-
-class StopClosureWrapper:
-
-    def __init__(self, stop_closures):
-        self.stop_closures = stop_closures
-
-    def __call__(self, model):
-        results = {}
-        for k in self.stop_closures:
-            results[k] = self.stop_closures[k](model)
-        return results
-
-
-def fixed_training_process(
-        model,
-        stop_closures,
-        config,
-        start=0,
-        max_iter=1000,
-        switch_mode=True,
-        restore_best=True,
-        scheduler=None,
-):
-
-    training_status = model.training
-    objective_closure = StopClosureWrapper(stop_closures)
-    def _objective():
-        if switch_mode:
-            model.eval()
-        ret = objective_closure(model)
-        if switch_mode:
-            model.train(training_status)
-        return ret
-
-
-    def finalize(model, best_state_dict):
-        old_objective = _objective()
-        if restore_best:
-            model.load_state_dict(best_state_dict)
-            print("Restoring best model! {} ---> {}".format(old_objective, _objective()))
-        else:
-            print("Final best model! objective {}".format(_objective()))
-
-    best_objective = current_objective = _objective()
-    for epoch in range(start, max_iter):
-
-            yield epoch, current_objective
-
-            current_objective = _objective()
-
-            # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
-            if scheduler is not None:
-                if config.adaptive_lr:
-                    scheduler.step(list(current_objective.values())[0])
-                else:
-                    scheduler.step(epoch=epoch)
-            print(
-                "Validation Epoch {} -------> {}".format(epoch, current_objective),
-                flush=True,
-            )
-
-            is_better = (True if current_objective[k] > best_objective[k]
-                         else False for k in current_objective.keys() )
-            if all(is_better):
-                best_state_dict = copy_state(model)
-                best_objective = current_objective
-
-    finalize(model, best_state_dict)
-
-
-
 
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
@@ -122,18 +51,16 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     train_n_iterations = len(train_loader)
     optim_step_count = len(dataloaders["train"].keys())
 
-    val_n_iterations = { k: len(LongCycler(dataset))
-                         if k != 'img_classification'
-                         else len(dataset)
-                         for k, dataset in dataloaders["validation"].items()
-                       }
+    val_n_iterations = {
+        k: len(LongCycler(dataset)) if k != "img_classification" else len(dataset)
+        for k, dataset in dataloaders["validation"].items()
+    }
 
-    test_n_iterations = {k: None
-                        if k != 'img_classification'
-                        else len(dataset)
-                        for k, dataset in dataloaders["test"].items()
-                        }
-    best_eval = {k:0 for k in val_n_iterations}
+    test_n_iterations = {
+        k: None if k != "img_classification" else len(dataset)
+        for k, dataset in dataloaders["test"].items()
+    }
+    best_eval = {k: 0 for k in val_n_iterations}
     # Main-loop modules:
     main_loop_modules = [
         globals().get(k)(config, device, train_loader, seed)
@@ -142,10 +69,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     criterion, stop_closure = {}, {}
     for k in val_n_iterations.keys():
-        if k != 'img_classification':
-            criterion[k] = getattr(mlmeasures, config.loss_functions[k])(avg=config.avg_loss)
+        if k != "img_classification":
+            criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
+                avg=config.avg_loss
+            )
             stop_closure[k] = partial(
-                getattr(measures, 'get_correlations'),
+                getattr(measures, "get_correlations"),
                 dataloaders=dataloaders["validation"][k],
                 device=device,
                 per_neuron=False,
@@ -169,7 +98,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 epoch=0,
                 optimizer=None,
             )
-
 
     if config.track_training:
         tracker_dict = dict(
@@ -234,19 +162,19 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         train_stats = []
         if config.early_stop:
             epoch_iterator = early_stopping(
-                                    model,
-                                    list(stop_closure.values())[0],
-                                    interval=config.interval,
-                                    patience=config.patience,
-                                    start=start_epoch,
-                                    max_iter=config.max_iter,
-                                    maximize=config.maximize,
-                                    tolerance=config.threshold,
-                                    restore_best=config.restore_best,
-                                    tracker=tracker,
-                                    scheduler=train_scheduler if config.adaptive_lr else None,
-                                    lr_decay_steps=config.lr_decay_steps,
-                                )
+                model,
+                list(stop_closure.values())[0],
+                interval=config.interval,
+                patience=config.patience,
+                start=start_epoch,
+                max_iter=config.max_iter,
+                maximize=config.maximize,
+                tolerance=config.threshold,
+                restore_best=config.restore_best,
+                tracker=tracker,
+                scheduler=train_scheduler if config.adaptive_lr else None,
+                lr_decay_steps=config.lr_decay_steps,
+            )
         else:
             epoch_iterator = fixed_training_process(
                 model,
@@ -259,7 +187,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 scheduler=train_scheduler,
             )
         # train over epochs
-        train_results, train_module_loss = 0,0
+        train_results, train_module_loss = 0, 0
         for epoch, dev_eval in epoch_iterator:
             if cb:
                 cb()
@@ -270,8 +198,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     print(key, tracker.log[key][-1], flush=True)
             if epoch > 1:
                 if isinstance(dev_eval, dict):
-                    is_better = (True if dev_eval[k] > best_eval[k]
-                                 else False for k in dev_eval.keys())
+                    is_better = (
+                        True if dev_eval[k] > best_eval[k] else False
+                        for k in dev_eval.keys()
+                    )
                 else:
                     is_better = [dev_eval > list(best_eval.values())[0]]
                 if all(is_better):
@@ -283,8 +213,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                         "./checkpoint",
                         "ckpt.{}.pth".format(uid),
                     )
-                    best_eval = dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
-                    best_epoch = epoch-1
+                    best_eval = (
+                        dev_eval
+                        if isinstance(dev_eval, dict)
+                        else {k: dev_eval for k in best_eval}
+                    )
+                    best_epoch = epoch - 1
 
                 train_stats.append(
                     {
@@ -293,7 +227,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                         "dev_eval": dev_eval,
                     }
                 )
-
 
             train_results, train_module_loss = main_loop(
                 model=model,
@@ -310,10 +243,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             if config.lr_milestones:  # TODO: see if still working correctly
                 train_scheduler.step(epoch=epoch)
 
-
         if isinstance(dev_eval, dict):
-            is_better = (True if dev_eval[k] > best_eval[k]
-                         else False for k in dev_eval.keys())
+            is_better = (
+                True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
+            )
         else:
             is_better = [dev_eval > list(best_eval.values())[0]]
         if all(is_better):
@@ -325,7 +258,11 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 "./checkpoint",
                 "ckpt.{}.pth".format(uid),
             )
-            best_eval = dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
+            best_eval = (
+                dev_eval
+                if isinstance(dev_eval, dict)
+                else {k: dev_eval for k in best_eval}
+            )
             best_epoch = epoch - 1
 
         train_stats.append(
@@ -336,29 +273,30 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             }
         )
 
-
-
-
-
-
     if not config.lottery_ticket:
         model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
     else:
         for module in main_loop_modules:
-            module.pre_epoch(model, True, epoch+1)
+            module.pre_epoch(model, True, epoch + 1)
 
     # test the final model with noise on the dev-set
     # test the final model on the test set
     test_results_dict, dev_final_results_dict = {}, {}
     for k in val_n_iterations:
-        if k != 'img_classification':
+        if k != "img_classification":
             dev_final_results = test_neural_model(
-                model, data_loader=dataloaders["validation"][k], device=device, epoch=epoch,
-                eval_type="Validation"
+                model,
+                data_loader=dataloaders["validation"][k],
+                device=device,
+                epoch=epoch,
+                eval_type="Validation",
             )
             test_results = test_neural_model(
-                model, data_loader=dataloaders["test"][k], device=device, epoch=epoch,
-                eval_type="Test"
+                model,
+                data_loader=dataloaders["test"][k],
+                device=device,
+                epoch=epoch,
+                eval_type="Test",
             )
             dev_final_results_dict.update(dev_final_results)
             test_results_dict.update(test_results)
@@ -385,7 +323,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 config=config,
                 noise_test=False,
                 seed=seed,
-                eval_type="Test"
+                eval_type="Test",
             )
             test_results_dict.update(test_results)
             dev_final_results_dict.update(dev_final_results)
@@ -416,4 +354,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 test_c_results[c_category][c_level] = results
         final_results["test_c_results"] = test_c_results
-    return test_results_dict[list(config.loss_functions.keys())[0]]['eval'], (train_stats, final_results), model.state_dict()
+    return (
+        test_results_dict[list(config.loss_functions.keys())[0]]["eval"],
+        (train_stats, final_results),
+        model.state_dict(),
+    )

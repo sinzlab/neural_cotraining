@@ -114,7 +114,6 @@ class MTL_VGG_Core(Core2d, nn.Module):
         return shared_core_out, None
 
 
-
 class MTL_VGG(nn.Module):
     def __init__(
         self,
@@ -145,14 +144,16 @@ class MTL_VGG(nn.Module):
 
         # for neural dataloaders
         if classification:
-            neural_train_dataloaders = dataloaders["train"]['neural']
+            neural_train_dataloaders = dataloaders["train"]["neural"]
         elif "train" in dataloaders.keys():
             neural_train_dataloaders = dataloaders["train"]
         else:
             neural_train_dataloaders = dataloaders
 
         session_shape_dict = get_dims_for_loader_dict(neural_train_dataloaders)
-        in_name, out_name = next(iter(list(neural_train_dataloaders.values())[0]))._fields
+        in_name, out_name = next(
+            iter(list(neural_train_dataloaders.values())[0])
+        )._fields
         self.input_channels = [v[in_name][1] for v in session_shape_dict.values()]
         assert (
             np.unique(self.input_channels).size == 1

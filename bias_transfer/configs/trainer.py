@@ -14,9 +14,9 @@ class TrainerConfig(BaseConfig):
         self.force_cpu = kwargs.pop("force_cpu", False)
         self.use_tensorboard = kwargs.pop("use_tensorboard", False)
         self.optimizer = kwargs.pop("optimizer", "Adam")
-        self.optimizer_options = kwargs.pop("optimizer_options", {"amsgrad": False,
-                                                                  "lr": 0.0003,
-                                                                  "weight_decay": 5e-4})
+        self.optimizer_options = kwargs.pop(
+            "optimizer_options", {"amsgrad": False, "lr": 0.0003, "weight_decay": 5e-4}
+        )
         self.lr_decay = kwargs.pop("lr_decay", 0.8)
         self.epoch = kwargs.pop("epoch", 0)
         self.lr_milestones = kwargs.pop("lr_milestones", None)
@@ -26,8 +26,13 @@ class TrainerConfig(BaseConfig):
         self.verbose = kwargs.pop("verbose", False)
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
         self.threshold_mode = kwargs.pop("threshold_mode", "rel")
-        self.loss_functions = kwargs.pop("loss_functions", {'img_classification':"CrossEntropyLoss"} )
-        if len(self.loss_functions) > 1 or 'img_classification' not in self.loss_functions.keys():
+        self.loss_functions = kwargs.pop(
+            "loss_functions", {"img_classification": "CrossEntropyLoss"}
+        )
+        if (
+            len(self.loss_functions) > 1
+            or "img_classification" not in self.loss_functions.keys()
+        ):
             self.threshold_mode = "abs"
             self.scale_loss = kwargs.pop("scale_loss", True)
             self.avg_loss = kwargs.pop("avg_loss", False)
@@ -96,7 +101,9 @@ class TrainerConfig(BaseConfig):
         self.rdm_prediction = kwargs.pop("rdm_prediction", {})
         self.lottery_ticket = kwargs.pop("lottery_ticket", {})
         if self.lottery_ticket:
-            self.max_iter = self.lottery_ticket.get("rounds",1) * self.lottery_ticket.get("round_length",100)
+            self.max_iter = self.lottery_ticket.get(
+                "rounds", 1
+            ) * self.lottery_ticket.get("round_length", 100)
         self.update(**kwargs)
 
     @property
@@ -118,4 +125,3 @@ class TrainerConfig(BaseConfig):
             modules.append("LotteryTicketPruning")
         modules.append("MTL")
         return modules
-
