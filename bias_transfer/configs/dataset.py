@@ -64,10 +64,10 @@ class ImageDatasetConfig(DatasetConfig):
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 64
         elif self.dataset_cls == "ImageNet":
-            self.valid_size = 0.001
+            self.valid_size = 0.01
             self.train_data_mean = (0.485, 0.456, 0.406)
             self.train_data_std = (0.229, 0.224, 0.225)
-            self.data_dir = kwargs.pop("data_dir", "./data/image_classification/torchvision/")
+            self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 224
         else:
             raise NameError()

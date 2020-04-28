@@ -15,13 +15,14 @@ DATASET_URLS = {
     "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
     "CIFAR100-C": "https://zenodo.org/record/3555552/files/CIFAR-100-C.tar",
     "TinyImageNet-C": "https://zenodo.org/record/2536630/files/Tiny-ImageNet-C.tar",
+    "ImageNet": None,
     "ImageNet-C": {
         "blur": "https://zenodo.org/record/2235448/files/blur.tar",
         "digital": "https://zenodo.org/record/2235448/files/digital.tar",
         "extra": "https://zenodo.org/record/2235448/files/extra.tar",
         "noise": "https://zenodo.org/record/2235448/files/noise.tar",
         "weather": "https://zenodo.org/record/2235448/files/weather.tar",
-    }
+    },
 }
 
 
@@ -60,7 +61,12 @@ def img_dataset_loader(seed, **config):
         transform_list_base += [
             transforms.Normalize(config.train_data_mean, config.train_data_std)
         ]
-    if config.apply_augmentation:
+    if config.dataset_cls == "ImageNet" and config.apply_augmentation:
+        transform_list = [
+            transforms.RandomResizedCrop(config.input_size),
+            transforms.RandomHorizontalFlip(),
+        ] + transform_list_base
+    elif config.apply_augmentation:
         transform_list = [
             transforms.RandomCrop(config.input_size, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -68,6 +74,11 @@ def img_dataset_loader(seed, **config):
         ] + transform_list_base
     else:
         transform_list = transform_list_base
+    if config.dataset_cls == "ImageNet":
+        transform_list_base = [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+        ] + transform_list_base
     transform_base = transforms.Compose(transform_list_base)
     transform_train = transforms.Compose(transform_list)
 
@@ -75,40 +86,40 @@ def img_dataset_loader(seed, **config):
     assert (config.valid_size >= 0) and (config.valid_size <= 1), error_msg
 
     # load the dataset
-    if config.dataset_cls == "ImageNet":
+    if (
+        config.dataset_cls in list(torchvision.datasets.__dict__.keys())
+        and config.dataset_cls != "ImageNet"
+    ):
         dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
         train_dataset = dataset_cls(
-            root=config.data_dir, split="train", download=config.download, transform=transform_train,
+            root=config.data_dir,
+            train=True,
+            download=config.download,
+            transform=transform_train,
         )
 
         valid_dataset = dataset_cls(
-            root=config.data_dir, split="train", download=config.download, transform=transform_base,
+            root=config.data_dir,
+            train=True,
+            download=config.download,
+            transform=transform_base,
         )
 
         test_dataset = dataset_cls(
-            root=config.data_dir, split="val", download=config.download, transform=transform_base,
+            root=config.data_dir,
+            train=False,
+            download=config.download,
+            transform=transform_base,
         )
-    elif config.dataset_cls in list(torchvision.datasets.__dict__.keys()):
-            dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
-            train_dataset = dataset_cls(
-                root=config.data_dir, train=True, download=config.download, transform=transform_train,
-            )
-
-            valid_dataset = dataset_cls(
-                root=config.data_dir, train=True, download=config.download, transform=transform_base,
-            )
-
-            test_dataset = dataset_cls(
-                root=config.data_dir, train=False, download=config.download, transform=transform_base,
-            )
     else:
         dataset_dir = get_dataset(
             DATASET_URLS[config.dataset_cls],
             config.data_dir,
             dataset_cls=config.dataset_cls,
-            download=config.dowload
+            download=config.dowload,
         )
-        create_ImageFolder_format(dataset_dir)
+        if config.dataset_cls != "ImageNet":
+            create_ImageFolder_format(dataset_dir)
 
         train_dir = os.path.join(dataset_dir, "train")
         val_dir = os.path.join(dataset_dir, "val", "images")
@@ -120,15 +131,15 @@ def img_dataset_loader(seed, **config):
         test_dataset = datasets.ImageFolder(val_dir, transform=transform_base)
 
     if config.add_corrupted_test:
-        urls = DATASET_URLS[config.dataset_cls + "-C"],
+        urls = DATASET_URLS[config.dataset_cls + "-C"]
         if not isinstance(urls, dict):
             urls = {"default": urls}
-        for key, url in urls:
+        for key, url in urls.items():
             dataset_dir = get_dataset(
                 url,
                 config.data_dir,
                 dataset_cls=config.dataset_cls + "-C",
-                download=config.download
+                download=config.download,
             )
 
             c_test_datasets = {}
@@ -149,6 +160,8 @@ def img_dataset_loader(seed, **config):
                             transform=transform_base,
                         )
                 else:
+                    if not os.path.isdir(os.path.join(dataset_dir, c_category)):
+                        continue
                     c_test_datasets[c_category] = {}
                     for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
                         c_test_datasets[c_category][c_level] = datasets.ImageFolder(

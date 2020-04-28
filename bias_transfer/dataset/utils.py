@@ -4,7 +4,10 @@ import zipfile
 import requests
 import shutil
 import numpy as np
+from pathlib import Path
 from io import BytesIO
+
+from nnfabrik.utility.dj_helpers import make_hash
 
 
 def compute_mean_std(train_set):
@@ -64,12 +67,15 @@ def get_dataset(url: str, data_dir: str, dataset_cls: str, download: bool) -> st
         dataset_dir (str): full path to the dataset incl. dataset folder
     """
     dataset_dir = os.path.join(data_dir, dataset_cls)
+    finished_flag = os.path.join(dataset_dir, "finished_" + make_hash(url))
     if os.path.isdir(dataset_dir):
-        print("Images already downloaded...")
-        return dataset_dir
-    if not download:
-        raise FileNotFoundError("Images not present but download not allowed! Please check data folder!")
-    os.makedirs(dataset_dir)
+        if dataset_cls in ("TinyImageNet-C", "CIFAR100-C", "CIFAR10-C", "ImageNet") or os.path.exists(finished_flag):
+            print("Images already downloaded...")
+            return dataset_dir
+    elif download is False:
+        raise FileNotFoundError("Images not present but download not acitvated! Please check data folder!")
+    else:
+        os.makedirs(dataset_dir)
     r = requests.get(url, stream=True)
     print("Downloading " + url)
     if url.endswith(".zip"):
@@ -78,14 +84,16 @@ def get_dataset(url: str, data_dir: str, dataset_cls: str, download: bool) -> st
         extract_dir = os.path.join(dataset_dir, sorted(zip_ref.namelist())[0])
         zip_ref.close()
     elif url.endswith(".tar"):
-        tar_ref = tarfile.TarFile(fileobj=BytesIO(r.content))
+        tar_ref = tarfile.open(fileobj=BytesIO(r.content))
         tar_ref.extractall(dataset_dir)
         extract_dir = os.path.join(dataset_dir, sorted(tar_ref.getnames())[0])
         tar_ref.close()
     else:
         raise NotImplementedError("Unsupported dataset format.")
     # move to final destination
-    for content in os.listdir(extract_dir):
-        shutil.move(os.path.join(extract_dir, content), dataset_dir)
-    shutil.rmtree(extract_dir)
+    if dataset_cls in ("TinyImageNet-C", "CIFAR100-C", "CIFAR10-C"):
+        for content in os.listdir(extract_dir):
+            shutil.move(os.path.join(extract_dir, content), dataset_dir)
+        shutil.rmtree(extract_dir)
+    Path(finished_flag).touch()
     return dataset_dir
