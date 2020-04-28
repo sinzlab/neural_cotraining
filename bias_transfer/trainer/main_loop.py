@@ -56,10 +56,18 @@ def main_loop(
 ):
 
     model.train() if train_mode else model.eval()
-    task_dict, correct, total, module_losses, collected_outputs = {}, 0, {}, {}, []
+    task_dict, correct, total, total_loss, module_losses, collected_outputs = (
+        {},
+        0,
+        {},
+        {},
+        {},
+        [],
+    )
     for k in criterion:
         task_dict[k] = {"epoch_loss": 0, "eval": 0}
         total[k] = 0
+        total_loss[k] = 0
     for module in modules:
         if module.criterion:  # some modules may compute an additonal output/loss
             module_losses[module.__class__.__name__] = 0
@@ -133,8 +141,9 @@ def main_loop(
                         per_neuron=False,
                     )
                     task_dict["neural"]["eval"] = average_loss(total["neural"])
+                    total_loss["neural"] += loss.item()
                     task_dict["neural"]["epoch_loss"] = average_loss(
-                        task_dict["neural"]["epoch_loss"] + loss.item()
+                        total_loss["neural"]
                     )
                 else:
                     loss += criterion["img_classification"](outputs["logits"], targets)
@@ -144,8 +153,9 @@ def main_loop(
                     task_dict["img_classification"]["eval"] = (
                         100.0 * correct / total["img_classification"]
                     )
-                    task_dict[data_key]["epoch_loss"] = average_loss(
-                        task_dict[data_key]["epoch_loss"] + loss.item()
+                    total_loss["img_classification"] += loss.item()
+                    task_dict["img_classification"]["epoch_loss"] = average_loss(
+                        total_loss["img_classification"]
                     )
 
                 t.set_postfix(
