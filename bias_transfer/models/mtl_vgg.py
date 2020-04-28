@@ -73,17 +73,18 @@ class MTL_VGG_Core(Core2d, nn.Module):
         vgg_type="vgg19_bn",
         pretrained=True,
         v1_model_layer=17,
-        v1_final_batchnorm=True,
-        input_channels=1,
-        v1_final_nonlinearity=True,
-        v1_momentum=0.1,
+        neural_input_channels=1,
+        classification_input_channels=1,
         v1_fine_tune=False,
         **kwargs
     ):
 
         super(MTL_VGG_Core, self).__init__()
         self.v1_model_layer = v1_model_layer
-        self.input_channels = input_channels
+        self.neural_input_channels, self.classification_input_channels = (
+            neural_input_channels,
+            classification_input_channels,
+        )
 
         # load convolutional part of vgg
         assert vgg_type in VGG_TYPES, "Unknown vgg_type '{}'".format(vgg_type)
@@ -105,7 +106,9 @@ class MTL_VGG_Core(Core2d, nn.Module):
             )
 
     def forward(self, x, classification=False):
-        if self.input_channels == 1:
+        if (classification and self.classification_input_channels == 1) or (
+            not classification and self.neural_input_channels == 1
+        ):
             x = x.expand(-1, 3, -1, -1)
         shared_core_out = self.shared_block(x)
         if classification:
@@ -125,7 +128,8 @@ class MTL_VGG(nn.Module):
         num_classes=200,
         pretrained=True,
         v1_model_layer=17,
-        input_channels=1,
+        neural_input_channels=1,
+        classification_input_channels=1,
         v1_fine_tune=False,
         v1_init_mu_range=0.4,
         v1_init_sigma_range=0.6,
@@ -140,7 +144,8 @@ class MTL_VGG(nn.Module):
         self.input_size = input_size
         self.num_classes = num_classes
         self.v1_elu_offset = v1_elu_offset
-        self.input_channels = input_channels
+        self.neural_input_channels = neural_input_channels
+        self.classification_input_channels = classification_input_channels
 
         # for neural dataloaders
         if classification:
@@ -158,9 +163,11 @@ class MTL_VGG(nn.Module):
         in_name, out_name = next(
             iter(list(neural_train_dataloaders.values())[0])
         )._fields
-        self.input_channels = [v[in_name][1] for v in session_shape_dict.values()]
+        self.neural_input_channels = [
+            v[in_name][1] for v in session_shape_dict.values()
+        ]
         assert (
-            np.unique(self.input_channels).size == 1
+            np.unique(self.neural_input_channels).size == 1
         ), "all input channels must be of equal size"
 
         self.mtl_vgg_core = MTL_VGG_Core(
@@ -169,7 +176,8 @@ class MTL_VGG(nn.Module):
             pretrained=pretrained,
             v1_model_layer=v1_model_layer,
             v1_fine_tune=v1_fine_tune,
-            input_channels=self.input_channels[0],
+            neural_input_channels=self.neural_input_channels[0],
+            classification_input_channels=self.classification_input_channels,
         )
 
         n_neurons_dict = {k: v[out_name][1] for k, v in session_shape_dict.items()}

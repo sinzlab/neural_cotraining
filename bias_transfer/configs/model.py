@@ -49,6 +49,7 @@ class ClassificationModelConfig(ModelConfig):
         # vgg specific
         self.pretrained = kwargs.pop("pretrained", False)
         self.readout_type = kwargs.pop("readout_type", "dense")
+        self.input_channels = kwargs.pop("input_channels", 3)
 
         self.update(**kwargs)
 
@@ -91,10 +92,14 @@ class MTLModelConfig(ModelConfig):
         self.pretrained = kwargs.pop("pretrained", True)
 
         self.v1_model_layer = kwargs.pop("v1_model_layer", 17)
-        self.v1_input_channels = kwargs.pop("v1_input_channels", 1)
+        self.neural_input_channels = kwargs.pop("neural_input_channels", 1)
         self.v1_fine_tune = kwargs.pop("v1_fine_tune", False)
         self.v1_init_mu_range = kwargs.pop("v1_init_mu_range", 0.3)
         self.v1_init_sigma_range = kwargs.pop("v1_init_sigma_range", 0.6)
         self.v1_readout_bias = kwargs.pop("v1_readout_bias", True)
         self.v1_gamma_readout = kwargs.pop("v1_gamma_readout", 0.5)
         self.v1_elu_offset = kwargs.pop("v1_elu_offset", -1)
+        self.classification_input_channels = kwargs.pop(
+            "classification_input_channels", 1
+        )
+        self.update(**kwargs)

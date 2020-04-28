@@ -42,11 +42,8 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         num_classes=config.num_classes,
         pretrained=config.pretrained,
         v1_model_layer=config.v1_model_layer,
-        input_channels=config.input_channels,
-        v1_final_batchnorm=config.v1_final_batchnorm,
-        v1_final_nonlinearity=config.v1_final_nonlinearity,
-        v1_bias=config.v1_bias,
-        v1_momentum=config.v1_momentum,
+        neural_input_channels=config.neural_input_channels,
+        classification_input_channels=config.classification_input_channels,
         v1_fine_tune=config.v1_fine_tune,
         v1_init_mu_range=config.v1_init_mu_range,
         v1_init_sigma_range=config.v1_init_sigma_range,
@@ -79,6 +76,7 @@ def vgg_builder(seed: int, config):
         num_classes=config.num_classes,
         pretrained=config.pretrained,
         readout_type=config.readout_type,
+        input_channels=config.input_channels,
     )
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model

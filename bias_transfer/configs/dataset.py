@@ -23,6 +23,7 @@ class ImageDatasetConfig(DatasetConfig):
         self.dataset_cls = kwargs.pop("dataset_cls", "CIFAR10")
         self.apply_augmentation = kwargs.pop("apply_data_augmentation", True)
         self.apply_normalization = kwargs.pop("apply_data_normalization", True)
+        self.apply_grayscale = kwargs.pop("apply_grayscale", False)
         self.input_size = kwargs.pop("input_size", 32)
         if self.dataset_cls == "CIFAR100":
             self.train_data_mean = (
@@ -45,16 +46,20 @@ class ImageDatasetConfig(DatasetConfig):
                 "data_dir", "./data/image_classification/torchvision/"
             )
         elif self.dataset_cls == "TinyImageNet":
-            self.train_data_mean = (
-                0.4802,
-                0.4481,
-                0.3975,
-            )  # (0.485, 0.456, 0.406) mean of full ImageNet
-            self.train_data_std = (
-                0.2302,
-                0.2265,
-                0.2262,
-            )  # (0.229, 0.224, 0.225) std of full ImageNet
+            if self.apply_grayscale:
+                self.train_data_mean = (0.4519,)
+                self.train_data_std = (0.2221,)
+            else:
+                self.train_data_mean = (
+                    0.4802,
+                    0.4481,
+                    0.3975,
+                )  # (0.485, 0.456, 0.406) mean of full ImageNet
+                self.train_data_std = (
+                    0.2302,
+                    0.2265,
+                    0.2262,
+                )  # (0.229, 0.224, 0.225) std of full ImageNet
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 64
         else:

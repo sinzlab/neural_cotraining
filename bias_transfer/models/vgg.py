@@ -23,6 +23,7 @@ class VGG(nn.Module):
         vgg_type="vgg19_bn",
         num_classes=200,
         readout_type="dense",
+        input_channels=3,
     ):
         super(VGG, self).__init__()
 
@@ -31,7 +32,7 @@ class VGG(nn.Module):
         vgg_loader = VGG_TYPES[vgg_type]
         vgg = vgg_loader(pretrained=pretrained)
         self.core = vgg.features
-
+        self.input_channels = input_channels
         self.readout_type = readout_type
 
         # init fully connected part of vgg
@@ -63,6 +64,8 @@ class VGG(nn.Module):
             )
 
     def forward(self, x):
+        if self.input_channels == 1:
+            x = x.expand(-1, 3, -1, -1)
         core_out = self.core(x)
         if self.readout_type == "dense":
             core_out = core_out.view(core_out.size(0), -1)
