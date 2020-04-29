@@ -69,11 +69,19 @@ def get_dataset(url: str, data_dir: str, dataset_cls: str, download: bool) -> st
     dataset_dir = os.path.join(data_dir, dataset_cls)
     finished_flag = os.path.join(dataset_dir, "finished_" + make_hash(url))
     if os.path.isdir(dataset_dir):
-        if dataset_cls in ("TinyImageNet-C", "CIFAR100-C", "CIFAR10-C", "ImageNet") or os.path.exists(finished_flag):
+        if dataset_cls in (
+            "TinyImageNet-C",
+            "CIFAR100-C",
+            "CIFAR10-C",
+            "ImageNet",
+            "TinyImageNet",
+        ) or os.path.exists(finished_flag):
             print("Images already downloaded...")
             return dataset_dir
     elif download is False:
-        raise FileNotFoundError("Images not present but download not acitvated! Please check data folder!")
+        raise FileNotFoundError(
+            "Images not present but download not acitvated! Please check data folder!"
+        )
     else:
         os.makedirs(dataset_dir)
     r = requests.get(url, stream=True)

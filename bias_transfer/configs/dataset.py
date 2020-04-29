@@ -40,12 +40,14 @@ class ImageDatasetConfig(DatasetConfig):
             self.data_dir = kwargs.pop(
                 "data_dir", "./data/image_classification/torchvision/"
             )
+            self.num_workers = 1
         elif self.dataset_cls == "CIFAR10":
             self.train_data_mean = (0.49139968, 0.48215841, 0.44653091)
             self.train_data_std = (0.24703223, 0.24348513, 0.26158784)
             self.data_dir = kwargs.pop(
                 "data_dir", "./data/image_classification/torchvision/"
             )
+            self.num_workers = kwargs.pop("num_workers", 1)
         elif self.dataset_cls == "TinyImageNet":
             if self.apply_grayscale:
                 self.train_data_mean = (0.4519,)
@@ -63,19 +65,19 @@ class ImageDatasetConfig(DatasetConfig):
                 )
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 64
+            self.num_workers = kwargs.pop("num_workers", 2)
         elif self.dataset_cls == "ImageNet":
             self.valid_size = 0.01
             self.train_data_mean = (0.485, 0.456, 0.406)
             self.train_data_std = (0.229, 0.224, 0.225)
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 224
+            self.num_workers = kwargs.pop("num_workers", 8)
         else:
             raise NameError()
         self.add_corrupted_test = kwargs.pop("add_corrupted_test", True)
         self.shuffle = kwargs.pop("shuffle", True)
         self.show_sample = kwargs.pop("show_sample", False)
-        self.num_workers = kwargs.pop("num_workers", 1)
-        self.pin_memory = kwargs.pop("pin_memory", True)
         self.download = kwargs.pop(
             "download", False
         )  # For safety (e.g. to not download ImageNet by accident)
