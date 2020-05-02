@@ -3,8 +3,8 @@ from .neural_dataset_loader import neural_dataset_loader
 
 
 def mtl_datasets_loader(seed, **config):
-    neural_dataset_config = config.pop("neural_dataset_config", None)
-    img_dataset_config = config.pop("img_dataset_config", None)
+    neural_dataset_config = config.pop("neural_dataset_config")
+    img_dataset_config = config.pop("img_dataset_config")
 
     neural_dataset_config.pop("seed")
 
