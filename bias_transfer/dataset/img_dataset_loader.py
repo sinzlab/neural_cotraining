@@ -46,10 +46,9 @@ def img_dataset_loader(seed, **config):
     config = ImageDatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
-    transform_list_base = []
+    transform_list_base = [transforms.ToTensor()]
     if config.apply_grayscale:
-        transform_list_base += [transforms.Grayscale()]
-    transform_list_base += [transforms.ToTensor()]
+        transform_list_base = [transforms.Grayscale()] + transform_list_base
     if config.apply_normalization:
         transform_list_base += [
             transforms.Normalize(config.train_data_mean, config.train_data_std)

@@ -123,5 +123,5 @@ class TrainerConfig(BaseConfig):
             modules.append("RDMPrediction")
         if self.lottery_ticket:
             modules.append("LotteryTicketPruning")
-        modules.append("MTL")
+        modules.append("ModelWrapper")
         return modules

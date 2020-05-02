@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import numpy as np
 
-from bias_transfer.utils import LongCycler
+from bias_transfer.trainer.utils import LongCycler
 from nnvision.utility.measures import get_correlations
 
 
@@ -56,14 +56,12 @@ def main_loop(
 ):
 
     model.train() if train_mode else model.eval()
-    task_dict, correct, total, total_loss, module_losses, collected_outputs = (
-        {},
-        0,
-        {},
-        {},
-        {},
-        [],
-    )
+    task_dict = {}
+    correct = 0
+    total = {}
+    total_loss = {}
+    module_losses = {}
+    collected_outputs = []
     for k in criterion:
         task_dict[k] = {"epoch_loss": 0, "eval": 0}
         total[k] = 0

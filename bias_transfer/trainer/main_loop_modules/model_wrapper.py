@@ -2,7 +2,7 @@ from functools import partial
 from .main_loop_module import MainLoopModule
 
 
-class MTL(MainLoopModule):
+class ModelWrapper(MainLoopModule):
     def __init__(self, model, config, device, data_loader, seed):
         super().__init__(model, config, device, data_loader, seed)
 

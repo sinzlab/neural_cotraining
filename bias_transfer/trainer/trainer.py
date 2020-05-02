@@ -5,16 +5,9 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
-from bias_transfer.utils import StopClosureWrapper, get_subdict, fixed_training_process
+from bias_transfer.trainer.utils import get_subdict, StopClosureWrapper, fixed_training_process, LongCycler
 import nnfabrik as nnf
-from bias_transfer.trainer.main_loop_modules import (
-    MTL,
-    NoiseAdvTraining,
-    NoiseAugmentation,
-    RDMPrediction,
-    RandomReadoutReset,
-    RepresentationMatching,
-)
+from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.configs.trainer import TrainerConfig
 from bias_transfer.trainer import main_loop
 from bias_transfer.trainer.transfer import transfer_model
@@ -25,8 +18,6 @@ from mlutils import measures as mlmeasures
 from mlutils.training import MultipleObjectiveTracker, early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
-
-from bias_transfer.utils import LongCycler
 
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
@@ -59,7 +50,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         k: None if k != "img_classification" else len(dataset)
         for k, dataset in dataloaders["test"].items()
     }
-    best_eval = {k: 0 for k in val_n_iterations}
+    best_eval = {k: -100000 for k in val_n_iterations}
     # Main-loop modules:
     main_loop_modules = [
         globals().get(k)(model, config, device, train_loader, seed)

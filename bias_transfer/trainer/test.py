@@ -4,14 +4,7 @@ from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.utils import stringify
 from nnvision.utility.measures import get_poisson_loss, get_correlations
-from bias_transfer.trainer.main_loop_modules import (
-    MTL,
-    NoiseAdvTraining,
-    NoiseAugmentation,
-    RDMPrediction,
-    RandomReadoutReset,
-    RepresentationMatching,
-)
+from bias_transfer.trainer.main_loop_modules import *
 
 
 def test_neural_model(model, data_loader, device, epoch, eval_type="Validation"):
