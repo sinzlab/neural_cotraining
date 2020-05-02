@@ -54,6 +54,14 @@ class ClassificationModelConfig(ModelConfig):
         # resnet specific
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)
+        self.get_intermediate_rep = kwargs.pop("get_intermediate_rep", {})
+        if (
+            self.noise_adv_classification
+            or self.noise_adv_regression
+            or kwargs.pop("rdm_prediction", False)
+            or kwargs.pop("representation_matching", False)
+        ):
+            self.get_intermediate_rep["flatten"] = "core"
 
         # vgg specific
         self.pretrained = kwargs.pop("pretrained", False)

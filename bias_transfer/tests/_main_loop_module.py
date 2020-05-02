@@ -73,14 +73,14 @@ class MainLoopModuleTest(BaseTest):
                     self.post_forward_test(
                         outputs, loss, targets, module_losses, **shared_memory
                     )
-                    loss += criterion(outputs["logits"], targets)
+                    loss += criterion(outputs, targets)
                     epoch_loss += loss.item()
 
                     # Book-keeping
                     def average_loss(loss_):
                         return loss_ / (batch_idx + 1)
 
-                    _, predicted = outputs["logits"].max(1)
+                    _, predicted = outputs.max(1)
                     total += targets.size(0)
                     correct += predicted.eq(targets).sum().item()
                     eval = 100.0 * correct / total

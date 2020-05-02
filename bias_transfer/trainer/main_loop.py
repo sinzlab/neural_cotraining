@@ -144,8 +144,8 @@ def main_loop(
                         total_loss["neural"]
                     )
                 else:
-                    loss += criterion["img_classification"](outputs["logits"], targets)
-                    _, predicted = outputs["logits"].max(1)
+                    loss += criterion["img_classification"](outputs, targets)
+                    _, predicted = outputs.max(1)
                     total["img_classification"] += targets.size(0)
                     correct += predicted.eq(targets).sum().item()
                     task_dict["img_classification"]["eval"] = (

@@ -155,6 +155,15 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             data_loader=dataloaders["train"],
         )
 
+    if config.freeze:
+        if config.freeze == ("core",):
+            kwargs = {"not_to_freeze": ("fc",)}
+        elif config.freeze == ("readout",):
+            kwargs = {"to_freeze": ("fc",)}
+        else:
+            kwargs = {"to_freeze": config.freeze}
+        freeze_params(model, **kwargs)
+
     print("==> Starting model {}".format(config.comment), flush=True)
     train_stats = []
     if config.early_stop:
@@ -234,7 +243,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         }
     )
 
-    if not config.lottery_ticket:
+    if not config.lottery_ticket and epoch > 0:
         model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
     else:
         for module in main_loop_modules:

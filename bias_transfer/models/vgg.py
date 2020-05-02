@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.autograd import Variable
 import torchvision
@@ -77,7 +78,7 @@ class VGG(nn.Module):
         if self.readout_type == "dense":
             core_out = core_out.view(core_out.size(0), -1)
         out = self.readout(core_out)
-        return {"logits": out, "conv_rep": core_out}
+        return out
 
     def freeze(self, selection=("core",)):
         if selection is True or "core" in selection:
@@ -92,3 +93,15 @@ class VGG(nn.Module):
             if isinstance(m, nn.Linear):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
+
+
+def vgg_builder(seed: int, config):
+    model = VGG(
+        input_size=config.input_size,
+        vgg_type=config.type,
+        num_classes=config.num_classes,
+        pretrained=config.pretrained,
+        readout_type=config.readout_type,
+        input_channels=config.input_channels,
+    )
+    return model

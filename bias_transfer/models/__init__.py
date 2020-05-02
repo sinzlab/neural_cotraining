@@ -2,20 +2,12 @@ import torch
 import numpy as np
 
 from bias_transfer.configs.model import ClassificationModelConfig, MTLModelConfig
+from bias_transfer.models.resnet import resnet_builder
+from bias_transfer.models.wrappers.noise_adv import NoiseAdvWrapper
+from bias_transfer.models.utils import get_model_parameters
+from bias_transfer.models.vgg import vgg_builder
 from nnvision.models.models import se_core_gauss_readout, se_core_point_readout
-
-from torchvision.models.utils import load_state_dict_from_url
-from torchvision.models.resnet import model_urls
-from collections import OrderedDict
-
-def get_model_parameters(model):
-    total_parameters = 0
-    for layer in list(model.parameters()):
-        layer_parameter = 1
-        for l in list(layer.size()):
-            layer_parameter *= l
-        total_parameters += layer_parameter
-    return total_parameters
+from .wrappers import *
 
 
 def neural_cnn_builder(data_loaders, seed: int = 1000, **config):
@@ -61,101 +53,26 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
 
 def classification_cnn_builder(data_loader, seed: int, **config):
     config = ClassificationModelConfig.from_dict(config)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     if config.cnn_builder == "vgg":
-        return vgg_builder(seed, config)
+        model = vgg_builder(seed, config)
     elif config.cnn_builder == "resnet":
-        return resnet_builder(seed, config)
-
-
-def vgg_builder(seed: int, config):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-
-    from .vgg import VGG
-
-    model = VGG(
-        input_size=config.input_size,
-        vgg_type=config.type,
-        num_classes=config.num_classes,
-        pretrained=config.pretrained,
-        readout_type=config.readout_type,
-        input_channels=config.input_channels,
-    )
-    print("Model with {} parameters.".format(get_model_parameters(model)))
-    return model
-
-
-def resnet_builder(seed: int, config):
-    # config = ModelConfig.from_dict(config)
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    type = int(config.type)
-    if config.self_attention:
-        from .resnet_self_attention import ResNet, Bottleneck
+        model = resnet_builder(seed, config)
     else:
-        from .resnet import ResNet, Bottleneck, BasicBlock
-        from .resnet_noise_adv import NoiseAdvResNet
+        raise Exception("No cnn_builder {} found".format(config.cnn_builder))
 
-    if type in (18, 34):
-        assert not config.self_attention
-        block = BasicBlock
-    else:
-        block = Bottleneck
-    if type == 18:
-        num_blocks = [2, 2, 2, 2]
-    elif type == 26:
-        num_blocks = [1, 2, 4, 1]
-    elif type == 34:
-        num_blocks = [3, 4, 6, 3]
-    elif type == 38:
-        num_blocks = [2, 3, 5, 2]
-    elif type == 50:
-        num_blocks = [3, 4, 6, 3]
-    elif type == 101:
-        num_blocks = [3, 4, 23, 3]
-    elif type == 152:
-        num_blocks = [3, 8, 36, 3]
-    else:
-        raise KeyError
+    # Add wrappers
+    if config.get_intermediate_rep:
+        model = IntermediateLayerGetter(
+            model, return_layers=config.get_intermediate_rep, keep_output=True
+        )
     if config.noise_adv_regression or config.noise_adv_classification:
         assert not config.self_attention
-        model = NoiseAdvResNet(
-            block,
-            num_blocks,
-            num_classes=config.num_classes,
+        model = NoiseAdvWrapper(
+            model,
+            readout_name="fc" if config.cnn_builder == "resnet" else "readout",
             classification=config.noise_adv_classification,
-            adv_readout_layers=config.num_noise_adv_layers,
-            core_stride=config.core_stride,
-            conv_stem_kernel_size=config.conv_stem_kernel_size,
-            conv_stem_stride=config.conv_stem_stride,
-            conv_stem_padding=config.conv_stem_padding,
-            max_pool_after_stem=config.max_pool_after_stem,
         )
-    else:
-        model = ResNet(
-            block,
-            num_blocks,
-            num_classes=config.num_classes,
-            core_stride=config.core_stride,
-            conv_stem_kernel_size=config.conv_stem_kernel_size,
-            conv_stem_stride=config.conv_stem_stride,
-            conv_stem_padding=config.conv_stem_padding,
-            max_pool_after_stem=config.max_pool_after_stem,
-        )
-    if config.pretrained:
-        print("Downloading pretrained model:", flush=True)
-        state_dict = load_state_dict_from_url(model_urls["resnet{}".format(config.type)],
-                                              progress=True)
-        # transform state_dict:
-        t_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            if "fc" in k:
-                t_state_dict[k.replace("fc", "readout")] = v
-            else:
-                if k.startswith("layer"):
-                    k = "layers." + str(int(k[5]) - 1) + k[6:]
-                k = k.replace("downsample", "shortcut")
-                t_state_dict["core." + k] = v
-        model.load_state_dict(t_state_dict)
     print("Model with {} parameters.".format(get_model_parameters(model)))
     return model

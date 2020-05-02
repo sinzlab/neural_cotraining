@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import copy
 
-from bias_transfer.utils import weight_reset
+from bias_transfer.models.utils import weight_reset
 from .main_loop_module import MainLoopModule
 
 EPS = 1e-6

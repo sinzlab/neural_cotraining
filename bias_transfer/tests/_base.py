@@ -4,13 +4,27 @@ import unittest
 import numpy as np
 import torch
 from torch.utils.data import SubsetRandomSampler
+from torch.utils.data.sampler import SequentialSampler
 
 import nnfabrik as nnf
 from bias_transfer.configs import dataset, model, trainer
-from bias_transfer.utils import weight_reset
+from bias_transfer.models.utils import weight_reset
 
 
 class BaseTest(unittest.TestCase):
+    dataset_conf = dataset.ImageDatasetConfig(
+        comment="Minimal CIFAR10",
+        dataset_cls="CIFAR10",
+        apply_data_normalization=False,
+        apply_data_augmentation=False,
+        add_corrupted_test=False,
+        valid_size=0.95,
+    )
+    model_conf = model.ClassificationModelConfig(
+        comment="CIFAR10 ResNet18", dataset_cls="CIFAR10", type="18"
+    )
+    seed = 42
+
     @classmethod
     def run_training(cls, trainer_conf):
         uid = "test1"
@@ -38,37 +52,21 @@ class BaseTest(unittest.TestCase):
         return score
 
     @classmethod
-    def setUpClass(cls):  # called once before all methods of the class
+    def get_parts(cls, dataset_conf, model_conf, seed):
         os.chdir("/work/")
-        cls.dataset_conf = dataset.ImageDatasetConfig(
-            comment="Minimal CIFAR10",
-            dataset_cls="CIFAR10",
-            apply_data_normalization=False,
-            add_corrupted_test=False,
-            valid_size=0.05,
-        )
-        cls.model_conf = model.ClassificationModelConfig(
-            comment="CIFAR10 ResNet18", dataset_cls="CIFAR10", type="18"
-        )
-        cls.trainer_conf = trainer.TrainerConfig(comment="Basic Trainer")
-        cls.seed = 42
-
         cls.data_loaders, cls.model = nnf.builder.get_all_parts(
-            dataset_fn=cls.dataset_conf.fn,
-            dataset_config=cls.dataset_conf.to_dict(),
-            model_fn=cls.model_conf.fn,
-            model_config=cls.model_conf.to_dict(),
-            seed=cls.seed,
+            dataset_fn=dataset_conf.fn,
+            dataset_config=dataset_conf.to_dict(),
+            model_fn=model_conf.fn,
+            model_config=model_conf.to_dict(),
+            seed=seed,
             trainer_fn=None,
             trainer_config=None,
         )
-        train = cls.data_loaders["train"]
-        sampler = SubsetRandomSampler(train.sampler.indices[:800])
-        cls.data_loaders["train"] = torch.utils.data.DataLoader(
-            train.dataset,
-            batch_size=train.batch_size,
-            sampler=sampler,
-            num_workers=train.num_workers,
-            pin_memory=train.pin_memory,
-            shuffle=False,
-        )
+        cls.data_loaders["validation"] = cls.data_loaders["train"]
+        cls.data_loaders["test"] = cls.data_loaders["train"]
+
+    @classmethod
+    def setUpClass(cls):  # called once before all methods of the class
+        cls.get_parts(cls.dataset_conf, cls.model_conf, cls.seed)
+

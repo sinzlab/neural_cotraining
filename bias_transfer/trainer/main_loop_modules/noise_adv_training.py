@@ -11,7 +11,7 @@ class NoiseAdvTraining(MainLoopModule):
         super().__init__(model, config, device, data_loader, seed)
         self.progress = 0.0
         self.step_size = (
-            float(config.num_epochs * len(data_loader)) / data_loader.batch_size
+            float(config.max_iter * len(data_loader)) / data_loader.batch_size
         )
         if config.noise_adv_regression:
             self.criterion = nn.MSELoss()
@@ -36,13 +36,14 @@ class NoiseAdvTraining(MainLoopModule):
         applied_std=None,
         **kwargs
     ):
+        extra_outputs = outputs[0]
         if applied_std is None:
-            applied_std = torch.zeros_like(outputs["noise_pred"], device=self.device)
+            applied_std = torch.zeros_like(extra_outputs["noise_pred"], device=self.device)
         if self.config.noise_adv_classification:
             applied_std = (
                 (applied_std > 0.0).type(torch.FloatTensor).to(device=self.device)
             )
-        noise_loss = self.criterion(outputs["noise_pred"], applied_std)
+        noise_loss = self.criterion(extra_outputs["noise_pred"], applied_std)
         extra_losses["NoiseAdvTraining"] += noise_loss.item()
         loss += self.config.noise_adv_loss_factor * noise_loss
         return outputs, loss, targets

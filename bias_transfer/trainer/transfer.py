@@ -3,7 +3,7 @@ from torch import nn
 from torch.utils.data import TensorDataset
 
 from bias_transfer.dataset.combined_dataset import CombinedDataset, JoinedDataset
-from bias_transfer.utils import weight_reset
+from bias_transfer.models.utils import weight_reset, freeze_params
 from bias_transfer.utils.io import load_model
 from bias_transfer.trainer.main_loop import main_loop
 
@@ -65,9 +65,6 @@ def transfer_model(to_model, config, criterion=None, device=None, data_loader=No
         model.apply(
             weight_reset
         )  # model was only used to generated representations now we clear it again
-    else:
-        if config.reset_linear:
-            model.readout.apply(weight_reset)
-        if config.freeze:
-            model.freeze(config.freeze)
+    elif config.reset_linear:
+        model.readout.apply(weight_reset)
     return data_loader

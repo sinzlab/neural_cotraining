@@ -37,8 +37,9 @@ class RepresentationMatching(NoiseAugmentation):
         return model, inputs
 
     def post_forward(self, outputs, loss, targets, extra_losses, train_mode, **kwargs):
-        rep_1 = outputs[self.rep][: self.batch_size][self.clean_flags]
-        rep_2 = outputs[self.rep][self.batch_size :]
+        extra_outputs, outputs = outputs[0], outputs[1]
+        rep_1 = extra_outputs[self.rep][: self.batch_size][self.clean_flags]
+        rep_2 = extra_outputs[self.rep][self.batch_size :]
         if self.config.representation_matching.get("criterion", "cosine") == "cosine":
             o = torch.ones(
                 rep_1.shape[:1], device=self.device
@@ -47,8 +48,9 @@ class RepresentationMatching(NoiseAugmentation):
         else:
             sim_loss = self.criterion(rep_1, rep_2)
         loss += self.config.representation_matching.get("lambda", 1.0) * sim_loss
-        for k, v in outputs.items():
+        for k, v in extra_outputs.items():
             if isinstance(v, torch.Tensor):
-                outputs[k] = v[: self.batch_size]
+                extra_outputs[k] = v[: self.batch_size]
+        outputs = outputs[: self.batch_size]
         extra_losses["RepresentationMatching"] += sim_loss.item()
-        return outputs, loss, targets
+        return (extra_outputs, outputs), loss, targets

@@ -123,5 +123,12 @@ class TrainerConfig(BaseConfig):
             modules.append("RDMPrediction")
         if self.lottery_ticket:
             modules.append("LotteryTicketPruning")
+        if (
+            self.rdm_transfer
+            or self.noise_adv_classification
+            or self.noise_adv_regression
+            or self.representation_matching
+        ):
+            modules.append("OutputSelector")
         modules.append("ModelWrapper")
         return modules

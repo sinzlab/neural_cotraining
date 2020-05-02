@@ -2,11 +2,9 @@ import unittest
 import torch
 
 from bias_transfer.configs import trainer
-from bias_transfer.models import get_model_parameters
 from bias_transfer.tests._main_loop_module import MainLoopModuleTest
-from bias_transfer.tests.test_minimal_training import MinimalTrainingTest
 from bias_transfer.trainer.main_loop_modules import LotteryTicketPruning
-from bias_transfer.utils import weight_reset
+from bias_transfer.models.utils import weight_reset
 
 
 class LotteryTicketPruningTest(MainLoopModuleTest):

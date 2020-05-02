@@ -1,186 +1,155 @@
-"""ResNet in PyTorch.
-
-For Pre-activation ResNet, see 'preact_resnet.py'.
-
-Reference:
-[1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
-    Deep Residual Learning for Image Recognition. arXiv:1512.03385
-
-Implementation from: https://github.com/kuangliu/pytorch-cifar
-"""
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
+from torch.hub import load_state_dict_from_url
+from torchvision.models.resnet import BasicBlock, Bottleneck, model_urls
+from torchvision.models.resnet import ResNet as DefaultResNet
 
 
-class BasicBlock(nn.Module):
-    expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(
-            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(
-            planes, planes, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm2d(planes)
-
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(
-                    in_planes,
-                    self.expansion * planes,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                ),
-                nn.BatchNorm2d(self.expansion * planes),
-            )
-
-    def forward(self, x):
-        out = self.conv1(x)
-        out = F.relu(self.bn1(out))
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
-
-
-class Bottleneck(nn.Module):
-    expansion = 4
-
-    def __init__(self, in_planes, planes, stride=1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(
-            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(
-            planes, self.expansion * planes, kernel_size=1, bias=False
-        )
-        self.bn3 = nn.BatchNorm2d(self.expansion * planes)
-
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(
-                    in_planes,
-                    self.expansion * planes,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                ),
-                nn.BatchNorm2d(self.expansion * planes),
-            )
-
-    def forward(self, x):
-        out = self.conv1(x)
-        out = F.relu(self.bn1(out))
-        out = self.conv2(out)
-        out = F.relu(self.bn2(out))
-        out = self.conv3(out)
-        out = self.bn3(out)
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
-
-
-class ResNetCore(nn.Module):
+class ResNet(DefaultResNet):
     def __init__(
         self,
         block,
-        num_blocks,
-        core_stride,
-        conv_stem_kernel_size,
-        conv_stem_padding,
-        conv_stem_stride,
-        max_pool_after_stem,
-    ):
-        super().__init__()
-        self.in_planes = 64
-        self.max_pool_after_stem = max_pool_after_stem
-
-        self.conv1 = nn.Conv2d(
-            3,
-            self.in_planes,
-            kernel_size=conv_stem_kernel_size,
-            stride=conv_stem_stride,
-            padding=conv_stem_padding,
-            bias=False,
-        )
-        self.bn1 = nn.BatchNorm2d(self.in_planes)
-        self.layers = nn.ModuleList()
-
-        self.layers.append(
-            self._make_layer(block, 64, num_blocks[0], stride=core_stride)
-        )
-        self.layers.append(self._make_layer(block, 128, num_blocks[1], stride=2))
-        self.layers.append(self._make_layer(block, 256, num_blocks[2], stride=2))
-        self.layers.append(self._make_layer(block, 512, num_blocks[3], stride=2))
-
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
-        return nn.Sequential(*layers)
-
-    def forward(self, x, seed: int = None):
-        out = self.conv1(x)
-        out = F.relu(self.bn1(out))
-        if self.max_pool_after_stem:
-            out = F.max_pool2d(out, kernel_size=3, stride=2, padding=1)
-        for layer in self.layers:
-            out = layer(out)
-        out = F.avg_pool2d(out, 4)
-        out = out.view(out.size(0), -1)
-        return out
-
-    def freeze(self):
-        for layer in [self.layers] + [self.conv1, self.bn1]:
-            for param in layer.parameters():
-                param.requires_grad = False
-
-
-class ResNet(nn.Module):
-    def __init__(
-        self,
-        block,
-        num_blocks,
-        num_classes=10,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
         core_stride=1,
         conv_stem_kernel_size=3,
         conv_stem_padding=1,
         conv_stem_stride=1,
         max_pool_after_stem=False,
+        advanced_init=False,
+        adaptive_pooling=False,
     ):
-        super().__init__()
-        self.core = ResNetCore(
-            block,
-            num_blocks,
-            core_stride,
-            conv_stem_kernel_size,
-            conv_stem_padding,
-            conv_stem_stride,
-            max_pool_after_stem,
+        nn.Module.__init__(self)
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self._norm_layer = norm_layer
+
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            # each element in the tuple indicates if we should replace
+            # the 2x2 stride with a dilated convolution instead
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                "replace_stride_with_dilation should be None "
+                "or a 3-element tuple, got {}".format(replace_stride_with_dilation)
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            3,
+            self.inplanes,
+            kernel_size=conv_stem_kernel_size,
+            stride=conv_stem_stride,
+            padding=conv_stem_padding,
+            bias=False,
         )
-        self.readout = nn.Linear(512 * block.expansion, num_classes)
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        if max_pool_after_stem:
+            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        else:
+            self.maxpool = nn.Identity()
+        self.layer1 = self._make_layer(block, 64, layers[0], stride=core_stride)
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        if adaptive_pooling:
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        else:
+            self.avgpool = nn.AvgPool2d(4)
+        self.flatten = nn.Flatten(start_dim=1)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
-    def forward(self, x, compute_corr: bool = False, seed: int = None):
-        core_out = self.core(x, seed=seed)
-        out = self.readout(core_out)
-        return {"logits": out, "conv_rep": core_out}
+        if advanced_init:
+            for m in self.modules():
+                if isinstance(m, nn.Conv2d):
+                    nn.init.kaiming_normal_(
+                        m.weight, mode="fan_out", nonlinearity="relu"
+                    )
+                elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
 
-    def freeze(self, selection=("core",)):
-        if selection is True or "core" in selection:
-            self.core.freeze()
-        elif "readout" in selection:
-            for param in self.readout.parameters():
-                param.requires_grad = False
+            # Zero-initialize the last BN in each residual branch,
+            # so that the residual branch starts with zeros, and each residual block behaves like an identity.
+            # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
+            if zero_init_residual:
+                for m in self.modules():
+                    if isinstance(m, Bottleneck):
+                        nn.init.constant_(m.bn3.weight, 0)
+                    elif isinstance(m, BasicBlock):
+                        nn.init.constant_(m.bn2.weight, 0)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = self.flatten(x)
+        x = self.fc(x)
+
+        return x
+
+def resnet_builder(seed: int, config):
+    type = int(config.type)
+    # if config.self_attention:
+    #     from .resnet_self_attention import ResNet, Bottleneck
+
+    if type in (18, 34):
+        assert not config.self_attention
+        block = BasicBlock
+    else:
+        block = Bottleneck
+    if type == 18:
+        num_blocks = [2, 2, 2, 2]
+    elif type == 26:
+        num_blocks = [1, 2, 4, 1]
+    elif type == 34:
+        num_blocks = [3, 4, 6, 3]
+    elif type == 38:
+        num_blocks = [2, 3, 5, 2]
+    elif type == 50:
+        num_blocks = [3, 4, 6, 3]
+    elif type == 101:
+        num_blocks = [3, 4, 23, 3]
+    elif type == 152:
+        num_blocks = [3, 8, 36, 3]
+    else:
+        raise KeyError
+
+    model = ResNet(
+        block,
+        num_blocks,
+        num_classes=config.num_classes,
+        core_stride=config.core_stride,
+        conv_stem_kernel_size=config.conv_stem_kernel_size,
+        conv_stem_stride=config.conv_stem_stride,
+        conv_stem_padding=config.conv_stem_padding,
+        max_pool_after_stem=config.max_pool_after_stem,
+    )
+    if config.pretrained:
+        print("Downloading pretrained model:", flush=True)
+        state_dict = load_state_dict_from_url(model_urls["resnet{}".format(config.type)],
+                                              progress=True)
+        model.load_state_dict(state_dict)
+    return model
