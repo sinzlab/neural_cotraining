@@ -159,7 +159,7 @@ def main_loop(
                     )
 
                 t.set_postfix(
-                    **task_dict,
+                    **{task: {obj: round(value, 3) for obj, value in res.items()} for task, res in task_dict.items()},
                     **{k: average_loss(l) for k, l in module_losses.items()}
                 )
                 if train_mode:
