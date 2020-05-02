@@ -21,7 +21,7 @@ def test_neural_model(model, data_loader, device, epoch, eval_type="Validation")
     )
     results = {"neural": {"eval": eval, "loss": loss}}
     print(
-        "{} Epoch {}: eval={}, loss={}".format(
+        "Neural {} Epoch {}: eval={}, loss={}".format(
             eval_type, epoch, results["neural"]["eval"], results["neural"]["loss"]
         )
     )
