@@ -33,6 +33,7 @@ def fixed_training_process(
 
     training_status = model.training
     objective_closure = StopClosureWrapper(stop_closures)
+    best_state_dict = copy_state(model)
 
     def _objective():
         if switch_mode:
