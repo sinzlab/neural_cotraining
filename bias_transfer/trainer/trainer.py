@@ -5,7 +5,12 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
-from bias_transfer.trainer.utils import get_subdict, StopClosureWrapper, fixed_training_process, LongCycler
+from bias_transfer.trainer.utils import (
+    get_subdict,
+    StopClosureWrapper,
+    fixed_training_process,
+)
+from mlutils.training import LongCycler
 import nnfabrik as nnf
 from bias_transfer.trainer.main_loop_modules import *
 from bias_transfer.configs.trainer import TrainerConfig
@@ -18,6 +23,7 @@ from mlutils import measures as mlmeasures
 from mlutils.training import MultipleObjectiveTracker, early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
+from .utils import save_best_model
 
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
@@ -188,28 +194,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             for key in tracker.log.keys():
                 print(key, tracker.log[key][-1], flush=True)
         if epoch > 1:
-            if isinstance(dev_eval, dict):
-                is_better = (
-                    True if dev_eval[k] > best_eval[k] else False
-                    for k in dev_eval.keys()
-                )
-            else:
-                is_better = [dev_eval > list(best_eval.values())[0]]
-            if all(is_better):
-                save_checkpoint(
-                    model,
-                    optimizer,
-                    dev_eval,
-                    epoch,
-                    "./checkpoint",
-                    "ckpt.{}.pth".format(uid),
-                )
-                best_eval = (
-                    dev_eval
-                    if isinstance(dev_eval, dict)
-                    else {k: dev_eval for k in best_eval}
-                )
-                best_epoch = epoch - 1
+            best_epoch, best_eval = save_best_model(
+                model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid
+            )
 
             train_stats.append(
                 {
@@ -234,25 +221,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         if config.lr_milestones:  # TODO: see if still working correctly
             train_scheduler.step(epoch=epoch)
 
-    if isinstance(dev_eval, dict):
-        is_better = (
-            True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
-        )
-    else:
-        is_better = [dev_eval > list(best_eval.values())[0]]
-    if all(is_better):
-        save_checkpoint(
-            model,
-            optimizer,
-            dev_eval,
-            epoch,
-            "./checkpoint",
-            "ckpt.{}.pth".format(uid),
-        )
-        best_eval = (
-            dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
-        )
-        best_epoch = epoch - 1
+    dev_eval = StopClosureWrapper(stop_closure)(model)
+    best_epoch, best_eval = save_best_model(
+        model, optimizer, dev_eval, epoch + 1, best_eval, best_epoch, uid
+    )
 
     train_stats.append(
         {

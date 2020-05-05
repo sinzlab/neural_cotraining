@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import numpy as np
 
-from bias_transfer.trainer.utils import LongCycler
+from mlutils.training import LongCycler
 from nnvision.utility.measures import get_correlations
 
 
@@ -157,7 +157,10 @@ def main_loop(
                     )
 
                 t.set_postfix(
-                    **{task: {obj: round(value, 3) for obj, value in res.items()} for task, res in task_dict.items()},
+                    **{
+                        task: {obj: round(value, 3) for obj, value in res.items()}
+                        for task, res in task_dict.items()
+                    },
                     **{k: average_loss(l) for k, l in module_losses.items()}
                 )
                 if train_mode:

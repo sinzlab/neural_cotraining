@@ -15,6 +15,35 @@ VGG_TYPES = {
 }
 
 
+def create_vgg_readout(vgg, readout_type, input_size=None, num_classes=None):
+    if readout_type == "dense":
+        test_input = Variable(torch.zeros(1, 3, input_size, input_size))
+        test_out = vgg.features(test_input)
+        n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
+        readout = nn.Sequential(
+            nn.Linear(n_features, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(4096, num_classes),
+        )
+    elif readout_type == "conv":
+        readout = nn.Sequential(
+            nn.Conv2d(512, 4096, 1, 1, bias=True),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Conv2d(4096, 4096, 1, 1, bias=True),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Conv2d(4096, num_classes, 1, 1, bias=True),
+            nn.AdaptiveMaxPool2d(1),
+            nn.Flatten(),
+        )
+    return readout
+
+
 class VGG(nn.Module):
     def __init__(
         self,
@@ -36,32 +65,10 @@ class VGG(nn.Module):
         self.readout_type = readout_type
 
         # init fully connected part of vgg
-        if readout_type == "dense":
-            test_input = Variable(torch.zeros(1, 3, input_size, input_size))
-            test_out = vgg.features(test_input)
-            self.n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
-            self.readout = nn.Sequential(
-                nn.Linear(self.n_features, 4096),
-                nn.ReLU(True),
-                nn.Dropout(),
-                nn.Linear(4096, 4096),
-                nn.ReLU(True),
-                nn.Dropout(),
-                nn.Linear(4096, num_classes),
-            )
-            self._init_readout_dense()
-        elif readout_type == "conv":
-            self.readout = nn.Sequential(
-                nn.Conv2d(512, 4096, 1, 1, bias=True),
-                nn.ReLU(True),
-                nn.Dropout(),
-                nn.Conv2d(4096, 4096, 1, 1, bias=True),
-                nn.ReLU(True),
-                nn.Dropout(),
-                nn.Conv2d(4096, num_classes, 1, 1, bias=True),
-                nn.AdaptiveMaxPool2d(1),
-                nn.Flatten(),
-            )
+        self.readout = create_vgg_readout(
+            vgg, readout_type, input_size=input_size, num_classes=num_classes
+        )
+        self._init_readout_dense()
 
     def forward(self, x):
         if self.input_channels == 1:

@@ -1,5 +1,5 @@
 from itertools import cycle
-
+from bias_transfer.utils.io import save_checkpoint
 from mlutils.training import copy_state
 
 
@@ -54,7 +54,7 @@ def fixed_training_process(
             print("Final best model! objective {}".format(_objective()))
 
     best_objective = current_objective = _objective()
-    for epoch in range(start+1, max_iter):
+    for epoch in range(start + 1, max_iter + 1):
 
         yield epoch, current_objective
 
@@ -82,24 +82,24 @@ def fixed_training_process(
     finalize(model, best_state_dict)
 
 
-class LongCycler:
-    """
-    Cycles through trainloaders until the loader with largest size is exhausted.
-        Needed for dataloaders of unequal size (as in the monkey data).
-    """
-
-    def __init__(self, loaders):
-        self.loaders = loaders
-        self.max_batches = max([len(loader) for loader in self.loaders.values()])
-
-    def __iter__(self):
-        cycles = [cycle(loader) for loader in self.loaders.values()]
-        for k, loader, _ in zip(
-            cycle(self.loaders.keys()),
-            (cycle(cycles)),
-            range(len(self.loaders) * self.max_batches),
-        ):
-            yield k, next(loader)
-
-    def __len__(self):
-        return len(self.loaders) * self.max_batches
+def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid):
+    if isinstance(dev_eval, dict):
+        is_better = (
+            True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
+        )
+    else:
+        is_better = [dev_eval > list(best_eval.values())[0]]
+    if all(is_better):
+        save_checkpoint(
+            model,
+            optimizer,
+            dev_eval,
+            epoch - 1,
+            "./checkpoint",
+            "ckpt.{}.pth".format(uid),
+        )
+        best_eval = (
+            dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
+        )
+        best_epoch = epoch - 1
+    return best_epoch, best_eval

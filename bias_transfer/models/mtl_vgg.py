@@ -8,6 +8,7 @@ import numpy as np
 from torch.nn import functional as F
 from mlutils.layers.legacy import Gaussian2d
 from mlutils.training import eval_state
+from .vgg import create_vgg_readout
 
 
 def get_module_output(model, input_shape):
@@ -201,34 +202,13 @@ class MTL_VGG(nn.Module):
 
         if classification:
             # init fully connected part of vgg
-            if classification_readout_type == "dense":
-                test_input = Variable(torch.zeros(1, 3, input_size, input_size))
-                test_out = self.mtl_vgg_core.vgg_core.features(test_input)
-                self.classification_core_out_flat = (
-                    test_out.size(1) * test_out.size(2) * test_out.size(3)
-                )
-                self.classification_readout = nn.Sequential(
-                    nn.Linear(self.classification_core_out_flat, 4096),
-                    nn.ReLU(True),
-                    nn.Dropout(),
-                    nn.Linear(4096, 4096),
-                    nn.ReLU(True),
-                    nn.Dropout(),
-                    nn.Linear(4096, num_classes),
-                )
-                self._init_readout_dense()
-            elif classification_readout_type == "conv":
-                self.classification_readout = nn.Sequential(
-                    nn.Conv2d(512, 4096, 1, 1, bias=True),
-                    nn.ReLU(True),
-                    nn.Dropout(),
-                    nn.Conv2d(4096, 4096, 1, 1, bias=True),
-                    nn.ReLU(True),
-                    nn.Dropout(),
-                    nn.Conv2d(4096, num_classes, 1, 1, bias=True),
-                    nn.AdaptiveMaxPool2d(1),
-                    nn.Flatten(),
-                )
+            self.classification_readout = create_vgg_readout(
+                self.mtl_vgg_core.vgg_core,
+                classification_readout_type,
+                input_size=input_size,
+                num_classes=num_classes,
+            )
+            self._init_readout_dense()
 
     def forward(self, x, data_key=None, classification=False):
         shared_core_out, core_out = self.mtl_vgg_core(x, classification)
