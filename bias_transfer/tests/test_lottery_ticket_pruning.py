@@ -20,12 +20,9 @@ class LotteryTicketPruningTest(MainLoopModuleTest):
         for name, p in model.named_parameters():
             if "weight" in name:
                 grad_tensor = p.grad.data
-                grad_masked = (grad_tensor != 0).int()
+                grad_masked = (grad_tensor == 0).int()
                 self.assertTrue(
-                    torch.all(torch.eq(grad_masked, self.module.mask[step]))
-                    .cpu()
-                    .detach()
-                    .item()
+                    torch.all((grad_masked + self.module.mask[step]) > 0).cpu().item()
                 )
                 step += 1
 

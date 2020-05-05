@@ -1,6 +1,9 @@
 import unittest
 import torch
+import os
+import copy
 import numpy as np
+import nnfabrik as nnf
 from bias_transfer.configs import trainer
 from bias_transfer.models.utils import weight_reset
 from bias_transfer.tests._base import BaseTest
@@ -21,7 +24,7 @@ class TrainingTest(BaseTest):
             patience=2,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 77.1, places=1)
+        self.assertAlmostEqual(score, 65.08, places=1)
 
     def test_training_fixed_lr_schedule(self):
         print("===================================================", flush=True)
@@ -37,7 +40,7 @@ class TrainingTest(BaseTest):
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 62.6, places=1)
+        self.assertAlmostEqual(score, 79.72, places=1)
 
     def test_training_noise_augment_std(self):
         print("===================================================", flush=True)
@@ -56,7 +59,7 @@ class TrainingTest(BaseTest):
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 44.7, places=1)
+        self.assertAlmostEqual(score, 46.76, places=1)
 
     def test_training_noise_augment_snr(self):
         print("===================================================", flush=True)
@@ -75,7 +78,7 @@ class TrainingTest(BaseTest):
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 43.1, places=1)
+        self.assertAlmostEqual(score, 40.16, places=1)
 
     def test_freeze_params(self):
         print("===================================================", flush=True)
@@ -95,12 +98,22 @@ class TrainingTest(BaseTest):
         np.random.seed(self.seed)
         torch.cuda.manual_seed(self.seed)
         self.model.apply(weight_reset)
-        readout_params_before = torch.clone(self.model.named_params()["fc"].data)
+        readout_weight_before = torch.clone(
+            dict(self.model.named_parameters())["fc.weight"].data
+        ).cpu()
+        readout_bias_before = torch.clone(
+            dict(self.model.named_parameters())["fc.bias"].data
+        ).cpu()
         _ = self.run_training(trainer_conf)
-        readout_params_after = self.model.named_params()["fc"].data
+        readout_weight_after = dict(self.model.named_parameters())[
+            "fc.weight"
+        ].data.cpu()
+        readout_bias_after = dict(self.model.named_parameters())["fc.bias"].data.cpu()
         self.assertTrue(
-            torch.all(torch.eq(readout_params_before, readout_params_after))
+            torch.all(torch.eq(readout_weight_before, readout_weight_after))
         )
+        self.assertTrue(torch.all(torch.eq(readout_bias_before, readout_bias_after)))
+        self.setUpClass()
 
 
 if __name__ == "__main__":

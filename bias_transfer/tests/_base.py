@@ -1,5 +1,6 @@
 import os
 import unittest
+import copy
 
 import numpy as np
 import torch
@@ -21,7 +22,8 @@ class BaseTest(unittest.TestCase):
         valid_size=0.95,
     )
     model_conf = model.ClassificationModelConfig(
-        comment="CIFAR10 ResNet18", dataset_cls="CIFAR10", type="18"
+        comment="CIFAR10 ResNet18", dataset_cls="CIFAR10", type="resnet18",
+        # advanced_init=True, zero_init_residual=True
     )
     seed = 42
 
@@ -34,7 +36,7 @@ class BaseTest(unittest.TestCase):
         torch.manual_seed(cls.seed)
         np.random.seed(cls.seed)
         torch.cuda.manual_seed(cls.seed)
-        cls.model.apply(weight_reset)
+        cls.model = copy.deepcopy(cls.start_model)
 
         trainer_fn = nnf.builder.get_trainer(trainer_conf.fn, trainer_conf.to_dict())
 
@@ -65,8 +67,13 @@ class BaseTest(unittest.TestCase):
         )
         cls.data_loaders["validation"] = cls.data_loaders["train"]
         cls.data_loaders["test"] = cls.data_loaders["train"]
+        if "c_test" in cls.data_loaders:
+            category_1 = list(cls.data_loaders["c_test"].keys())[0]
+            cls.data_loaders["c_test"] = {
+                category_1: {1: cls.data_loaders["c_test"][category_1][1]}
+            }
+        cls.start_model = copy.deepcopy(cls.model)
 
     @classmethod
     def setUpClass(cls):  # called once before all methods of the class
         cls.get_parts(cls.dataset_conf, cls.model_conf, cls.seed)
-

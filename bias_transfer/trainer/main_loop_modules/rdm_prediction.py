@@ -40,5 +40,7 @@ class RDMPrediction(MainLoopModule):
             trg_rdm = arctanh(trg_rdm.triu(diagonal=1))
             pred_loss = self.criterion(pred_rdm, trg_rdm)
             loss += self.config.rdm_prediction.get("lambda", 1.0) * pred_loss
+            extra_losses["RDMPrediction"] += pred_loss.item()
+            return outputs, loss, targets[0]
         else:
             return outputs, loss, targets

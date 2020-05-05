@@ -3,18 +3,8 @@ import torch
 from torch.autograd import Variable
 import torchvision
 import torch.nn as nn
-
-VGG_TYPES = {
-    "vgg11": torchvision.models.vgg11,
-    "vgg11_bn": torchvision.models.vgg11_bn,
-    "vgg13": torchvision.models.vgg13,
-    "vgg13_bn": torchvision.models.vgg13_bn,
-    "vgg16": torchvision.models.vgg16,
-    "vgg16_bn": torchvision.models.vgg16_bn,
-    "vgg19_bn": torchvision.models.vgg19_bn,
-    "vgg19": torchvision.models.vgg19,
-}
-
+from torchvision.models import vgg
+from torchvision.models.vgg import VGG as DefaultVGG
 
 def create_vgg_readout(vgg, readout_type, input_size=None, num_classes=None):
     if readout_type == "dense":
@@ -45,62 +35,61 @@ def create_vgg_readout(vgg, readout_type, input_size=None, num_classes=None):
     return readout
 
 
-class VGG(nn.Module):
+class VGG(DefaultVGG):
     def __init__(
         self,
+        cfg,
+        batch_norm=False,
         input_size=64,
-        pretrained=False,
-        vgg_type="vgg19_bn",
         num_classes=200,
+        avg_pool=False,
         readout_type="dense",
+        init_weights=True,
         input_channels=3,
     ):
-        super(VGG, self).__init__()
-
-        # load convolutional part of vgg
-        assert vgg_type in VGG_TYPES, "Unknown vgg_type '{}'".format(vgg_type)
-        vgg_loader = VGG_TYPES[vgg_type]
-        vgg = vgg_loader(pretrained=pretrained)
-        self.core = vgg.features
-        self.input_channels = input_channels
+        nn.Module.__init__(self)
+        self.input_channels=input_channels
+        self.features = vgg.make_layers(vgg.cfgs[cfg], batch_norm=batch_norm)
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7)) if avg_pool else None
         self.readout_type = readout_type
 
-        # init fully connected part of vgg
         self.readout = create_vgg_readout(
-            vgg, readout_type, input_size=input_size, num_classes=num_classes
-        )
-        self._init_readout_dense()
+            vgg, readout_type, input_size=input_size, num_classes=num_classes)
+
+        if init_weights:
+            self._initialize_weights()
 
     def forward(self, x):
         if self.input_channels == 1:
             x = x.expand(-1, 3, -1, -1)
-        core_out = self.core(x)
+        x = self.features(x)
+        if self.avgpool:
+            x = self.avgpool(x)
         if self.readout_type == "dense":
-            core_out = core_out.view(core_out.size(0), -1)
-        out = self.readout(core_out)
-        return out
-
-    def freeze(self, selection=("core",)):
-        if selection is True or "core" in selection:
-            for param in self.core.parameters():
-                param.requires_grad = False
-        elif "readout" in selection:
-            for param in self.readout.parameters():
-                param.requires_grad = False
-
-    def _init_readout_dense(self):
-        for m in self.readout:
-            if isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.01)
-                m.bias.data.zero_()
+            # core_out = core_out.view(core_out.size(0), -1)
+            x = self.flatten(x)
+        x = self.classifier(x)
+        return x
 
 
 def vgg_builder(seed: int, config):
+    if "11" in config.type:
+        cfg = "A"
+    elif "13" in config.type:
+        cfg = "B"
+    elif "16" in config.type:
+        cfg = "D"
+    elif "19" in config.type:
+        cfg = "E"
+    else:
+        raise NameError("Unknown VGG Type")
+
     model = VGG(
+        cfg=cfg,
+        batch_norm="bn" in config.type,
         input_size=config.input_size,
-        vgg_type=config.type,
         num_classes=config.num_classes,
-        pretrained=config.pretrained,
+        avg_pool=config.avg_pool,
         readout_type=config.readout_type,
         input_channels=config.input_channels,
     )

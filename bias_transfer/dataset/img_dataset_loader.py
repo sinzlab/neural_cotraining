@@ -164,7 +164,7 @@ def img_dataset_loader(seed, **config):
                         continue
                     c_test_datasets[c_category] = {}
                     for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
-                        c_test_datasets[c_category][c_level] = datasets.ImageFolder(
+                        c_test_datasets[c_category][int(c_level)] = datasets.ImageFolder(
                             os.path.join(dataset_dir, c_category, c_level),
                             transform=transform_base,
                         )

@@ -24,7 +24,6 @@ def load_model(path, model, ignore_missing=False):
 
 
 def load_checkpoint(path, model, optimizer=None, ignore_missing=False):
-    print("==> Loading checkpoint..", flush=True)
     assert os.path.isfile(path), "Error: no checkpoint file found!"
     checkpoint = torch.load(path)
     model = set_model(checkpoint["net"], model, ignore_missing)
@@ -32,6 +31,7 @@ def load_checkpoint(path, model, optimizer=None, ignore_missing=False):
         optimizer.load_state_dict(checkpoint["optimizer"])
     best_acc = checkpoint["acc"]
     start_epoch = checkpoint["epoch"]
+    print("==> Loading checkpoint from epoch {}".format(start_epoch), flush=True)
     return model, best_acc, start_epoch
 
 

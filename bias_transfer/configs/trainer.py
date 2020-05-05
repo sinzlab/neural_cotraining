@@ -94,6 +94,7 @@ class TrainerConfig(BaseConfig):
         self.representation_matching = kwargs.pop("representation_matching", None)
         # transfer
         self.freeze = kwargs.pop("freeze", None)
+        self.readout_name = kwargs.pop("readout_name", "fc")
         self.reset_linear = kwargs.pop("reset_linear", False)
         self.reset_linear_frequency = kwargs.pop("reset_linear_frequency", None)
         self.transfer_from_path = kwargs.pop("transfer_from_path", None)

@@ -54,7 +54,6 @@ def main_loop(
     eval_type="Validation",
     return_eval=False,
 ):
-
     model.train() if train_mode else model.eval()
     task_dict = {}
     correct = 0
@@ -109,6 +108,8 @@ def main_loop(
                 def average_loss(loss_):
                     return loss_ / (batch_idx + 1)
 
+                if return_outputs:
+                    collected_outputs.append(outputs[0])
                 for module in modules:
                     outputs, loss, targets = module.post_forward(
                         outputs,
@@ -118,8 +119,6 @@ def main_loop(
                         train_mode,
                         **shared_memory
                     )
-                if return_outputs:
-                    collected_outputs.append(outputs)
                 if data_key != "img_classification":
                     loss += neural_full_objective(
                         model,

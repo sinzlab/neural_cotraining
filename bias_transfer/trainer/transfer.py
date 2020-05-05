@@ -4,6 +4,7 @@ from torch.utils.data import TensorDataset
 
 from bias_transfer.dataset.combined_dataset import CombinedDataset, JoinedDataset
 from bias_transfer.models.utils import weight_reset, freeze_params
+from bias_transfer.trainer.main_loop_modules import OutputSelector
 from bias_transfer.utils.io import load_model
 from bias_transfer.trainer.main_loop import main_loop
 
@@ -17,7 +18,7 @@ def compute_representation(model, criterion, device, data_loader, rep_name):
         data_loader=data_loader,
         epoch=0,
         n_iterations=len(data_loader),
-        modules=[],
+        modules=[OutputSelector(None, None, None, None, None)],  # The data is already modified to have
         train_mode=False,
         return_outputs=True,
         neural_prediction=False,  # TODO we will use neural prediction in the future
@@ -60,11 +61,11 @@ def transfer_model(to_model, config, criterion=None, device=None, data_loader=No
     model = load_model(config.transfer_from_path, to_model, ignore_missing=True)
     if config.rdm_transfer:
         data_loader = generate_rep_dataset(
-            model, criterion, device, data_loader, "conv_rep"
+            model, criterion, device, data_loader, "core"
         )
         model.apply(
             weight_reset
         )  # model was only used to generated representations now we clear it again
     elif config.reset_linear:
-        model.readout.apply(weight_reset)
+        getattr(model, config.readout_name).apply(weight_reset)
     return data_loader

@@ -44,10 +44,13 @@ class IntermediateLayerGetter(nn.Module):
         self.keep_output = keep_output
 
     def __getattribute__(self, name):
-        # try:
-        return object.__getattribute__(self, name)
-        # except AttributeError:
-        #     return getattr(self._model, name)
+        if name == "_model":
+            return object.__getattribute__(self, name)
+        else:
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                return getattr(self._model, name)
 
     def __call__(self, *args, **kwargs):
         ret = OrderedDict()

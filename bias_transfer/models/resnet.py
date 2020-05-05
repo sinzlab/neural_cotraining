@@ -1,9 +1,8 @@
 from torch import nn
-from torch.hub import load_state_dict_from_url
-from torchvision.models.resnet import BasicBlock, Bottleneck, model_urls
+from torchvision.models.resnet import BasicBlock, Bottleneck
 from torchvision.models.resnet import ResNet as DefaultResNet
-
-
+import torch
+import numpy as np
 
 class ResNet(DefaultResNet):
     def __init__(
@@ -110,33 +109,36 @@ class ResNet(DefaultResNet):
 
         return x
 
+
 def resnet_builder(seed: int, config):
-    type = int(config.type)
     # if config.self_attention:
     #     from .resnet_self_attention import ResNet, Bottleneck
 
-    if type in (18, 34):
+    if "18" in config.type or "34" in config.type:
         assert not config.self_attention
         block = BasicBlock
     else:
         block = Bottleneck
-    if type == 18:
+    if "18" in config.type:
         num_blocks = [2, 2, 2, 2]
-    elif type == 26:
+    elif  "26" in config.type:
         num_blocks = [1, 2, 4, 1]
-    elif type == 34:
+    elif "34" in config.type:
         num_blocks = [3, 4, 6, 3]
-    elif type == 38:
+    elif "38" in config.type:
         num_blocks = [2, 3, 5, 2]
-    elif type == 50:
+    elif "50" in config.type:
         num_blocks = [3, 4, 6, 3]
-    elif type == 101:
+    elif "101" in config.type:
         num_blocks = [3, 4, 23, 3]
-    elif type == 152:
+    elif "152" in config.type:
         num_blocks = [3, 8, 36, 3]
     else:
         raise KeyError
 
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    torch.cuda.manual_seed(seed)
     model = ResNet(
         block,
         num_blocks,
@@ -146,10 +148,8 @@ def resnet_builder(seed: int, config):
         conv_stem_stride=config.conv_stem_stride,
         conv_stem_padding=config.conv_stem_padding,
         max_pool_after_stem=config.max_pool_after_stem,
+        adaptive_pooling=config.adaptive_pooling,
+        advanced_init=config.advanced_init,
+        zero_init_residual=config.zero_init_residual
     )
-    if config.pretrained:
-        print("Downloading pretrained model:", flush=True)
-        state_dict = load_state_dict_from_url(model_urls["resnet{}".format(config.type)],
-                                              progress=True)
-        model.load_state_dict(state_dict)
     return model
