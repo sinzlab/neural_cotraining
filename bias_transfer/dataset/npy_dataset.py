@@ -21,20 +21,20 @@ class NpyDataset(VisionDataset):
         self.target_file = os.path.join(self.root, target_file)
         self.start = start
         self.end = end
-        self.sample = None
+        self.samples = None
         self.targets = None
+        self.load()
 
     def load(self):
-        if self.sample is None:
-            self.sample = np.load(self.sample_file)[self.start : self.end]
+        if self.samples is None:
+            self.samples = np.load(self.sample_file)[self.start: self.end]
         if self.targets is None:
             self.targets = np.load(self.target_file)[self.start : self.end].astype(
                 np.int
             )
 
     def __getitem__(self, index):
-        self.load()
-        sample = self.sample[index]
+        sample = self.samples[index]
         target = self.targets[index]
         if self.transform is not None:
             sample = self.transform(sample)

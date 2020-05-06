@@ -22,7 +22,6 @@ class ClassificationModelConfig(ModelConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.type = kwargs.pop("type", "resnet50")
-        self.num_classes = kwargs.pop("num_classes", None)
         self.input_size = kwargs.pop("input_size", 32)
         self.conv_stem_kernel_size = kwargs.pop("conv_stem_kernel_size", 3)
         self.conv_stem_padding = kwargs.pop("conv_stem_padding", 1)
@@ -33,30 +32,29 @@ class ClassificationModelConfig(ModelConfig):
         self.zero_init_residual = kwargs.pop("zero_init_residual", False)
         self.adaptive_pooling = kwargs.pop("adaptive_pooling", False)
         self.avg_pool = kwargs.pop("avg_pool", False)
-        if not self.num_classes:
-            dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
-            if dataset_cls == "CIFAR100":
-                self.num_classes = 100
-            elif dataset_cls == "CIFAR10":
-                self.num_classes = 10
-            elif dataset_cls == "TinyImageNet":
-                self.num_classes = 200
-                self.input_size = 64
-                self.core_stride = 2
-                self.conv_stem_kernel_size = 5
-            elif dataset_cls == "ImageNet":
-                self.num_classes = 1000
-                self.input_size = 224
-                self.conv_stem_kernel_size = 7
-                self.conv_stem_padding = 3
-                self.conv_stem_stride = 2
-                self.max_pool_after_stem = True
-                self.advanced_init = True
-                self.zero_init_residual = True
-                self.adaptive_pooling = True
-                self.avg_pool = True
-            else:
-                raise NameError()
+        dataset_cls = kwargs.pop("dataset_cls", "CIFAR100")
+        if dataset_cls == "CIFAR100":
+            self.num_classes = kwargs.pop("num_classes", 100)
+        elif dataset_cls == "CIFAR10":
+            self.num_classes = kwargs.pop("num_classes", 10)
+        elif dataset_cls == "TinyImageNet":
+            self.num_classes = kwargs.pop("num_classes", 200)
+            self.input_size = 64
+            self.core_stride = 2
+            self.conv_stem_kernel_size = 5
+        elif dataset_cls == "ImageNet":
+            self.num_classes = kwargs.pop("num_classes", 1000)
+            self.input_size = 224
+            self.conv_stem_kernel_size = 7
+            self.conv_stem_padding = 3
+            self.conv_stem_stride = 2
+            self.max_pool_after_stem = True
+            self.advanced_init = True
+            self.zero_init_residual = True
+            self.adaptive_pooling = True
+            self.avg_pool = True
+        else:
+            raise NameError()
 
         # resnet specific
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)

@@ -80,11 +80,19 @@ class ImageDatasetConfig(DatasetConfig):
         self.add_corrupted_test = kwargs.pop("add_corrupted_test", True)
         self.shuffle = kwargs.pop("shuffle", True)
         self.show_sample = kwargs.pop("show_sample", False)
+        self.filter_classes = kwargs.pop("filter_classes", None)  # (start,end)
         self.download = kwargs.pop(
             "download", False
         )  # For safety (e.g. to not download ImageNet by accident)
 
         self.update(**kwargs)
+
+    @property
+    def filters(self):
+        filters = []
+        if self.filter_classes:
+            filters.append("ClassesFilter")
+        return filters
 
 
 class NeuralDatasetConfig(DatasetConfig):

@@ -1,14 +1,15 @@
+import os
 import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import datasets
-from bias_transfer.configs.dataset import ImageDatasetConfig
-import os
 
+from bias_transfer.configs.dataset import ImageDatasetConfig
 from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
 from bias_transfer.dataset.npy_dataset import NpyDataset
+from .dataset_filters import *
 
 DATASET_URLS = {
     "TinyImageNet": "http://cs231n.stanford.edu/tiny-imagenet-200.zip",
@@ -164,10 +165,21 @@ def img_dataset_loader(seed, **config):
                         continue
                     c_test_datasets[c_category] = {}
                     for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
-                        c_test_datasets[c_category][int(c_level)] = datasets.ImageFolder(
+                        c_test_datasets[c_category][
+                            int(c_level)
+                        ] = datasets.ImageFolder(
                             os.path.join(dataset_dir, c_category, c_level),
                             transform=transform_base,
                         )
+
+    filters = [globals().get(f)(config, train_dataset) for f in config.filters]
+    datasets_ = [train_dataset, valid_dataset, test_dataset]
+    if config.add_corrupted_test:
+        for c_ds in c_test_datasets.values():
+            datasets_ += list(c_ds.values())
+    for ds in datasets_:
+        for filt in filters:
+            filt.apply(ds)
 
     num_train = len(train_dataset)
     indices = list(range(num_train))

@@ -45,8 +45,14 @@ def test_model(
                 setattr(config, n_type, val)
                 main_loop_modules = [
                     globals().get(loop)(model, config, device, data_loader, seed)
-                    for loop in ["NoiseAugmentation", "MTL"]
+                    for loop in ["NoiseAugmentation", "ModelWrapper"]
                 ]
+                if "OutputSelector" in config.main_loop_modules:
+                    main_loop_modules.append(
+                        globals().get("OutputSelector")(
+                            model, config, device, data_loader, seed
+                        )
+                    )
                 test_results[n_type][val_str], _ = main_loop(
                     model,
                     criterion,
