@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from functools import partial
 
+from mlutils.training import LongCycler
 from .main_loop_module import MainLoopModule
 
 
@@ -10,8 +11,11 @@ class NoiseAdvTraining(MainLoopModule):
     def __init__(self, model, config, device, data_loader, seed):
         super().__init__(model, config, device, data_loader, seed)
         self.progress = 0.0
+        if isinstance(data_loader,LongCycler):
+            data_loader = data_loader.loaders
         self.step_size = (
-            float(config.max_iter * len(data_loader)) / data_loader.batch_size
+            float(config.max_iter * len(data_loader))
+            / data_loader["img_classification"].batch_size
         )
         if config.noise_adv_regression:
             self.criterion = nn.MSELoss()
@@ -38,7 +42,9 @@ class NoiseAdvTraining(MainLoopModule):
     ):
         extra_outputs = outputs[0]
         if applied_std is None:
-            applied_std = torch.zeros_like(extra_outputs["noise_pred"], device=self.device)
+            applied_std = torch.zeros_like(
+                extra_outputs["noise_pred"], device=self.device
+            )
         if self.config.noise_adv_classification:
             applied_std = (
                 (applied_std > 0.0).type(torch.FloatTensor).to(device=self.device)

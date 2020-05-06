@@ -34,7 +34,7 @@ class MainLoopModuleTest(BaseTest):
             cudnn.benchmark = False
             cudnn.deterministic = True
             torch.cuda.manual_seed(self.seed)
-        criterion = getattr(nn, config.loss_function)()
+        criterion = getattr(nn, config.loss_functions["img_classification"])()
         model.train()
         epoch_loss, correct, total, module_losses, collected_outputs = 0, 0, 0, {}, []
         if hasattr(

@@ -30,12 +30,13 @@ class DatasetTest(BaseTest):
             noise_std=None,
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 10.56, places=1)
+        self.assertAlmostEqual(score, 9.92, places=1)
 
     def test_tiny_imagenet(self):
         print("===================================================", flush=True)
@@ -61,12 +62,13 @@ class DatasetTest(BaseTest):
             noise_std=None,
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 5.7, places=1)
+        self.assertAlmostEqual(score, 5.52, places=1)
 
     def test_imagenet(self):
         print("===================================================", flush=True)
@@ -95,10 +97,11 @@ class DatasetTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 1.0615048392132376, places=1)
+        self.assertAlmostEqual(score, 0.9990633780830471, places=1)
 
     def test_imagenet_pretrained(self):
         print("===================================================", flush=True)
@@ -139,6 +142,7 @@ class DatasetTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         uid = "test1"
@@ -198,6 +202,7 @@ class DatasetTest(BaseTest):
             noise_std=None,
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,

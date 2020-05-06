@@ -6,11 +6,9 @@ import torch.nn as nn
 from torchvision.models import vgg
 from torchvision.models.vgg import VGG as DefaultVGG
 
-def create_vgg_readout(vgg, readout_type, input_size=None, num_classes=None):
+
+def create_vgg_readout(readout_type, n_features, num_classes=None):
     if readout_type == "dense":
-        test_input = Variable(torch.zeros(1, 3, input_size, input_size))
-        test_out = vgg.features(test_input)
-        n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
         readout = nn.Sequential(
             nn.Linear(n_features, 4096),
             nn.ReLU(True),
@@ -48,14 +46,18 @@ class VGG(DefaultVGG):
         input_channels=3,
     ):
         nn.Module.__init__(self)
-        self.input_channels=input_channels
+        self.input_channels = input_channels
         self.features = vgg.make_layers(vgg.cfgs[cfg], batch_norm=batch_norm)
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7)) if avg_pool else None
         self.readout_type = readout_type
 
-        self.readout = create_vgg_readout(
-            vgg, readout_type, input_size=input_size, num_classes=num_classes)
-
+        test_input = Variable(torch.zeros(1, 3, input_size, input_size))
+        test_out = self.features(test_input)
+        self.n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
+        self.classifier = create_vgg_readout(
+            readout_type, n_features=self.n_features, num_classes=num_classes
+        )
+        self.flatten = nn.Flatten(start_dim=1)
         if init_weights:
             self._initialize_weights()
 

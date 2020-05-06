@@ -2,15 +2,17 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset
 
+from bias_transfer.configs.trainer import TrainerConfig
 from bias_transfer.dataset.combined_dataset import CombinedDataset, JoinedDataset
 from bias_transfer.models.utils import weight_reset, freeze_params
 from bias_transfer.trainer.main_loop_modules import OutputSelector
 from bias_transfer.utils.io import load_model
 from bias_transfer.trainer.main_loop import main_loop
+from mlutils.training import LongCycler
 
 
 def compute_representation(model, criterion, device, data_loader, rep_name):
-    acc, loss, module_losses, collected_outputs = main_loop(
+    task_dict, module_losses, collected_outputs = main_loop(
         model=model,
         criterion=criterion,
         device=device,
@@ -18,16 +20,16 @@ def compute_representation(model, criterion, device, data_loader, rep_name):
         data_loader=data_loader,
         epoch=0,
         n_iterations=len(data_loader),
-        modules=[OutputSelector(None, None, None, None, None)],  # The data is already modified to have
+        modules=[OutputSelector(None, TrainerConfig(comment=""), None, None, None)],  # The data is already modified to have
         train_mode=False,
         return_outputs=True,
-        neural_prediction=False,  # TODO we will use neural prediction in the future
     )
     outputs = [o[rep_name] for o in collected_outputs]
     return torch.cat(outputs)
 
 
 def generate_rep_dataset(model, criterion, device, data_loader, rep_name):
+    data_loader = data_loader["img_classification"]
     data_loader_ = torch.utils.data.DataLoader(
         data_loader.dataset,
         batch_size=data_loader.batch_size,
@@ -37,7 +39,7 @@ def generate_rep_dataset(model, criterion, device, data_loader, rep_name):
         shuffle=False,
     )
     representation = compute_representation(
-        model, criterion, device, data_loader_, rep_name
+        model, criterion, device, {"img_classification": data_loader_}, rep_name
     )
     rep_dataset = TensorDataset(representation.to("cpu"))
     img_dataset = data_loader.dataset
@@ -54,7 +56,7 @@ def generate_rep_dataset(model, criterion, device, data_loader, rep_name):
         pin_memory=data_loader.pin_memory,
         shuffle=False,
     )
-    return combined_data_loader
+    return {"img_classification":combined_data_loader}
 
 
 def transfer_model(to_model, config, criterion=None, device=None, data_loader=None):

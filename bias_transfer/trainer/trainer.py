@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
+
+from bias_transfer.models.utils import freeze_params
 from bias_transfer.trainer.utils import (
     get_subdict,
     StopClosureWrapper,
@@ -193,7 +195,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             scheduler=train_scheduler,
         )
     # train over epochs
-    train_results, train_module_loss = 0, 0
+    train_results, train_module_loss, epoch = 0, 0, 0
     for epoch, dev_eval in epoch_iterator:
         if cb:
             cb()
@@ -227,13 +229,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             epoch=epoch,
             optim_step_count=optim_step_count,
         )
-        if config.lr_milestones:  # TODO: see if still working correctly
-            train_scheduler.step(epoch=epoch)
 
     dev_eval = StopClosureWrapper(stop_closure)(model)
-    best_epoch, best_eval = save_best_model(
-        model, optimizer, dev_eval, epoch + 1, best_eval, best_epoch, uid
-    )
+    if epoch > 0:
+        best_epoch, best_eval = save_best_model(
+            model, optimizer, dev_eval, epoch + 1, best_eval, best_epoch, uid
+        )
 
     train_stats.append(
         {
@@ -252,7 +253,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model with noise on the dev-set
     # test the final model on the test set
     test_results_dict, dev_final_results_dict = {}, {}
-    for k in val_n_iterations:
+    for k in val_n_iterations.keys():
         if k != "img_classification":
             dev_final_results = test_neural_model(
                 model,

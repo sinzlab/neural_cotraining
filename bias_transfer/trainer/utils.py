@@ -15,7 +15,7 @@ class StopClosureWrapper:
 
     def __call__(self, model):
         results = {}
-        for k in self.stop_closures:
+        for k in self.stop_closures.keys():
             results[k] = self.stop_closures[k](model)
         return results
 
@@ -43,15 +43,20 @@ def fixed_training_process(
             model.train(training_status)
         return ret
 
-    def finalize(model, best_state_dict):
-        old_objective = _objective()
+    def finalize(model, best_state_dict, old_objective, best_objective):
         if restore_best:
             model.load_state_dict(best_state_dict)
             print(
-                "Restoring best model! {} ---> {}".format(old_objective, _objective())
+                "Restoring best model! {} ---> {}".format(
+                    list(old_objective.values())[0], list(best_objective.values())[0]
+                )
             )
         else:
-            print("Final best model! objective {}".format(_objective()))
+            print(
+                "Final best model! objective {}".format(
+                    list(best_objective.values())[0]
+                )
+            )
 
     best_objective = current_objective = _objective()
     for epoch in range(start + 1, max_iter + 1):
@@ -79,7 +84,7 @@ def fixed_training_process(
             best_state_dict = copy_state(model)
             best_objective = current_objective
 
-    finalize(model, best_state_dict)
+    finalize(model, best_state_dict, current_objective, best_objective)
 
 
 def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid):

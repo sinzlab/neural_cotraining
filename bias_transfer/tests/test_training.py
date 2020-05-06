@@ -21,6 +21,7 @@ class TrainingTest(BaseTest):
             restore_best=False,
             lr_milestones=None,
             adaptive_lr=True,
+            early_stop=True,
             patience=2,
         )
         score = self.run_training(trainer_conf)
@@ -37,6 +38,7 @@ class TrainingTest(BaseTest):
             restore_best=False,
             lr_milestones=(1, 2),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
@@ -56,6 +58,7 @@ class TrainingTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
@@ -75,6 +78,7 @@ class TrainingTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
@@ -91,6 +95,7 @@ class TrainingTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             freeze=("readout",),
             patience=1000,
         )

@@ -10,6 +10,7 @@ from bias_transfer.tests._base import BaseTest
 
 class TransferTest(BaseTest):
     def test_transfer_training(self):
+        self.setUpClass()
         print("===================================================", flush=True)
         print("============TEST transfer training=================", flush=True)
         pretrained_path = "./checkpoint/ckpt.{}.pth".format(
@@ -29,6 +30,7 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(pretrain_trainer_conf)
@@ -45,13 +47,14 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             transfer_from_path=transfer_path,
             freeze=("core",),
             reset_linear=True,
         )
         score = self.run_training(transfer_trainer_conf)
-        self.assertAlmostEqual(score, 9.76, places=1)
+        self.assertAlmostEqual(score, 13.24, places=1)
 
     def test_rdm_transfer_training(self):
         print("===================================================", flush=True)
@@ -71,6 +74,7 @@ class TransferTest(BaseTest):
             noise_std={0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5,},
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
@@ -96,6 +100,7 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             transfer_from_path=transfer_path,
             # freeze=("core",),
@@ -104,7 +109,7 @@ class TransferTest(BaseTest):
             rdm_prediction={"lambda": 1.0},
         )
         score = self.run_training(transfer_trainer_conf)
-        self.assertAlmostEqual(score, 9.88, places=1)
+        self.assertAlmostEqual(score, 30.32, places=1)
         # reset model
         self.setUpClass()
 
@@ -132,6 +137,7 @@ class TransferTest(BaseTest):
             noise_std={0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5,},
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
@@ -151,6 +157,7 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             transfer_from_path=transfer_path,
             freeze=("core",),
@@ -158,7 +165,7 @@ class TransferTest(BaseTest):
             readout_name="classifier"
         )
         score = self.run_training(transfer_trainer_conf)
-        self.assertAlmostEqual(score, 9.6, places=1)
+        self.assertAlmostEqual(score, 10.16, places=1)
         self.setUpClass()
 
     def test_rdm_transfer_training_vgg(self):
@@ -187,6 +194,7 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             readout_name="classifier"
         )
@@ -211,6 +219,7 @@ class TransferTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             transfer_from_path=transfer_path,
             rdm_transfer=True,
@@ -218,7 +227,7 @@ class TransferTest(BaseTest):
             readout_name="classifier"
         )
         score = self.run_training(transfer_trainer_conf)
-        self.assertAlmostEqual(score, 10.2, places=1)
+        self.assertAlmostEqual(score, 15.92, places=1)
         # reset model
         self.setUpClass()
 

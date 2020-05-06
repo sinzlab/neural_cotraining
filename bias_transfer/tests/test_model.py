@@ -26,10 +26,11 @@ class ModelTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 15.68, places=1)
+        self.assertAlmostEqual(score, 18.04, places=1)
         self.setUpClass()
 
     def test_noise_adv_training_vgg(self):
@@ -54,10 +55,11 @@ class ModelTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 11.4, places=1)
+        self.assertAlmostEqual(score, 16.92, places=1)
         self.setUpClass()
 
     def test_representation_matching(self):
@@ -81,6 +83,7 @@ class ModelTest(BaseTest):
             restore_best=False,
             lr_milestones=(1,),
             adaptive_lr=False,
+            early_stop=False,
             patience=1000,
             representation_matching={
                 "representation": "core",
@@ -90,7 +93,7 @@ class ModelTest(BaseTest):
             },
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 37.96, places=1)
+        self.assertAlmostEqual(score, 37.4, places=1)
         self.setUpClass()
 
     def test_representation_matching_vgg(self):
@@ -112,6 +115,7 @@ class ModelTest(BaseTest):
             noise_std={0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5,},
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
@@ -123,7 +127,7 @@ class ModelTest(BaseTest):
             },
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(score, 10.0, places=1)
+        self.assertAlmostEqual(score, 17.44, places=1)
         self.setUpClass()
 
     def test_resnet_50(self):
@@ -142,14 +146,13 @@ class ModelTest(BaseTest):
             noise_std=None,
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
         )
         score = self.run_training(trainer_conf)
-        self.assertAlmostEqual(
-            score, 9.56, places=1
-        )  # ResNet50 seems too large to learn anything from so little data
+        self.assertAlmostEqual(score, 12.88, places=1)
         # reset:
         self.setUpClass()
 
@@ -157,9 +160,7 @@ class ModelTest(BaseTest):
         print("===================================================", flush=True)
         print("==================TEST VGG19 Training==============", flush=True)
         model_conf = model.ClassificationModelConfig(
-            comment="CIFAR10",
-            dataset_cls="CIFAR10",
-            type="vgg19_bn",
+            comment="CIFAR10", dataset_cls="CIFAR10", type="vgg19_bn",
         )
         self.get_parts(self.dataset_conf, model_conf, self.seed)
         trainer_conf = trainer.TrainerConfig(
@@ -171,6 +172,7 @@ class ModelTest(BaseTest):
             noise_std=None,
             noise_test={"noise_snr": [], "noise_std": [],},
             restore_best=False,
+            early_stop=False,
             lr_milestones=(1,),
             adaptive_lr=False,
             patience=1000,
