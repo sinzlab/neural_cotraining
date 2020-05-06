@@ -71,12 +71,13 @@ class MTL_VGG_Core(Core2d, nn.Module):
     def __init__(
         self,
         classification=True,
-        vgg_type="vgg19_bn",
+        vgg_type="vgg19",
         pretrained=True,
-        v1_model_layer=17,
+        v1_model_layer=11,
         neural_input_channels=1,
         classification_input_channels=1,
         v1_fine_tune=False,
+        momentum=0.1,
         **kwargs
     ):
 
@@ -95,11 +96,15 @@ class MTL_VGG_Core(Core2d, nn.Module):
         self.shared_block = nn.Sequential(
             *list(vgg.features.children())[:v1_model_layer]
         )
-        print(self.shared_block)
+
         # Fix pretrained parameters during training parameters
         if not v1_fine_tune:
             for param in self.shared_block.parameters():
                 param.requires_grad = False
+
+        self.v1_extra = nn.Sequential()
+        self.v1_extra.add_module('OutBatchNorm', nn.BatchNorm2d(self.outchannels, momentum=momentum))
+        self.v1_extra.add_module('OutNonlin', nn.ReLU(inplace=True))
 
         if classification:
             self.unshared_block = nn.Sequential(
@@ -112,23 +117,38 @@ class MTL_VGG_Core(Core2d, nn.Module):
         ):
             x = x.expand(-1, 3, -1, -1)
         shared_core_out = self.shared_block(x)
+        v1_core_out = self.v1_extra(shared_core_out)
         if classification:
             core_out = self.unshared_block(shared_core_out)
-            return shared_core_out, core_out
-        return shared_core_out, None
+            return v1_core_out, core_out
+        return v1_core_out, None
+
+    @property
+    def outchannels(self):
+        """
+        Returns: dimensions of the output, after a forward pass through the model
+        """
+        found_out_channels = False
+        i = 1
+        while not found_out_channels:
+            if 'out_channels' in self.shared_block[-i].__dict__:
+                found_out_channels = True
+            else:
+                i = i + 1
+        return self.shared_block[-i].out_channels
 
 
 class MTL_VGG(nn.Module):
     def __init__(
         self,
         dataloaders,
-        vgg_type="vgg19_bn",
+        vgg_type="vgg19",
         classification=False,
         classification_readout_type=None,
         input_size=None,
         num_classes=200,
         pretrained=True,
-        v1_model_layer=17,
+        v1_model_layer=11,
         neural_input_channels=1,
         classification_input_channels=1,
         v1_fine_tune=False,
