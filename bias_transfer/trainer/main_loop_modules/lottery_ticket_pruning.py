@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import copy
 
+from torch import optim
+
 from bias_transfer.models.utils import weight_reset
 from .main_loop_module import MainLoopModule
 
@@ -37,7 +39,7 @@ class LotteryTicketPruning(MainLoopModule):
             if not self.config.lottery_ticket.get("reinit"):
                 self.initial_state_dict = copy.deepcopy(model.state_dict())
 
-    def pre_epoch(self, model, train_mode, epoch):
+    def pre_epoch(self, model, train_mode, epoch, optimizer=None, **kwargs):
         if (
             self.config.lottery_ticket.get("pruning", True)
             and epoch in self.reset_epochs
@@ -47,11 +49,14 @@ class LotteryTicketPruning(MainLoopModule):
             self.prune_by_percentile(model, self.percent_per_round)
             print("Reset init in Epoch ", epoch, flush=True)
             self.reset_initialization(model, self.config.lottery_ticket.get("reinit"))
+            optimizer.state = getattr(optim, self.config.optimizer)(
+                model.parameters(), **self.config.optimizer_options
+            ).state  # reset optimizer
 
     def post_backward(self, model, **kwargs):
         # Freezing Pruned weights by making their gradients Zero
         for name, p in model.named_parameters():
-            if "weight" in name:
+            if "weight" in name and self.config.readout_name not in name:
                 tensor = torch.abs(p.data)
                 grad_tensor = p.grad.data
                 p.grad.data = torch.where(
@@ -64,7 +69,9 @@ class LotteryTicketPruning(MainLoopModule):
             alive_tensors = []
             step = 0
             for name, param in model.named_parameters():
-                if "weight" in name:  # We do not prune bias term
+                if (
+                    "weight" in name and self.config.readout_name not in name
+                ):  # We do not prune bias term
                     alive_tensors.append(
                         param.data[torch.nonzero(self.mask[step], as_tuple=True)]
                     )  # flattened array of nonzero values
@@ -74,7 +81,9 @@ class LotteryTicketPruning(MainLoopModule):
 
         step = 0
         for name, param in model.named_parameters():
-            if "weight" in name:  # We do not prune bias term
+            if (
+                "weight" in name and self.config.readout_name not in name
+            ):  # We do not prune bias term
                 if not self.config.lottery_ticket.get("global_pruning"):
                     # print(nonzero)
                     alive = param.data[
@@ -104,12 +113,12 @@ class LotteryTicketPruning(MainLoopModule):
         """
         step = 0
         for name, param in model.named_parameters():
-            if "weight" in name:
+            if "weight" in name and self.config.readout_name not in name:
                 step = step + 1
         mask = [None] * step
         step = 0
         for name, param in model.named_parameters():
-            if "weight" in name:
+            if "weight" in name and self.config.readout_name not in name:
                 tensor = param.data
                 mask[step] = torch.ones_like(tensor, device=tensor.device)
                 step = step + 1
@@ -117,12 +126,12 @@ class LotteryTicketPruning(MainLoopModule):
 
     def reset_initialization(self, model, reinit=False):
         if reinit:
-            model.apply(weight_reset)
+            model.apply(weight_reset)  # new random init
         step = 0
         for name, param in model.named_parameters():
             init = param.data if reinit else self.initial_state_dict[name]
-            if "weight" in name:
+            if "weight" in name and self.config.readout_name not in name:
                 param.data = self.mask[step] * init
                 step = step + 1
-            if "bias" in name:
+            elif "bias" in name or "weight" in name:
                 param.data = init

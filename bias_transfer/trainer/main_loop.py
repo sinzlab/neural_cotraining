@@ -83,7 +83,7 @@ def main_loop(
         ) as t:
 
             for module in modules:
-                module.pre_epoch(model, train_mode, epoch)
+                module.pre_epoch(model, train_mode, epoch, optimizer=optimizer)
 
             if train_mode:
                 optimizer.zero_grad()

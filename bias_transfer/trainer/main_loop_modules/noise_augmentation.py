@@ -55,7 +55,7 @@ class NoiseAugmentation(MainLoopModule):
             x = torch.clamp(x, max=1.0, min=0.0)
         return x, applied_std
 
-    def pre_epoch(self, model, train_mode, epoch):
+    def pre_epoch(self, model, train_mode, epoch, **kwargs):
         if not train_mode:
             rnd_gen = torch.Generator(device=self.device)
             if isinstance(self.seed, np.generic):

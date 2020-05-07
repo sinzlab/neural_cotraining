@@ -6,7 +6,7 @@ class MainLoopModule(object):
         self.criterion = None
         self.data_loader_keys_nr = len(config.loss_functions)
 
-    def pre_epoch(self, model, train_mode, epoch):
+    def pre_epoch(self, model, train_mode, epoch, **kwargs):
         pass
 
     def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
