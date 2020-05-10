@@ -1,4 +1,6 @@
 import math
+from functools import partial
+
 import torch
 import torch.backends.cudnn as cudnn
 from bias_transfer.utils.io import load_checkpoint
@@ -42,6 +44,37 @@ class Analyzer:
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
         df = df.rename(columns={0: "training_progress"})
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
+
+        def convert(x, prefix=""):
+            ret = x["img_classification"]
+            ret = {prefix + k: v for k, v in ret.items()}
+            return ret
+
+        df = pd.concat(
+            [
+                df.drop(["test_results"], axis=1),
+                df["test_results"]
+                .apply(partial(convert, prefix="test_"))
+                .apply(pd.Series),
+            ],
+            axis=1,
+        )
+        df["dev_eval"] = df["dev_eval"].apply(lambda x: x["img_classification"])
+
+        def convert(x, key="epoch_loss"):
+            if key in x.keys():
+                return x[key]
+            if "img_classification" in x.keys():
+                return convert(x["img_classification"], key)
+            else:
+                return {k: convert(v,key) for k,v in x.items()}
+
+        df["dev_noise_eval"] = df["dev_final_results"].apply(partial(convert, key="eval"))
+        df["dev_noise_loss"] = df["dev_final_results"].apply(partial(convert, key="epoch_loss"))
+        df= df.drop(["dev_final_results"], axis=1)
+        df["c_test_eval"] = df["test_c_results"].apply(partial(convert, key="eval"))
+        df["c_test_loss"] = df["test_c_results"].apply(partial(convert, key="epoch_loss"))
+        df= df.drop(["test_c_results"], axis=1)
         return df
 
     def plot(
@@ -51,6 +84,7 @@ class Analyzer:
         save="",
         perf_measure="dev_eval",
         style="lighttalk",
+        legend_outside=True
     ):
         if not to_plot in ("c_test_eval", "c_test_loss"):
             fs = (16, 10) if "talk" in style else (12, 7.5)
@@ -68,7 +102,7 @@ class Analyzer:
                 sns.set_context("paper")
             fig, ax = plt.subplots(figsize=fs, dpi=dpi)
         # Plot
-        if to_plot in ("test_eval", "test_loss"):
+        if to_plot in ("test_eval", "test_epoch_loss"):
             sns.barplot(x="name", y=to_plot, hue="name", data=self.df, ax=ax)
         elif to_plot in ("dev_noise_eval", "dev_noise_loss"):
             data = self.df[to_plot].apply(pd.Series)
@@ -140,11 +174,14 @@ class Analyzer:
                     del data["Corruption"]
                     # print(data)
                     sns.heatmap(data, annot=True, cbar=False)
+
                 g.map_dataframe(draw_heatmap)
                 fig = g.fig
         elif to_plot in ("training_progress",):
             data = self.df[to_plot].apply(pd.Series)
-            data = data.applymap(lambda x: x.get(perf_measure) if isinstance(x,dict) else None)
+            data = data.applymap(
+                lambda x: x.get(perf_measure) if isinstance(x, dict) else None
+            )
             data = pd.concat([self.df["name"], data], axis=1)
             data.index = data.name
             del data["name"]
@@ -170,7 +207,12 @@ class Analyzer:
                         label.set_visible(False)
                     ax.xaxis.offsetText.set_visible(False)
         if "talk" in style:
-            plt.legend(fontsize=14, title_fontsize="14")
+            if legend_outside:
+                plt.legend(fontsize=14, title_fontsize="14", bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+            else:
+                plt.legend(fontsize=14, title_fontsize="14")
+        elif legend_outside:
+            plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         if save:
             fig.savefig(
                 save + "_" + style,
@@ -223,4 +265,3 @@ def print_table_for_excel(table):
             for res in final_results[key].items():
                 print(res[1], end=",")
         print()
-

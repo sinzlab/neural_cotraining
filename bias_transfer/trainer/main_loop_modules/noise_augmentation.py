@@ -9,7 +9,10 @@ class NoiseAugmentation(MainLoopModule):
         super().__init__(model, config, device, data_loader, seed)
         self.rnd_gen = None
 
-    def apply_noise(self, x, device, std: dict = None, snr: dict = None, rnd_gen=None):
+    @staticmethod
+    def apply_noise(x, device, std: dict = None, snr: dict = None, rnd_gen=None, clamp=True):
+        if len(x.shape) == 3:
+            x.unsqueeze(0)  # if we only have a single element
         with torch.no_grad():
             if std:
                 noise_levels = std
@@ -52,7 +55,8 @@ class NoiseAugmentation(MainLoopModule):
                     )
                 # else: deactivate noise for a fraction of the data
                 start = end
-            x = torch.clamp(x, max=1.0, min=0.0)
+            if clamp:
+                x = torch.clamp(x, max=1.0, min=0.0)
         return x, applied_std
 
     def pre_epoch(self, model, train_mode, epoch, **kwargs):
@@ -71,5 +75,6 @@ class NoiseAugmentation(MainLoopModule):
             std=self.config.noise_std,
             snr=self.config.noise_snr,
             rnd_gen=self.rnd_gen if not train_mode else None,
+            clamp=self.config.clamp_noise
         )
         return model, inputs

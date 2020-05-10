@@ -9,6 +9,7 @@ from torchvision import datasets
 from bias_transfer.configs.dataset import ImageDatasetConfig
 from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
 from bias_transfer.dataset.npy_dataset import NpyDataset
+from bias_transfer.trainer.main_loop_modules import NoiseAugmentation
 from .dataset_filters import *
 
 DATASET_URLS = {
@@ -55,33 +56,91 @@ def img_dataset_loader(seed, **config):
     config = ImageDatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
-    transform_list_base = [transforms.ToTensor()]
-    if config.apply_grayscale:
-        transform_list_base = [transforms.Grayscale()] + transform_list_base
-    if config.apply_normalization:
-        transform_list_base += [
-            transforms.Normalize(config.train_data_mean, config.train_data_std)
-        ]
-    if config.dataset_cls == "ImageNet" and config.apply_augmentation:
-        transform_list = [
-            transforms.RandomResizedCrop(config.input_size),
-            transforms.RandomHorizontalFlip(),
-        ] + transform_list_base
-    elif config.apply_augmentation:
-        transform_list = [
-            transforms.RandomCrop(config.input_size, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
-        ] + transform_list_base
-    else:
-        transform_list = transform_list_base
+    if config.apply_noise:
+
+        def apply_noise(x):
+            if config.apply_noise.get("noise_std"):
+                std = config.apply_noise.get("noise_std")
+                noise_config = {
+                    "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+                }
+            elif config.apply_noise.get("noise_snr"):
+                snr = config.apply_noise.get("noise_snr")
+                noise_config = {
+                    "snr": {np.random.choice(list(snr.keys()), p=list(snr.values())): 1.0}
+                }
+            return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
+
     if config.dataset_cls == "ImageNet":
-        transform_list_base = [
+        transform_train = [
+            transforms.RandomResizedCrop(config.input_size)
+            if config.apply_augmentation
+            else None,
+            transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            apply_noise if config.apply_noise else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_val = [
             transforms.Resize(256),
             transforms.CenterCrop(224),
-        ] + transform_list_base
-    transform_base = transforms.Compose(transform_list_base)
-    transform_train = transforms.Compose(transform_list)
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_test = [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+    else:
+        transform_train = [
+            transforms.RandomCrop(config.input_size, padding=4)
+            if config.apply_augmentation
+            else None,
+            transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+            transforms.RandomRotation(15) if config.apply_augmentation else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_val = [
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_test = [
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+    transform_test = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_test))
+    )
+    transform_val = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_val))
+    )
+    transform_train = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_train))
+    )
 
     error_msg = "[!] valid_size should be in the range [0, 1]."
     assert (config.valid_size >= 0) and (config.valid_size <= 1), error_msg
@@ -103,14 +162,14 @@ def img_dataset_loader(seed, **config):
             root=config.data_dir,
             train=True,
             download=config.download,
-            transform=transform_base,
+            transform=transform_val,
         )
 
         test_dataset = dataset_cls(
             root=config.data_dir,
             train=False,
             download=config.download,
-            transform=transform_base,
+            transform=transform_test,
         )
     else:
         dataset_dir = get_dataset(
@@ -127,9 +186,9 @@ def img_dataset_loader(seed, **config):
 
         train_dataset = datasets.ImageFolder(train_dir, transform=transform_train)
 
-        valid_dataset = datasets.ImageFolder(train_dir, transform=transform_base)
+        valid_dataset = datasets.ImageFolder(train_dir, transform=transform_val)
 
-        test_dataset = datasets.ImageFolder(val_dir, transform=transform_base)
+        test_dataset = datasets.ImageFolder(val_dir, transform=transform_test)
 
     if config.add_corrupted_test:
         urls = DATASET_URLS[config.dataset_cls + "-C"]
@@ -158,7 +217,7 @@ def img_dataset_loader(seed, **config):
                             root=dataset_dir,
                             start=start,
                             end=end,
-                            transform=transform_base,
+                            transform=transform_test,
                         )
                 else:
                     if not os.path.isdir(os.path.join(dataset_dir, c_category)):
@@ -169,7 +228,7 @@ def img_dataset_loader(seed, **config):
                             int(c_level)
                         ] = datasets.ImageFolder(
                             os.path.join(dataset_dir, c_category, c_level),
-                            transform=transform_base,
+                            transform=transform_test,
                         )
 
     filters = [globals().get(f)(config, train_dataset) for f in config.filters]

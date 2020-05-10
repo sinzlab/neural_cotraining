@@ -36,8 +36,8 @@ class RepresentationAnalyser:
         ).load_model(include_trainer=True, include_state_dict=True, seed=42)
         self.num_samples = -1
         self.sample_loader = torch.utils.data.DataLoader(
-            data_loaders[dataset].dataset,
-            sampler=data_loaders[dataset].sampler,
+            data_loaders[dataset]["img_classification"].dataset,
+            sampler=data_loaders[dataset]["img_classification"].sampler,
             batch_size=64,
             shuffle=False,
             num_workers=1,
