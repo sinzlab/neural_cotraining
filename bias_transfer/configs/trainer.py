@@ -64,7 +64,6 @@ class TrainerConfig(BaseConfig):
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)
         self.noise_snr = kwargs.pop("noise_snr", None)
-        self.clamp_noise = kwargs.pop("clamp_noise", False)
         self.noise_test = kwargs.pop(
             "noise_test",
             {

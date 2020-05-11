@@ -30,6 +30,9 @@ class RepresentationMatching(NoiseAugmentation):
                 std=self.config.representation_matching.get("second_noise_std", None),
                 snr=self.config.representation_matching.get("second_noise_snr", None),
                 rnd_gen=self.rnd_gen if not train_mode else None,
+                img_min=self.img_min,
+                img_max=self.img_max,
+                noise_scale=self.noise_scale,
             )
         else:
             inputs2 = inputs
