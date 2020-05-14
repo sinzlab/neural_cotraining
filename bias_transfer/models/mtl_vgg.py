@@ -103,10 +103,9 @@ class MTL_VGG_Core(Core2d, nn.Module):
 
         # Remove the bias of the last conv layer if not bias:
         if not v1_bias:
-            if 'bias' in self.shared_block[-1]._parameters:
+            if "bias" in self.shared_block[-1]._parameters:
                 zeros = torch.zeros_like(self.shared_block[-1].bias)
                 self.shared_block[-1].bias.data = zeros
-
 
         # Fix pretrained parameters during training parameters
         if not v1_fine_tune:
@@ -115,8 +114,10 @@ class MTL_VGG_Core(Core2d, nn.Module):
 
         if v1_final_batchnorm:
             self.v1_extra = nn.Sequential()
-            self.v1_extra.add_module('OutBatchNorm', nn.BatchNorm2d(self.outchannels, momentum=momentum))
-            self.v1_extra.add_module('OutNonlin', nn.ReLU(inplace=True))
+            self.v1_extra.add_module(
+                "OutBatchNorm", nn.BatchNorm2d(self.outchannels, momentum=momentum)
+            )
+            self.v1_extra.add_module("OutNonlin", nn.ReLU(inplace=True))
 
         if classification:
             self.unshared_block = nn.Sequential(
@@ -144,7 +145,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
         found_out_channels = False
         i = 1
         while not found_out_channels:
-            if 'out_channels' in self.shared_block[-i].__dict__:
+            if "out_channels" in self.shared_block[-i].__dict__:
                 found_out_channels = True
             else:
                 i = i + 1
@@ -214,7 +215,8 @@ class MTL_VGG(nn.Module):
             v1_fine_tune=v1_fine_tune,
             neural_input_channels=self.neural_input_channels[0],
             classification_input_channels=self.classification_input_channels,
-            v1_final_batchnorm=v1_final_batchnorm, v1_bias=v1_bias
+            v1_final_batchnorm=v1_final_batchnorm,
+            v1_bias=v1_bias,
         )
 
         n_neurons_dict = {k: v[out_name][1] for k, v in session_shape_dict.items()}

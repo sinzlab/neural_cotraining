@@ -28,6 +28,7 @@ from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import save_best_model, XEntropyLossWrapper, NBLossWrapper
 from bias_transfer.trainer import utils as uts
 
+
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     config = TrainerConfig.from_dict(kwargs)
     uid = nnf.utility.dj_helpers.make_hash(uid)
@@ -84,7 +85,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )
         else:
             if config.loss_weighing:
-                criterion[k] = XEntropyLossWrapper(getattr(nn, config.loss_functions[k])()).to(device)
+                criterion[k] = XEntropyLossWrapper(
+                    getattr(nn, config.loss_functions[k])()
+                ).to(device)
             else:
                 criterion[k] = getattr(nn, config.loss_functions[k])()
             stop_closure[k] = partial(
@@ -101,7 +104,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 eval_type="Validation",
                 return_eval=True,
                 epoch=0,
-                optimizer=None, loss_weighing=config.loss_weighing
+                optimizer=None,
+                loss_weighing=config.loss_weighing,
             )
 
     if config.track_training:
@@ -132,9 +136,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     if config.loss_weighing:
         for _, loss_object in criterion.items():
             params += list(loss_object.parameters())
-    optimizer = getattr(optim, config.optimizer)(
-        params, **config.optimizer_options
-    )
+    optimizer = getattr(optim, config.optimizer)(params, **config.optimizer_options)
     if config.adaptive_lr:
         train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -239,7 +241,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             epoch=epoch,
             optim_step_count=optim_step_count,
             cycler=config.train_cycler,
-            loss_weighing=config.loss_weighing
+            loss_weighing=config.loss_weighing,
         )
 
     dev_eval = StopClosureWrapper(stop_closure)(model)

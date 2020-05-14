@@ -54,7 +54,7 @@ def main_loop(
     eval_type="Validation",
     return_eval=False,
     cycler="LongCycler",
-    loss_weighing=False
+    loss_weighing=False,
 ):
     model.train() if train_mode else model.eval()
     task_dict = {}
@@ -123,7 +123,7 @@ def main_loop(
                     )
                 if data_key != "img_classification":
                     if loss_weighing:
-                        loss += criterion['neural'](outputs, targets)
+                        loss += criterion["neural"](outputs, targets)
                     else:
                         loss += neural_full_objective(
                             model,

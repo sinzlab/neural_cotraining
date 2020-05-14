@@ -4,6 +4,7 @@ from mlutils.training import copy_state
 import torch
 from torch import nn
 
+
 def get_subdict(dictionary, keys=None):
     if keys:
         return {k: v for k, v in dictionary.items() if k in keys}
@@ -111,16 +112,13 @@ def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, ui
     return best_epoch, best_eval
 
 
-
 class MTL_Cycler:
-
-    def __init__(self, loaders, main_key='img_classification', ratio=1):
+    def __init__(self, loaders, main_key="img_classification", ratio=1):
         self.main_key = main_key
         self.main_loader = loaders[main_key]
-        self.other_loaders = {k: loaders[k] for k in loaders.keys()
-                               if k != main_key}
+        self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
         self.ratio = ratio
-        self.num_batches = len(self.main_loader) * (ratio+1)
+        self.num_batches = len(self.main_loader) * (ratio + 1)
 
     def generate_batch(self, main_cycle, other_cycles_dict):
         for i in range(self.num_batches):
@@ -140,8 +138,6 @@ class MTL_Cycler:
         return self.num_batches
 
 
-
-
 class LongCycler:
     """
     Cycles through trainloaders until the loader with largest size is exhausted.
@@ -155,7 +151,9 @@ class LongCycler:
     def __iter__(self):
         cycles = [cycle(loader) for loader in self.loaders.values()]
         for k, loader, _ in zip(
-            cycle(self.loaders.keys()), (cycle(cycles)), range(len(self.loaders) * self.max_batches)
+            cycle(self.loaders.keys()),
+            (cycle(cycles)),
+            range(len(self.loaders) * self.max_batches),
         ):
             yield k, next(loader)
 
@@ -163,18 +161,16 @@ class LongCycler:
         return len(self.loaders) * self.max_batches
 
 
-
 class XEntropyLossWrapper(nn.Module):
     def __init__(self, criterion):
         super(XEntropyLossWrapper, self).__init__()
         self.log_var = nn.Parameter(torch.zeros(1))
-        self.criterion = criterion # it is nn.CrossEntropyLoss
+        self.criterion = criterion  # it is nn.CrossEntropyLoss
 
     def forward(self, preds, targets):
         precision = torch.exp(-self.log_var)
         loss = precision * self.criterion(preds, targets) + self.log_var
-        return loss  #, self.log_var.item()
-
+        return loss  # , self.log_var.item()
 
 
 class NBLossWrapper(nn.Module):
@@ -184,8 +180,13 @@ class NBLossWrapper(nn.Module):
 
     def forward(self, preds, targets):
         r = torch.exp(self.log_r)
-        loss = (targets + r) * torch.log(preds + r) \
-               - (targets * torch.log(preds)) - (r * self.log_r) \
-               + torch.lgamma(r) - torch.lgamma(targets + r) \
-               + torch.lgamma(targets + 1) + 1e-5
-        return loss.mean()  #, self.log_r.item()
+        loss = (
+            (targets + r) * torch.log(preds + r)
+            - (targets * torch.log(preds))
+            - (r * self.log_r)
+            + torch.lgamma(r)
+            - torch.lgamma(targets + r)
+            + torch.lgamma(targets + 1)
+            + 1e-5
+        )
+        return loss.mean()  # , self.log_r.item()

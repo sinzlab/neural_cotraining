@@ -63,7 +63,8 @@ def test_model(
                     n_iterations=n_iterations,
                     modules=main_loop_modules,
                     train_mode=False,
-                    epoch=epoch,loss_weighing=config.loss_weighing
+                    epoch=epoch,
+                    loss_weighing=config.loss_weighing,
                 )
     else:
         main_loop_modules = []
@@ -82,6 +83,7 @@ def test_model(
             n_iterations=n_iterations,
             modules=main_loop_modules,
             train_mode=False,
-            epoch=epoch,loss_weighing=config.loss_weighing
+            epoch=epoch,
+            loss_weighing=config.loss_weighing,
         )
     return test_results
