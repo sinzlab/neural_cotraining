@@ -113,7 +113,7 @@ class MTLModelConfig(ModelConfig):
         self.num_classes = kwargs.pop("num_classes", 200)
         self.pretrained = kwargs.pop("pretrained", True)
 
-        self.v1_model_layer = kwargs.pop("v1_model_layer", 11)
+        self.v1_model_layer = kwargs.pop("v1_model_layer", 17)
         self.neural_input_channels = kwargs.pop("neural_input_channels", 1)
         self.v1_fine_tune = kwargs.pop("v1_fine_tune", False)
         self.v1_init_mu_range = kwargs.pop("v1_init_mu_range", 0.3)

@@ -32,7 +32,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     config = TrainerConfig.from_dict(kwargs)
     uid = nnf.utility.dj_helpers.make_hash(uid)
     device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
-    best_epoch = 0  # best test eval
+    best_epoch = 0
     torch.manual_seed(seed)
     np.random.seed(seed)
 
