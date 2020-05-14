@@ -44,8 +44,10 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         v1_init_mu_range=config.v1_init_mu_range,
         v1_init_sigma_range=config.v1_init_sigma_range,
         v1_readout_bias=config.v1_readout_bias,
+        v1_bias=config.v1_bias,
         v1_gamma_readout=config.v1_gamma_readout,
         v1_elu_offset=config.v1_elu_offset,
+        v1_final_batchnorm=config.v1_final_batchnorm,
     )
 
     print("Model with {} parameters.".format(get_model_parameters(model)))

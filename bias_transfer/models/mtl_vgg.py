@@ -71,13 +71,15 @@ class MTL_VGG_Core(Core2d, nn.Module):
     def __init__(
         self,
         classification=True,
-        vgg_type="vgg19",
+        vgg_type="vgg19_bn",
         pretrained=True,
         v1_model_layer=11,
         neural_input_channels=1,
         classification_input_channels=1,
         v1_fine_tune=False,
         momentum=0.1,
+        v1_bias=True,
+        v1_final_batchnorm=False,
         **kwargs
     ):
 
@@ -87,6 +89,8 @@ class MTL_VGG_Core(Core2d, nn.Module):
             neural_input_channels,
             classification_input_channels,
         )
+        self.v1_final_batchnorm = v1_final_batchnorm
+        self.classification = classification
 
         # load convolutional part of vgg
         assert vgg_type in VGG_TYPES, "Unknown vgg_type '{}'".format(vgg_type)
@@ -97,14 +101,22 @@ class MTL_VGG_Core(Core2d, nn.Module):
             *list(vgg.features.children())[:v1_model_layer]
         )
 
+        # Remove the bias of the last conv layer if not bias:
+        if not v1_bias:
+            if 'bias' in self.shared_block[-1]._parameters:
+                zeros = torch.zeros_like(self.shared_block[-1].bias)
+                self.shared_block[-1].bias.data = zeros
+
+
         # Fix pretrained parameters during training parameters
         if not v1_fine_tune:
             for param in self.shared_block.parameters():
                 param.requires_grad = False
 
-        self.v1_extra = nn.Sequential()
-        self.v1_extra.add_module('OutBatchNorm', nn.BatchNorm2d(self.outchannels, momentum=momentum))
-        self.v1_extra.add_module('OutNonlin', nn.ReLU(inplace=True))
+        if v1_final_batchnorm:
+            self.v1_extra = nn.Sequential()
+            self.v1_extra.add_module('OutBatchNorm', nn.BatchNorm2d(self.outchannels, momentum=momentum))
+            self.v1_extra.add_module('OutNonlin', nn.ReLU(inplace=True))
 
         if classification:
             self.unshared_block = nn.Sequential(
@@ -116,8 +128,9 @@ class MTL_VGG_Core(Core2d, nn.Module):
             not classification and self.neural_input_channels == 1
         ):
             x = x.expand(-1, 3, -1, -1)
-        shared_core_out = self.shared_block(x)
-        v1_core_out = self.v1_extra(shared_core_out)
+        v1_core_out = shared_core_out = self.shared_block(x)
+        if self.v1_final_batchnorm:
+            v1_core_out = self.v1_extra(shared_core_out)
         if classification:
             core_out = self.unshared_block(shared_core_out)
             return v1_core_out, core_out
@@ -142,7 +155,7 @@ class MTL_VGG(nn.Module):
     def __init__(
         self,
         dataloaders,
-        vgg_type="vgg19",
+        vgg_type="vgg19_bn",
         classification=False,
         classification_readout_type=None,
         input_size=None,
@@ -155,6 +168,8 @@ class MTL_VGG(nn.Module):
         v1_init_mu_range=0.4,
         v1_init_sigma_range=0.6,
         v1_readout_bias=True,
+        v1_bias=True,
+        v1_final_batchnorm=False,
         v1_gamma_readout=0.002,
         v1_elu_offset=-1,
         **kwargs
@@ -199,6 +214,7 @@ class MTL_VGG(nn.Module):
             v1_fine_tune=v1_fine_tune,
             neural_input_channels=self.neural_input_channels[0],
             classification_input_channels=self.classification_input_channels,
+            v1_final_batchnorm=v1_final_batchnorm, v1_bias=v1_bias
         )
 
         n_neurons_dict = {k: v[out_name][1] for k, v in session_shape_dict.items()}
@@ -223,7 +239,7 @@ class MTL_VGG(nn.Module):
         if classification:
             # init fully connected part of vgg
             self.classification_readout = create_vgg_readout(
-                self.mtl_vgg_core.vgg_core,
+                [self.mtl_vgg_core.shared_block, self.mtl_vgg_core.unshared_block],
                 classification_readout_type,
                 input_size=input_size,
                 num_classes=num_classes,

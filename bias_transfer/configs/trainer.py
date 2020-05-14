@@ -1,5 +1,4 @@
-import copy
-from functools import partial
+
 from .base import BaseConfig
 from nnfabrik.main import *
 
@@ -26,8 +25,14 @@ class TrainerConfig(BaseConfig):
         self.verbose = kwargs.pop("verbose", False)
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
         self.threshold_mode = kwargs.pop("threshold_mode", "rel")
+        self.train_cycler = kwargs.pop(
+            "train_cycler", "LongCycler"
+        )
         self.loss_functions = kwargs.pop(
             "loss_functions", {"img_classification": "CrossEntropyLoss"}
+        )
+        self.loss_weighing = kwargs.pop(
+            "loss_weighing", False
         )
         if (
             len(self.loss_functions) > 1

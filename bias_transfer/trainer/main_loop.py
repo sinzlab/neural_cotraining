@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import numpy as np
 
-from mlutils.training import LongCycler
+from bias_transfer.trainer import utils as uts
 from nnvision.utility.measures import get_correlations
 
 
@@ -53,6 +53,8 @@ def main_loop(
     optim_step_count=1,
     eval_type="Validation",
     return_eval=False,
+    cycler="LongCycler",
+    loss_weighing=False
 ):
     model.train() if train_mode else model.eval()
     task_dict = {}
@@ -75,7 +77,7 @@ def main_loop(
     with torch.enable_grad() if train_mode else torch.no_grad():
 
         with tqdm(
-            enumerate(LongCycler(data_loader)),
+            enumerate(getattr(uts, cycler)(data_loader)),
             total=n_iterations,
             desc="{}".format("Train" if train_mode else eval_type)
             if return_eval
@@ -120,16 +122,19 @@ def main_loop(
                         **shared_memory
                     )
                 if data_key != "img_classification":
-                    loss += neural_full_objective(
-                        model,
-                        outputs,
-                        data_loader,
-                        criterion["neural"],
-                        scale_loss,
-                        data_key,
-                        inputs,
-                        targets,
-                    )
+                    if loss_weighing:
+                        loss += criterion['neural'](outputs, targets)
+                    else:
+                        loss += neural_full_objective(
+                            model,
+                            outputs,
+                            data_loader,
+                            criterion["neural"],
+                            scale_loss,
+                            data_key,
+                            inputs,
+                            targets,
+                        )
                     total["neural"] += get_correlations(
                         model,
                         batch_dict,

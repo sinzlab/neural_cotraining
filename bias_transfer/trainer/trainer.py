@@ -25,8 +25,8 @@ from mlutils import measures as mlmeasures
 from mlutils.training import MultipleObjectiveTracker, early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
-from .utils import save_best_model
-
+from .utils import save_best_model, XEntropyLossWrapper, NBLossWrapper
+from bias_transfer.trainer import utils as uts
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     config = TrainerConfig.from_dict(kwargs)
@@ -44,7 +44,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    train_loader = LongCycler(dataloaders["train"])
+    train_loader = getattr(uts, config.train_cycler)(dataloaders["train"])
 
     train_n_iterations = len(train_loader)
     optim_step_count = len(dataloaders["train"].keys())
@@ -68,9 +68,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     criterion, stop_closure = {}, {}
     for k in val_n_iterations.keys():
         if k != "img_classification":
-            criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
-                avg=config.avg_loss
-            )
+            if config.loss_weighing:
+                criterion[k] = NBLossWrapper().to(device)
+            else:
+                criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
+                    avg=config.avg_loss
+                )
 
             stop_closure[k] = partial(
                 getattr(measures, "get_correlations"),
@@ -80,7 +83,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 avg=True,
             )
         else:
-            criterion[k] = getattr(nn, config.loss_functions[k])()
+            if config.loss_weighing:
+                criterion[k] = XEntropyLossWrapper(getattr(nn, config.loss_functions[k])()).to(device)
+            else:
+                criterion[k] = getattr(nn, config.loss_functions[k])()
             stop_closure[k] = partial(
                 main_loop,
                 criterion=get_subdict(criterion, [k]),
@@ -95,7 +101,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 eval_type="Validation",
                 return_eval=True,
                 epoch=0,
-                optimizer=None,
+                optimizer=None, loss_weighing=config.loss_weighing
             )
 
     if config.track_training:
@@ -122,26 +128,30 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     else:
         tracker = None
 
-        optimizer = getattr(optim, config.optimizer)(
-            model.parameters(), **config.optimizer_options
+    params = list(model.parameters())
+    if config.loss_weighing:
+        for _, loss_object in criterion.items():
+            params += list(loss_object.parameters())
+    optimizer = getattr(optim, config.optimizer)(
+        params, **config.optimizer_options
+    )
+    if config.adaptive_lr:
+        train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            factor=config.lr_decay,
+            patience=config.patience,
+            threshold=config.threshold,
+            verbose=config.verbose,
+            min_lr=config.min_lr,
+            mode="max" if config.maximize else "min",
+            threshold_mode=config.threshold_mode,
         )
-        if config.adaptive_lr:
-            train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                factor=config.lr_decay,
-                patience=config.patience,
-                threshold=config.threshold,
-                verbose=config.verbose,
-                min_lr=config.min_lr,
-                mode="max" if config.maximize else "min",
-                threshold_mode=config.threshold_mode,
-            )
-        elif config.lr_milestones:
-            train_scheduler = optim.lr_scheduler.MultiStepLR(
-                optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
-            )  # learning rate decay
-        else:
-            train_scheduler = None
+    elif config.lr_milestones:
+        train_scheduler = optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
+        )  # learning rate decay
+    else:
+        train_scheduler = None
 
     start_epoch = config.epoch
     path = "./checkpoint/ckpt.{}.pth".format(uid)
@@ -228,6 +238,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             train_mode=True,
             epoch=epoch,
             optim_step_count=optim_step_count,
+            cycler=config.train_cycler,
+            loss_weighing=config.loss_weighing
         )
 
     dev_eval = StopClosureWrapper(stop_closure)(model)
