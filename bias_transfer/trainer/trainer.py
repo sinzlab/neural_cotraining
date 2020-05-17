@@ -48,7 +48,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     train_loader = getattr(uts, config.train_cycler)(dataloaders["train"])
 
     train_n_iterations = len(train_loader)
-    optim_step_count = len(dataloaders["train"].keys())
+    optim_step_count = len(dataloaders["train"].keys()) if config.train_cycler=="LongCycler" else 2
 
     val_n_iterations = {
         k: len(LongCycler(dataset)) if k != "img_classification" else len(dataset)
