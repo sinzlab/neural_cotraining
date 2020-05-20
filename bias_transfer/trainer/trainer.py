@@ -111,7 +111,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 train_mode=False,
                 n_iterations=val_n_iterations[k],
                 return_outputs=False,
-                scale_loss=True,
+                scale_loss=config.scale_loss,
                 optim_step_count=optim_step_count,
                 eval_type="Validation",
                 epoch=0,
@@ -243,6 +243,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             optim_step_count=optim_step_count,
             cycler=config.train_cycler,
             loss_weighing=config.loss_weighing,
+            scale_loss=config.scale_loss
         )
 
 
