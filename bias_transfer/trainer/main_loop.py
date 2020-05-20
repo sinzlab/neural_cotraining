@@ -9,13 +9,17 @@ from nnvision.utility.measures import get_correlations
 def neural_full_objective(
     model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets
 ):
+
+    loss = criterion(outputs, targets)
     loss_scale = (
         np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0])
         if scale_loss
         else 1.0
     )
-    loss = criterion(outputs, targets)
-    return loss_scale * loss + model.regularizer(data_key)
+    loss *= loss_scale
+    if scale_loss:
+        loss += model.regularizer(data_key)
+    return loss
 
 
 def move_data(batch_data, device):
@@ -52,19 +56,23 @@ def main_loop(
     scale_loss=True,
     optim_step_count=1,
     eval_type="Validation",
-    return_eval=False,
     cycler="LongCycler",
     loss_weighing=False,
 ):
     model.train() if train_mode else model.eval()
     task_dict = {}
     correct = 0
+    if loss_weighing:
+        total_loss_weight = {}
     total = {}
     total_loss = {}
     module_losses = {}
     collected_outputs = []
     for k in criterion:
         task_dict[k] = {"epoch_loss": 0, "eval": 0}
+        if loss_weighing:
+            task_dict[k]['loss_weight'] = 0
+            total_loss_weight[k] = 0
         total[k] = 0
         total_loss[k] = 0
     for module in modules:
@@ -79,9 +87,7 @@ def main_loop(
         with tqdm(
             enumerate(getattr(uts, cycler)(data_loader)),
             total=n_iterations,
-            desc="{}".format("Train" if train_mode else eval_type)
-            if return_eval
-            else "{} Epoch {}".format("Train" if train_mode else eval_type, epoch),
+            desc="{} Epoch {}".format("Train" if train_mode else eval_type, epoch),
         ) as t:
 
             for module in modules:
@@ -122,19 +128,16 @@ def main_loop(
                         **shared_memory
                     )
                 if data_key != "img_classification":
-                    if loss_weighing:
-                        loss += criterion["neural"](outputs, targets)
-                    else:
-                        loss += neural_full_objective(
-                            model,
-                            outputs,
-                            data_loader,
-                            criterion["neural"],
-                            scale_loss,
-                            data_key,
-                            inputs,
-                            targets,
-                        )
+                    loss += neural_full_objective(
+                        model,
+                        outputs,
+                        data_loader,
+                        criterion["neural"],
+                        scale_loss,
+                        data_key,
+                        inputs,
+                        targets,
+                    )
                     total["neural"] += get_correlations(
                         model,
                         batch_dict,
@@ -147,6 +150,12 @@ def main_loop(
                     task_dict["neural"]["epoch_loss"] = average_loss(
                         total_loss["neural"]
                     )
+                    if loss_weighing:
+                        total_loss_weight["neural"] += np.exp(criterion["neural"].log_w.item())
+                        task_dict["neural"]["loss_weight"] = average_loss(
+                            total_loss_weight["neural"]
+                        )
+
                 else:
                     loss += criterion["img_classification"](outputs, targets)
                     _, predicted = outputs.max(1)
@@ -159,10 +168,15 @@ def main_loop(
                     task_dict["img_classification"]["epoch_loss"] = average_loss(
                         total_loss["img_classification"]
                     )
+                    if loss_weighing:
+                        total_loss_weight["img_classification"] += np.exp(criterion["img_classification"].log_w.item())
+                        task_dict["img_classification"]["loss_weight"] = average_loss(
+                            total_loss_weight["img_classification"]
+                        )
 
                 t.set_postfix(
                     **{
-                        task: {obj: round(value, 3) for obj, value in res.items()}
+                        task: {obj: round(value, 3) for obj, value in res.items() if obj != "loss_weight"}
                         for task, res in task_dict.items()
                     },
                     **{k: average_loss(l) for k, l in module_losses.items()}
@@ -182,9 +196,6 @@ def main_loop(
             {k: average_loss(l) for k, l in module_losses.items()},
             collected_outputs,
         )
-
-    if return_eval:
-        return list(task_dict.values())[0]["eval"]
 
     return (
         task_dict,

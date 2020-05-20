@@ -22,7 +22,8 @@ from bias_transfer.trainer.main_loop import main_loop
 from bias_transfer.trainer.test import test_neural_model, test_model
 from bias_transfer.utils.io import load_model, load_checkpoint, save_checkpoint
 from mlutils import measures as mlmeasures
-from mlutils.training import MultipleObjectiveTracker, early_stopping
+from mlutils.training import MultipleObjectiveTracker #, early_stopping
+from .utils import early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import save_best_model, XEntropyLossWrapper, NBLossWrapper
@@ -48,7 +49,11 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     train_loader = getattr(uts, config.train_cycler)(dataloaders["train"])
 
     train_n_iterations = len(train_loader)
-    optim_step_count = len(dataloaders["train"].keys()) if config.train_cycler=="LongCycler" else 2
+    optim_step_count = (
+        len(dataloaders["train"].keys())
+        if config.loss_accum_batch_n is None
+        else config.loss_accum_batch_n
+    )
 
     val_n_iterations = {
         k: len(LongCycler(dataset)) if k != "img_classification" else len(dataset)
@@ -59,7 +64,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         k: None if k != "img_classification" else len(dataset)
         for k, dataset in dataloaders["test"].items()
     }
-    best_eval = {k: -100000 for k in val_n_iterations}
+    best_eval = {k: {"eval": -100000, "loss": 100000} for k in val_n_iterations.keys()}
     # Main-loop modules:
     main_loop_modules = [
         globals().get(k)(model, config, device, train_loader, seed)
@@ -75,13 +80,20 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
                     avg=config.avg_loss
                 )
-
-            stop_closure[k] = partial(
+            stop_closure[k] = {}
+            stop_closure[k]['eval'] = partial(
                 getattr(measures, "get_correlations"),
                 dataloaders=dataloaders["validation"][k],
                 device=device,
                 per_neuron=False,
                 avg=True,
+            )
+            stop_closure[k]['loss'] = partial(
+                get_poisson_loss,
+                dataloaders=dataloaders["validation"][k],
+                device=device,
+                per_neuron=False,
+                avg=False,
             )
         else:
             if config.loss_weighing:
@@ -102,7 +114,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 scale_loss=True,
                 optim_step_count=optim_step_count,
                 eval_type="Validation",
-                return_eval=True,
                 epoch=0,
                 optimizer=None,
                 loss_weighing=config.loss_weighing,
@@ -151,7 +162,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     elif config.lr_milestones:
         train_scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
-        )  # learning rate decay
+        )
     else:
         train_scheduler = None
 
@@ -180,32 +191,22 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     print("==> Starting model {}".format(config.comment), flush=True)
     train_stats = []
-    if config.early_stop:
-        epoch_iterator = early_stopping(
-            model,
-            list(stop_closure.values())[0],
-            interval=config.interval,
-            patience=config.patience,
-            start=start_epoch,
-            max_iter=config.max_iter,
-            maximize=config.maximize,
-            tolerance=config.threshold,
-            restore_best=config.restore_best,
-            tracker=tracker,
-            scheduler=train_scheduler if config.adaptive_lr else None,
-            lr_decay_steps=config.lr_decay_steps,
-        )
-    else:
-        epoch_iterator = fixed_training_process(
-            model,
-            stop_closure,
-            config=config,
-            start=start_epoch,
-            max_iter=config.max_iter,
-            switch_mode=True,
-            restore_best=True,
-            scheduler=train_scheduler,
-        )
+    epoch_iterator = early_stopping(
+        model,
+        stop_closure,
+        config,
+        interval=config.interval,
+        patience=config.patience,
+        start=start_epoch,
+        max_iter=config.max_iter,
+        maximize=config.maximize,
+        tolerance=config.threshold,
+        restore_best=config.restore_best,
+        tracker=tracker,
+        scheduler=train_scheduler,
+        lr_decay_steps=config.lr_decay_steps,
+    )
+
     # train over epochs
     train_results, train_module_loss, epoch = 0, 0, 0
     for epoch, dev_eval in epoch_iterator:
@@ -243,6 +244,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             cycler=config.train_cycler,
             loss_weighing=config.loss_weighing,
         )
+
 
     dev_eval = StopClosureWrapper(stop_closure)(model)
     if epoch > 0:

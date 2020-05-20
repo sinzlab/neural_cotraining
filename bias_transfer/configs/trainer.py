@@ -41,7 +41,7 @@ class TrainerConfig(BaseConfig):
             "maximize", True
         )  # if stop_function maximized or minimized
         self.loss_accum_batch_n = kwargs.pop(
-            "loss_accum_batch_n", 1
+            "loss_accum_batch_n", None
         )  # for gradient accumulation how often to call opt.step
 
         self.interval = kwargs.pop(
@@ -59,7 +59,6 @@ class TrainerConfig(BaseConfig):
         )  # Number of times the learning rate should be reduced before stopping the training.
 
         self.track_training = kwargs.pop("track_training", False)
-        self.early_stop = kwargs.pop("early_stop", True)
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
         self.noise_std = kwargs.pop("noise_std", None)
