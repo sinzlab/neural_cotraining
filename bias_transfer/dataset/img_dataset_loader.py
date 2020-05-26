@@ -5,7 +5,6 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import datasets
-
 from bias_transfer.configs.dataset import ImageDatasetConfig
 from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
 from bias_transfer.dataset.npy_dataset import NpyDataset
@@ -17,6 +16,8 @@ DATASET_URLS = {
     "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
     "CIFAR100-C": "https://zenodo.org/record/3555552/files/CIFAR-100-C.tar",
     "TinyImageNet-C": "https://zenodo.org/record/2536630/files/Tiny-ImageNet-C.tar",
+    "TinyImageNet-B-C": "https://informatikunihamburgde-my.sharepoint.com/:u:/g/personal/shahd_safarani_informatik_uni-hamburg_de/ETfeX0uHVX9Po5WYbrc4uTsBBNAqUaIyDqpD_BsrSgSw7w?e=UIgMHT&download=1",
+    "TinyImageNet-ST": "https://informatikunihamburgde-my.sharepoint.com/:u:/g/personal/shahd_safarani_informatik_uni-hamburg_de/EZhUKKVXTvRHlqi2HXHaIjEBLmAv4tQP8olvdGNRoWrPqA?e=8kSrHI&download=1",
     "ImageNet": None,
     "ImageNet-C": {
         "blur": "https://zenodo.org/record/2235448/files/blur.tar",
@@ -190,6 +191,16 @@ def img_dataset_loader(seed, **config):
 
         test_dataset = datasets.ImageFolder(val_dir, transform=transform_test)
 
+    if config.add_stylized_test:
+        st_dataset_dir = get_dataset(
+            DATASET_URLS[config.dataset_cls + "-ST"],
+            config.data_dir,
+            dataset_cls=config.dataset_cls + "-ST",
+            download=config.dowload,
+        )
+        st_test_dataset = datasets.ImageFolder(st_dataset_dir, transform=transform_test)
+
+
     if config.add_corrupted_test:
         urls = DATASET_URLS[config.dataset_cls + "-C"]
         if not isinstance(urls, dict):
@@ -281,6 +292,16 @@ def img_dataset_loader(seed, **config):
         "validation": {"img_classification": valid_loader},
         "test": {"img_classification": test_loader},
     }
+
+    if config.add_stylized_test:
+        st_test_loader = torch.utils.data.DataLoader(
+            st_test_dataset,
+            batch_size=config.batch_size,
+            num_workers=config.num_workers,
+            pin_memory=config.pin_memory,
+            shuffle=False,
+        )
+        data_loaders["st_test"] = st_test_loader
 
     if config.add_corrupted_test:
         c_test_loaders = {}

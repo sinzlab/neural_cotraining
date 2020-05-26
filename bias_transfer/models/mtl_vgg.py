@@ -262,6 +262,12 @@ class MTL_VGG(nn.Module):
     def regularizer(self, data_key=None):
         return self.v1_readout.regularizer(data_key=data_key)
 
+    def freeze(self, selection=("v1",)):
+        if selection is True or "v1" in selection:
+            for param in self.mtl_vgg_core.shared_block.parameters():
+                param.requires_grad = False
+
+
     def _init_readout_dense(self):
         if self.mtl_vgg_core.classification:
             for m in self.classification_readout:

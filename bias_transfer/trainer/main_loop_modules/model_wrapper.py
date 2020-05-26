@@ -8,7 +8,7 @@ class ModelWrapper(MainLoopModule):
 
     def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         data_key = kwargs.pop("data_key", None)
-        if self.data_loader_keys_nr > 1:
+        if self.mtl:
             if data_key == "img_classification":
                 model_ = partial(model, data_key=data_key, classification=True)
             else:

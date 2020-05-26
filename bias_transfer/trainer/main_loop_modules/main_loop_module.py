@@ -4,7 +4,7 @@ class MainLoopModule(object):
         self.device = device
         self.seed = seed
         self.criterion = None
-        self.data_loader_keys_nr = len(config.loss_functions)
+        self.mtl = config.mtl
 
     def pre_epoch(self, model, train_mode, epoch, **kwargs):
         pass

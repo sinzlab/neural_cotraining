@@ -46,7 +46,12 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    train_loader = getattr(uts, config.train_cycler)(dataloaders["train"])
+    if config.mtl and ("neural" not in config.loss_functions.keys()):
+        dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
+        dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
+        dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
+
+    train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **config.train_cycler_args)
 
     train_n_iterations = len(train_loader)
     optim_step_count = (
@@ -117,6 +122,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 epoch=0,
                 optimizer=None,
                 loss_weighing=config.loss_weighing,
+                cycler_args={},
+                cycler="LongCycler"
             )
 
     if config.track_training:
@@ -230,6 +237,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 }
             )
 
+        #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data)) for debugging
+
         train_results, train_module_loss = main_loop(
             model=model,
             criterion=criterion,
@@ -242,6 +251,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             epoch=epoch,
             optim_step_count=optim_step_count,
             cycler=config.train_cycler,
+            cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss
         )
@@ -342,6 +352,41 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 test_c_results[c_category][c_level] = results
         final_results["test_c_results"] = test_c_results
+
+    if "b_c_test" in dataloaders:
+        test_b_c_results = {}
+        for c_category in list(dataloaders["b_c_test"].keys()):
+            test_b_c_results[c_category] = {}
+            for c_level, dataloader in dataloaders["b_c_test"][c_category].items():
+                results = test_model(
+                    model=model,
+                    n_iterations=len(dataloader),
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, ["img_classification"]),
+                    device=device,
+                    data_loader={"img_classification": dataloader},
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Test-B-C",
+                )
+                test_b_c_results[c_category][c_level] = results
+        final_results["test_b_c_results"] = test_b_c_results
+
+    if "st_test" in dataloaders:
+        test_st_results = test_model(
+            model=model,
+            epoch=epoch,
+            n_iterations=len(dataloaders['st_test']),
+            criterion=get_subdict(criterion, ["img_classification"]),
+            device=device,
+            data_loader={"img_classification": dataloaders['st_test']},
+            config=config,
+            noise_test=False,
+            seed=seed,
+            eval_type="Test-ST",
+        )
+        final_results["test_st_results"] = test_st_results
     return (
         test_results_dict[list(config.loss_functions.keys())[0]]["eval"],
         (train_stats, final_results),

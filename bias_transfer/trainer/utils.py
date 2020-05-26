@@ -243,7 +243,7 @@ class MTL_Cycler:
         self.num_batches = len(self.main_loader) * (ratio + 1)
 
     def generate_batch(self, main_cycle, other_cycles_dict):
-        for i in range(self.num_batches):
+        for i in range(len(self.main_loader)):
             yield self.main_key, main_cycle
             for _ in range(self.ratio):
                 key, loader = next(other_cycles_dict)

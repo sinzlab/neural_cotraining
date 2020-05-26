@@ -65,7 +65,9 @@ def test_model(
                     train_mode=False,
                     epoch=epoch,
                     loss_weighing=config.loss_weighing,
-                    scale_loss=config.scale_loss
+                    scale_loss=config.scale_loss,
+                    cycler_args={},
+                    cycler="LongCycler"
                 )
     else:
         main_loop_modules = []
@@ -86,6 +88,8 @@ def test_model(
             train_mode=False,
             epoch=epoch,
             loss_weighing=config.loss_weighing,
-            scale_loss=config.scale_loss
+            scale_loss=config.scale_loss,
+            cycler_args={},
+            cycler="LongCycler"
         )
     return test_results

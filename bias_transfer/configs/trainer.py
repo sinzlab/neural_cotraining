@@ -25,6 +25,7 @@ class TrainerConfig(BaseConfig):
         self.min_lr = kwargs.pop("min_lr", 0.0001)  # lr scheduler min learning rate
         self.threshold_mode = kwargs.pop("threshold_mode", "rel")
         self.train_cycler = kwargs.pop("train_cycler", "LongCycler")
+        self.train_cycler_args = kwargs.pop("train_cycler_args", {})
         self.loss_functions = kwargs.pop(
             "loss_functions", {"img_classification": "CrossEntropyLoss"}
         )
@@ -43,6 +44,10 @@ class TrainerConfig(BaseConfig):
         self.loss_accum_batch_n = kwargs.pop(
             "loss_accum_batch_n", None
         )  # for gradient accumulation how often to call opt.step
+
+        self.mtl = kwargs.pop(
+            "mtl", False
+        )
 
         self.interval = kwargs.pop(
             "interval", 1

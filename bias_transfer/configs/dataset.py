@@ -79,6 +79,8 @@ class ImageDatasetConfig(DatasetConfig):
         else:
             raise NameError()
         self.add_corrupted_test = kwargs.pop("add_corrupted_test", True)
+        self.add_corrupted_b_test = kwargs.pop("add_corrupted_b_test", False)
+        self.add_stylized_test = kwargs.pop("add_stylized_test", False)
         self.shuffle = kwargs.pop("shuffle", True)
         self.show_sample = kwargs.pop("show_sample", False)
         self.filter_classes = kwargs.pop("filter_classes", None)  # (start,end)

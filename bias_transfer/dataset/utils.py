@@ -86,7 +86,7 @@ def get_dataset(url: str, data_dir: str, dataset_cls: str, download: bool) -> st
         os.makedirs(dataset_dir)
     r = requests.get(url, stream=True)
     print("Downloading " + url)
-    if url.endswith(".zip"):
+    if url.endswith(".zip") or url.endswith("&download=1"):
         zip_ref = zipfile.ZipFile(BytesIO(r.content))
         zip_ref.extractall(dataset_dir)
         extract_dir = os.path.join(dataset_dir, sorted(zip_ref.namelist())[0])

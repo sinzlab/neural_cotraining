@@ -57,6 +57,7 @@ def main_loop(
     optim_step_count=1,
     eval_type="Validation",
     cycler="LongCycler",
+    cycler_args={},
     loss_weighing=False,
 ):
     model.train() if train_mode else model.eval()
@@ -85,7 +86,7 @@ def main_loop(
     with torch.enable_grad() if train_mode else torch.no_grad():
 
         with tqdm(
-            enumerate(getattr(uts, cycler)(data_loader)),
+            enumerate(getattr(uts, cycler)(data_loader, **cycler_args)),
             total=n_iterations,
             desc="{} Epoch {}".format("Train" if train_mode else eval_type, epoch),
         ) as t:
