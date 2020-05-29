@@ -215,8 +215,7 @@ class MTL_VGG(nn.Module):
         if classification:
             if self.classification_readout_type == "dense":
                 core_out = core_out.view(core_out.size(0), -1)
-            class_out = self.classification_readout(core_out)
-            classification_out = {"logits": class_out}
+            classification_out = self.classification_readout(core_out)
             return classification_out
         v1_out = self.v1_readout(shared_core_out, data_key=data_key)
         v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
