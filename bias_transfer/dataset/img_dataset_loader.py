@@ -16,7 +16,6 @@ DATASET_URLS = {
     "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
     "CIFAR100-C": "https://zenodo.org/record/3555552/files/CIFAR-100-C.tar",
     "TinyImageNet-C": "https://zenodo.org/record/2536630/files/Tiny-ImageNet-C.tar",
-    "TinyImageNet-B-C": "https://informatikunihamburgde-my.sharepoint.com/:u:/g/personal/shahd_safarani_informatik_uni-hamburg_de/ETfeX0uHVX9Po5WYbrc4uTsBBNAqUaIyDqpD_BsrSgSw7w?e=UIgMHT&download=1",
     "TinyImageNet-ST": "https://informatikunihamburgde-my.sharepoint.com/:u:/g/personal/shahd_safarani_informatik_uni-hamburg_de/EZhUKKVXTvRHlqi2HXHaIjEBLmAv4tQP8olvdGNRoWrPqA?e=8kSrHI&download=1",
     "ImageNet": None,
     "ImageNet-C": {

@@ -353,26 +353,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 test_c_results[c_category][c_level] = results
         final_results["test_c_results"] = test_c_results
 
-    if "b_c_test" in dataloaders:
-        test_b_c_results = {}
-        for c_category in list(dataloaders["b_c_test"].keys()):
-            test_b_c_results[c_category] = {}
-            for c_level, dataloader in dataloaders["b_c_test"][c_category].items():
-                results = test_model(
-                    model=model,
-                    n_iterations=len(dataloader),
-                    epoch=epoch,
-                    criterion=get_subdict(criterion, ["img_classification"]),
-                    device=device,
-                    data_loader={"img_classification": dataloader},
-                    config=config,
-                    noise_test=False,
-                    seed=seed,
-                    eval_type="Test-B-C",
-                )
-                test_b_c_results[c_category][c_level] = results
-        final_results["test_b_c_results"] = test_b_c_results
-
     if "st_test" in dataloaders:
         test_st_results = test_model(
             model=model,

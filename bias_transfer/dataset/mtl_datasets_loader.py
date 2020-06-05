@@ -23,8 +23,6 @@ def mtl_datasets_loader(seed, **config):
     ]
     if "c_test" in img_dataset_loaders:
         data_loaders["c_test"] = img_dataset_loaders["c_test"]
-    if "b_c_test" in img_dataset_loaders:
-        data_loaders["b_c_test"] = img_dataset_loaders["b_c_test"]
     if "st_test" in img_dataset_loaders:
         data_loaders["st_test"] = img_dataset_loaders["st_test"]
     return data_loaders
