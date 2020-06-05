@@ -1,4 +1,4 @@
-from .vgg import VGG_TYPES
+import torchvision
 import torch.nn as nn
 from torch.autograd import Variable
 from mlutils.layers.cores import Core2d
@@ -9,6 +9,17 @@ from torch.nn import functional as F
 from mlutils.layers.legacy import Gaussian2d
 from mlutils.training import eval_state
 from .vgg import create_vgg_readout
+
+VGG_TYPES = {
+    "vgg11": torchvision.models.vgg11,
+    "vgg11_bn": torchvision.models.vgg11_bn,
+    "vgg13": torchvision.models.vgg13,
+    "vgg13_bn": torchvision.models.vgg13_bn,
+    "vgg16": torchvision.models.vgg16,
+    "vgg16_bn": torchvision.models.vgg16_bn,
+    "vgg19_bn": torchvision.models.vgg19_bn,
+    "vgg19": torchvision.models.vgg19,
+}
 
 
 def get_module_output(model, input_shape):
@@ -240,13 +251,15 @@ class MTL_VGG(nn.Module):
 
         if classification:
             # init fully connected part of vgg
+            test_input = Variable(torch.zeros(1, 3, input_size, input_size))
+            _, test_out = self.mtl_vgg_core(test_input, classification=True)
+            self.n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
             self.classification_readout = create_vgg_readout(
-                [self.mtl_vgg_core.shared_block, self.mtl_vgg_core.unshared_block],
                 classification_readout_type,
-                input_size=input_size,
+                n_features=self.n_features,
                 num_classes=num_classes,
             )
-            self._init_readout_dense()
+            self._initialize_weights_classification_readout()
 
     def forward(self, x, data_key=None, classification=False):
         shared_core_out, core_out = self.mtl_vgg_core(x, classification)
@@ -268,9 +281,16 @@ class MTL_VGG(nn.Module):
                 param.requires_grad = False
 
 
-    def _init_readout_dense(self):
+    def _initialize_weights_classification_readout(self):
         if self.mtl_vgg_core.classification:
             for m in self.classification_readout:
-                if isinstance(m, nn.Linear):
-                    m.weight.data.normal_(0, 0.01)
-                    m.bias.data.zero_()
+                if isinstance(m, nn.Conv2d):
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.Linear):
+                    nn.init.normal_(m.weight, 0, 0.01)
+                    nn.init.constant_(m.bias, 0)
