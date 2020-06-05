@@ -155,21 +155,25 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         for _, loss_object in criterion.items():
             params += list(loss_object.parameters())
     optimizer = getattr(optim, config.optimizer)(params, **config.optimizer_options)
-    if config.adaptive_lr:
-        train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            factor=config.lr_decay,
-            patience=config.patience,
-            threshold=config.threshold,
-            verbose=config.verbose,
-            min_lr=config.min_lr,
-            mode="max" if config.maximize else "min",
-            threshold_mode=config.threshold_mode,
-        )
-    elif config.lr_milestones:
-        train_scheduler = optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=config.lr_milestones, gamma=config.lr_decay
-        )
+    if config.scheduler is not None:
+        if config.scheduler == "adaptive":
+            if config.scheduler_options['mtl'] == True :
+                train_scheduler = optim.StepLR(optimizer, step_size=1, gamma=config.lr_decay)
+            else:
+                train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                    optimizer,
+                    factor=config.lr_decay,
+                    patience=config.patience,
+                    threshold=config.threshold,
+                    verbose=config.verbose,
+                    min_lr=config.min_lr,
+                    mode="max" if config.maximize else "min",
+                    threshold_mode=config.threshold_mode,
+                )
+        elif config.scheduler == "manual":
+            train_scheduler = optim.lr_scheduler.MultiStepLR(
+                optimizer, milestones=config.scheduler_options['milestones'], gamma=config.lr_decay
+            )
     else:
         train_scheduler = None
 

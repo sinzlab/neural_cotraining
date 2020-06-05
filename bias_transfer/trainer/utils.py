@@ -62,19 +62,25 @@ def early_stopping(
             model.train(training_status)
         return ret
 
-    def decay_lr(model, best_state_dict):
-        old_objective = _objective()
+    def decay_lr(model, best_state_dict, old_objective, best_objective):
         if restore_best:
             model.load_state_dict(best_state_dict)
-            print("Restoring best model after lr decay! {} ---> {}".format(old_objective, _objective()))
+            print("Restoring best model after lr decay! {} ---> {}".format(old_objective, best_objective))
 
-    def finalize(model, best_state_dict):
-        old_objective = _objective()
+    def finalize(model, best_state_dict, old_objective, best_objective):
         if restore_best:
             model.load_state_dict(best_state_dict)
-            print("Restoring best model! {} ---> {}".format(old_objective, _objective()))
+            print(
+                "Restoring best model! {} ---> {}".format(
+                    old_objective, best_objective
+                )
+            )
         else:
-            print("Final best model! objective {}".format(_objective()))
+            print(
+                "Final best model! objective {}".format(
+                    best_objective
+                )
+            )
 
     epoch = start
     # turn into a sign
@@ -105,10 +111,10 @@ def early_stopping(
 
             # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
             if scheduler is not None:
-                if config.adaptive_lr:   # only works sofar with one task but not with MTL
+                if config.scheduler == "adaptive" and not config.scheduler_options['mtl']:   # only works sofar with one task but not with MTL
                     scheduler.step(list(current_objective.values())[0]['eval' if config.maximize else 'loss'])
-                elif config.lr_milestones:
-                    scheduler.step(epoch=epoch)
+                elif config.scheduler == "manual":
+                    scheduler.step()
 
             def test_current_obj(obj, best_obj):
                 obj_key = 'eval' if config.maximize else 'loss'
@@ -131,9 +137,11 @@ def early_stopping(
                 )
 
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
-            decay_lr(model, best_state_dict)
+            if config.scheduler == "adaptive" and config.scheduler_options['mtl']:
+                scheduler.step()
+            decay_lr(model, best_state_dict, current_objective, best_objective)
 
-    finalize(model, best_state_dict)
+    finalize(model, best_state_dict, current_objective, best_objective)
 
 
 
@@ -184,10 +192,11 @@ def fixed_training_process(
 
         # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
         if scheduler is not None:
-            if config.adaptive_lr:
-                scheduler.step(list(current_objective.values())[0])
-            else:
-                scheduler.step(epoch=epoch)
+            if config.scheduler == "adaptive" and not config.scheduler_options[
+                'mtl']:  # only works sofar with one task but not with MTL
+                scheduler.step(list(current_objective.values())[0]['eval' if config.maximize else 'loss'])
+            elif config.scheduler == "manual":
+                scheduler.step()
         print(
             "Validation Epoch {} -------> {}".format(epoch, current_objective),
             flush=True,
