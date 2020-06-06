@@ -228,8 +228,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             for key in tracker.log.keys():
                 print(key, tracker.log[key][-1], flush=True)
 
-        for param_group in optimizer.param_groups:
-            print(param_group['lr'])
+        # for param_group in optimizer.param_groups:
+        #     print(param_group['lr'])
 
         if epoch > 1:
             best_epoch, best_eval = save_best_model(
