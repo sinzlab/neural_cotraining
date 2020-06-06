@@ -10,7 +10,6 @@ from bias_transfer.models.utils import freeze_params
 from bias_transfer.trainer.utils import (
     get_subdict,
     StopClosureWrapper,
-    fixed_training_process,
 )
 from mlutils.training import LongCycler
 import nnfabrik as nnf
@@ -157,9 +156,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     optimizer = getattr(optim, config.optimizer)(params, **config.optimizer_options)
     if config.scheduler is not None:
         if config.scheduler == "adaptive":
-            if config.scheduler_options['mtl'] == True :
-                train_scheduler = optim.StepLR(optimizer, step_size=1, gamma=config.lr_decay)
-            else:
+            if config.scheduler_options['mtl']:
+                train_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=config.lr_decay)
+            elif not config.scheduler_options['mtl']:
                 train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                     optimizer,
                     factor=config.lr_decay,
@@ -228,6 +227,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             print("=======================================")
             for key in tracker.log.keys():
                 print(key, tracker.log[key][-1], flush=True)
+
+        for param_group in optimizer.param_groups:
+            print(param_group['lr'])
+
         if epoch > 1:
             best_epoch, best_eval = save_best_model(
                 model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid

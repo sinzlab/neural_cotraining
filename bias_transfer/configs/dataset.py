@@ -67,7 +67,7 @@ class ImageDatasetConfig(DatasetConfig):
                 )
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 64
-            self.num_workers = kwargs.pop("num_workers", 2)
+            self.num_workers = kwargs.pop("num_workers", 1)
             self.valid_size = kwargs.pop("valid_size", 0.1)
         elif self.dataset_cls == "ImageNet":
             self.train_data_mean = (0.485, 0.456, 0.406)
@@ -86,7 +86,7 @@ class ImageDatasetConfig(DatasetConfig):
         self.download = kwargs.pop(
             "download", False
         )  # For safety (e.g. to not download ImageNet by accident)
-
+        self.pin_memory = kwargs.pop("pin_memory", True)
         self.update(**kwargs)
 
     @property
