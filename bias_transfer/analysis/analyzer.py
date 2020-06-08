@@ -44,37 +44,6 @@ class Analyzer:
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
         df = df.rename(columns={0: "training_progress"})
         df = pd.concat([df.drop([1], axis=1), df[1].apply(pd.Series)], axis=1)
-
-        def convert(x, prefix=""):
-            ret = x["img_classification"]
-            ret = {prefix + k: v for k, v in ret.items()}
-            return ret
-
-        df = pd.concat(
-            [
-                df.drop(["test_results"], axis=1),
-                df["test_results"]
-                .apply(partial(convert, prefix="test_"))
-                .apply(pd.Series),
-            ],
-            axis=1,
-        )
-        df["dev_eval"] = df["dev_eval"].apply(lambda x: x["img_classification"])
-
-        def convert(x, key="epoch_loss"):
-            if key in x.keys():
-                return x[key]
-            if "img_classification" in x.keys():
-                return convert(x["img_classification"], key)
-            else:
-                return {k: convert(v,key) for k,v in x.items()}
-
-        df["dev_noise_eval"] = df["dev_final_results"].apply(partial(convert, key="eval"))
-        df["dev_noise_loss"] = df["dev_final_results"].apply(partial(convert, key="epoch_loss"))
-        df= df.drop(["dev_final_results"], axis=1)
-        df["c_test_eval"] = df["test_c_results"].apply(partial(convert, key="eval"))
-        df["c_test_loss"] = df["test_c_results"].apply(partial(convert, key="epoch_loss"))
-        df= df.drop(["test_c_results"], axis=1)
         return df
 
     def plot(
