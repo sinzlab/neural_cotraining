@@ -5,13 +5,22 @@ import torch
 from torch import nn
 import numpy as np
 
-def get_subdict(dictionary, keys=None):
+def get_subdict(dictionary:dict, keys:list=None):
+    """
+    Args:
+        dictionary: dictionary of all keys
+        keys: list of strings representing the keys to be extracted from dictionary
+    Return:
+        dict: subdictionary containing only input keys
+    """
+
     if keys:
         return {k: v for k, v in dictionary.items() if k in keys}
     return dictionary
 
 
 class StopClosureWrapper:
+
     def __init__(self, stop_closures):
         self.stop_closures = stop_closures
 
@@ -28,6 +37,13 @@ class StopClosureWrapper:
         return results
 
 def map_to_task_dict(task_dict, fn):
+    """
+    Args:
+        task_dict: dictionary of the form: e.g. {"img_classification": {"loss": 0.2} }
+        fn: function to apply to all values in task_dict
+    Return:
+        numpy_array: array of booleans as result of applying fn to all values
+    """
     result = [ fn(task_dict[task][objective]) for task in task_dict.keys()
                for objective in task_dict[task].keys()]
     return np.array(result)
@@ -141,7 +157,7 @@ def early_stopping(
                 )
 
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
-            if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):
+            if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
             decay_lr(model, best_state_dict, current_objective, best_objective)
 
@@ -149,12 +165,6 @@ def early_stopping(
 
 
 def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid):
-    # if isinstance(dev_eval, dict):
-    #     is_better = (
-    #         True if dev_eval[k] > best_eval[k] else False for k in dev_eval.keys()
-    #     )
-    # else:
-    #     is_better = [dev_eval > list(best_eval.values())[0]]
 
     def test_current_obj(obj, best_obj):
         obj_key = 'eval' #if config.maximize else 'loss'
@@ -170,9 +180,6 @@ def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, ui
             "./checkpoint",
             "ckpt.{}.pth".format(uid),
         )
-        # best_eval = (
-        #     dev_eval if isinstance(dev_eval, dict) else {k: dev_eval for k in best_eval}
-        # )
         best_eval = dev_eval
         best_epoch = epoch - 1
     return best_epoch, best_eval
@@ -180,10 +187,10 @@ def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, ui
 
 class MTL_Cycler:
     def __init__(self, loaders, main_key="img_classification", ratio=1):
-        self.main_key = main_key
+        self.main_key = main_key  # data_key of the dataset whose batch ratio is always 1
         self.main_loader = loaders[main_key]
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
-        self.ratio = ratio
+        self.ratio = ratio   # number of neural batches vs. one batch from TIN
         self.num_batches = len(self.main_loader) * (ratio + 1)
 
     def generate_batch(self, main_cycle, other_cycles_dict):

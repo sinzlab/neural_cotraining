@@ -228,9 +228,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             for key in tracker.log.keys():
                 print(key, tracker.log[key][-1], flush=True)
 
-        # for param_group in optimizer.param_groups:
-        #     print(param_group['lr'])
-
         if epoch > 1:
             best_epoch, best_eval = save_best_model(
                 model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid
@@ -243,8 +240,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     "dev_eval": dev_eval,
                 }
             )
-
-        #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data)) for debugging
 
         train_results, train_module_loss = main_loop(
             model=model,
