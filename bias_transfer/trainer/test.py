@@ -24,7 +24,6 @@ def test_neural_model(model, data_loader, device, epoch, eval_type="Validation")
 def test_model(
     model,
     epoch,
-    n_iterations,
     criterion,
     device,
     data_loader,
@@ -60,7 +59,6 @@ def test_model(
                     None,
                     eval_type=eval_type,
                     data_loader=data_loader,
-                    n_iterations=n_iterations,
                     modules=main_loop_modules,
                     train_mode=False,
                     epoch=epoch,
@@ -83,7 +81,6 @@ def test_model(
             None,
             eval_type=eval_type,
             data_loader=data_loader,
-            n_iterations=n_iterations,
             modules=main_loop_modules,
             train_mode=False,
             epoch=epoch,

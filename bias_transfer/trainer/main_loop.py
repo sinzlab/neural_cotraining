@@ -48,7 +48,6 @@ def main_loop(
     device,
     optimizer,
     data_loader,
-    n_iterations,
     modules,
     scale_loss,
     epoch: int = 0,
@@ -79,6 +78,14 @@ def main_loop(
     for module in modules:
         if module.criterion:  # some modules may compute an additonal output/loss
             module_losses[module.__class__.__name__] = 0
+
+    if cycler_args:
+        cycler_args = dict(cycler_args)
+        cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
+
+    data_cycler = getattr(uts, cycler)(data_loader, **cycler_args)
+    n_iterations = len(data_cycler)
+
     if hasattr(
         tqdm, "_instances"
     ):  # To have tqdm output without line-breaks between steps
@@ -86,7 +93,7 @@ def main_loop(
     with torch.enable_grad() if train_mode else torch.no_grad():
 
         with tqdm(
-            enumerate(getattr(uts, cycler)(data_loader, **cycler_args)),
+            enumerate(data_cycler),
             total=n_iterations,
             desc="{} Epoch {}".format("Train" if train_mode else eval_type, epoch),
         ) as t:

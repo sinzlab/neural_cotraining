@@ -191,14 +191,21 @@ class MTL_Cycler:
         self.main_loader = loaders[main_key]
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
         self.ratio = ratio   # number of neural batches vs. one batch from TIN
-        self.num_batches = len(self.main_loader) * (ratio + 1)
+        self.num_batches = int(len(self.main_loader) * (ratio + 1))
 
     def generate_batch(self, main_cycle, other_cycles_dict):
-        for i in range(len(self.main_loader)):
-            yield self.main_key, main_cycle
-            for _ in range(self.ratio):
-                key, loader = next(other_cycles_dict)
-                yield key, loader
+        if self.ratio >= 1:
+            for i in range(len(self.main_loader)):
+                yield self.main_key, main_cycle
+                for _ in range(self.ratio):
+                    key, loader = next(other_cycles_dict)
+                    yield key, loader
+        else:
+            for i in range(len(self.main_loader)):
+                yield self.main_key, main_cycle
+                if (i+1) % (1/self.ratio) == 0:
+                    key, loader = next(other_cycles_dict)
+                    yield key, loader
 
     def __iter__(self):
         other_cycles = {k: cycle(v) for k, v in self.other_loaders.items()}

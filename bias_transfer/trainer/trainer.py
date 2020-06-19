@@ -50,25 +50,20 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
         dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
 
-    train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **config.train_cycler_args)
+    cycler_args = dict(config.train_cycler_args)
+    if cycler_args:
+        cycler_args['ratio'] = cycler_args['ratio'][1]
+    train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **cycler_args)
 
-    train_n_iterations = len(train_loader)
     optim_step_count = (
         len(dataloaders["train"].keys())
         if config.loss_accum_batch_n is None
         else config.loss_accum_batch_n
     )
 
-    val_n_iterations = {
-        k: len(LongCycler(dataset)) if k != "img_classification" else len(dataset)
-        for k, dataset in dataloaders["validation"].items()
-    }
+    val_keys = list(dataloaders["validation"].keys())
 
-    test_n_iterations = {
-        k: None if k != "img_classification" else len(dataset)
-        for k, dataset in dataloaders["test"].items()
-    }
-    best_eval = {k: {"eval": -100000, "loss": 100000} for k in val_n_iterations.keys()}
+    best_eval = {k: {"eval": -100000, "loss": 100000} for k in val_keys}
     # Main-loop modules:
     main_loop_modules = [
         globals().get(k)(model, config, device, train_loader, seed)
@@ -76,7 +71,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     ]
 
     criterion, stop_closure = {}, {}
-    for k in val_n_iterations.keys():
+    for k in val_keys:
         if k != "img_classification":
             if config.loss_weighing:
                 criterion[k] = NBLossWrapper().to(device)
@@ -113,7 +108,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 data_loader=get_subdict(dataloaders["validation"], [k]),
                 modules=main_loop_modules,
                 train_mode=False,
-                n_iterations=val_n_iterations[k],
                 return_outputs=False,
                 scale_loss=config.scale_loss,
                 optim_step_count=optim_step_count,
@@ -191,13 +185,16 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         )
 
     if config.freeze:
-        if config.freeze == ("core",):
-            kwargs = {"not_to_freeze": (config.readout_name,)}
-        elif config.freeze == ("readout",):
-            kwargs = {"to_freeze": (config.readout_name,)}
+        if config.mtl:
+            model.freeze(config.freeze)
         else:
-            kwargs = {"to_freeze": config.freeze}
-        freeze_params(model, **kwargs)
+            if config.freeze == ("core",):
+                kwargs = {"not_to_freeze": (config.readout_name,)}
+            elif config.freeze == ("readout",):
+                kwargs = {"to_freeze": (config.readout_name,)}
+            else:
+                kwargs = {"to_freeze": config.freeze}
+            freeze_params(model, **kwargs)
 
     print("==> Starting model {}".format(config.comment), flush=True)
     train_stats = []
@@ -241,13 +238,14 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 }
             )
 
+        #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
+
         train_results, train_module_loss = main_loop(
             model=model,
             criterion=criterion,
             device=device,
             optimizer=optimizer,
             data_loader=dataloaders["train"],
-            n_iterations=train_n_iterations,
             modules=main_loop_modules,
             train_mode=True,
             epoch=epoch,
@@ -282,7 +280,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model with noise on the dev-set
     # test the final model on the test set
     test_results_dict, dev_final_results_dict = {}, {}
-    for k in val_n_iterations.keys():
+    for k in val_keys:
         if k != "img_classification":
             dev_final_results = test_neural_model(
                 model,
@@ -304,7 +302,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             dev_final_results = test_model(
                 model=model,
                 epoch=epoch,
-                n_iterations=val_n_iterations[k],
                 criterion=get_subdict(criterion, [k]),
                 device=device,
                 data_loader=get_subdict(dataloaders["validation"], [k]),
@@ -316,7 +313,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             test_results = test_model(
                 model=model,
                 epoch=epoch,
-                n_iterations=test_n_iterations[k],
                 criterion=get_subdict(criterion, [k]),
                 device=device,
                 data_loader=get_subdict(dataloaders["test"], [k]),
@@ -342,7 +338,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             for c_level, dataloader in dataloaders["c_test"][c_category].items():
                 results = test_model(
                     model=model,
-                    n_iterations=len(dataloader),
                     epoch=epoch,
                     criterion=get_subdict(criterion, ["img_classification"]),
                     device=device,
@@ -359,7 +354,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         test_st_results = test_model(
             model=model,
             epoch=epoch,
-            n_iterations=len(dataloaders['st_test']),
             criterion=get_subdict(criterion, ["img_classification"]),
             device=device,
             data_loader={"img_classification": dataloaders['st_test']},
