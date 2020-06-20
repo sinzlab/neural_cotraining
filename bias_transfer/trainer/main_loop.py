@@ -82,6 +82,7 @@ def main_loop(
     if cycler_args:
         cycler_args = dict(cycler_args)
         cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
+        optim_step_count = cycler_args['ratio']+1 if cycler_args['ratio']>=1 else 2
 
     data_cycler = getattr(uts, cycler)(data_loader, **cycler_args)
     n_iterations = len(data_cycler)
