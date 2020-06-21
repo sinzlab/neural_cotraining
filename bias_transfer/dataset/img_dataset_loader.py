@@ -179,8 +179,6 @@ def img_dataset_loader(seed, **config):
             download=config.dowload,
         )
 
-        if config.dataset_cls == "TinyImageNet":
-            dataset_dir = os.path.join(dataset_dir, "tiny-imagenet-200")
         if config.dataset_cls != "ImageNet":
             create_ImageFolder_format(dataset_dir)
 
