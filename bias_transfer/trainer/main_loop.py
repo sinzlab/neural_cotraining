@@ -53,7 +53,6 @@ def main_loop(
     epoch: int = 0,
     train_mode=True,
     return_outputs=False,
-    optim_step_count=1,
     eval_type="Validation",
     cycler="LongCycler",
     cycler_args={},
@@ -82,7 +81,6 @@ def main_loop(
     if cycler_args:
         cycler_args = dict(cycler_args)
         cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
-        optim_step_count = cycler_args['ratio']+1 if cycler_args['ratio']>=1 else 2
 
     data_cycler = getattr(uts, cycler)(data_loader, **cycler_args)
     n_iterations = len(data_cycler)
@@ -195,7 +193,7 @@ def main_loop(
                     loss.backward()
                     for module in modules:
                         module.post_backward(model)
-                    if (batch_idx + 1) % optim_step_count == 0:
+                    if data_cycler.backward:
                         optimizer.step()
                         optimizer.zero_grad()
 

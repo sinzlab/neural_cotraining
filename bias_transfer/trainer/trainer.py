@@ -55,12 +55,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cycler_args['ratio'] = cycler_args['ratio'][1]
     train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **cycler_args)
 
-    optim_step_count = (
-        len(dataloaders["train"].keys())
-        if config.loss_accum_batch_n is None
-        else config.loss_accum_batch_n
-    )
-
     val_keys = list(dataloaders["validation"].keys())
 
     best_eval = {k: {"eval": -100000, "loss": 100000} for k in val_keys}
@@ -110,7 +104,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 train_mode=False,
                 return_outputs=False,
                 scale_loss=config.scale_loss,
-                optim_step_count=optim_step_count,
                 eval_type="Validation",
                 epoch=0,
                 optimizer=None,
@@ -240,6 +233,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
         #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
 
+        for param_group in optimizer.param_groups:
+            print(param_group['lr'])
+
         train_results, train_module_loss = main_loop(
             model=model,
             criterion=criterion,
@@ -249,7 +245,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             modules=main_loop_modules,
             train_mode=True,
             epoch=epoch,
-            optim_step_count=optim_step_count,
             cycler=config.train_cycler,
             cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,

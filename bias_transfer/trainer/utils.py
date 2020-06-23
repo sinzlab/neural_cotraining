@@ -106,7 +106,7 @@ def early_stopping(
 
     if scheduler is not None:
         if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
-            scheduler.step(list(current_objective.values())[0]['eval' if config.maximize else 'loss'])
+            scheduler.step(current_objective[config.scheduler_options["to_monitor"]]['eval' if config.maximize else 'loss'])
 
     for repeat in range(lr_decay_steps):
         patience_counter = -1
@@ -132,7 +132,7 @@ def early_stopping(
             # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
             if scheduler is not None:
                 if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):   # only works sofar with one task but not with MTL
-                    scheduler.step(list(current_objective.values())[0]['eval' if config.maximize else 'loss'])
+                    scheduler.step(current_objective[config.scheduler_options["to_monitor"]]['eval' if config.maximize else 'loss'])
                 elif config.scheduler == "manual":
                     scheduler.step()
 
@@ -192,20 +192,25 @@ class MTL_Cycler:
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
         self.ratio = ratio   # number of neural batches vs. one batch from TIN
         self.num_batches = int(len(self.main_loader) * (ratio + 1))
+        self.backward = False
 
     def generate_batch(self, main_cycle, other_cycles_dict):
-        if self.ratio >= 1:
-            for i in range(len(self.main_loader)):
-                yield self.main_key, main_cycle
-                for _ in range(self.ratio):
+        if self.ratio >= 1 or self.ratio == 0:
+            for main_batch_idx in range(len(self.main_loader)):
+                for batch_idx in range(self.ratio):
                     key, loader = next(other_cycles_dict)
                     yield key, loader
+                self.backward = True
+                yield self.main_key, main_cycle
+                self.backward = False
         else:
             for i in range(len(self.main_loader)):
-                yield self.main_key, main_cycle
                 if (i+1) % (1/self.ratio) == 0:
                     key, loader = next(other_cycles_dict)
                     yield key, loader
+                self.backward = True
+                yield self.main_key, main_cycle
+                self.backward = False
 
     def __iter__(self):
         other_cycles = {k: cycle(v) for k, v in self.other_loaders.items()}
@@ -227,15 +232,20 @@ class LongCycler:
     def __init__(self, loaders):
         self.loaders = loaders
         self.max_batches = max([len(loader) for loader in self.loaders.values()])
+        self.backward = False
 
     def __iter__(self):
         cycles = [cycle(loader) for loader in self.loaders.values()]
-        for k, loader, _ in zip(
+        grad_accum_step = len(self.loaders)
+        for k, loader, batch_idx in zip(
             cycle(self.loaders.keys()),
             (cycle(cycles)),
             range(len(self.loaders) * self.max_batches),
         ):
+            if (batch_idx + 1) % grad_accum_step == 0:
+                self.backward = True
             yield k, next(loader)
+            self.backward = False
 
     def __len__(self):
         return len(self.loaders) * self.max_batches

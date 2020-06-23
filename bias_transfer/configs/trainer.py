@@ -41,9 +41,6 @@ class TrainerConfig(BaseConfig):
         self.maximize = kwargs.pop(
             "maximize", True
         )  # if stop_function maximized or minimized
-        self.loss_accum_batch_n = kwargs.pop(
-            "loss_accum_batch_n", None
-        )  # for gradient accumulation how often to call opt.step
 
         self.mtl = kwargs.pop(
             "mtl", False
