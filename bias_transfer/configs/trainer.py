@@ -46,6 +46,10 @@ class TrainerConfig(BaseConfig):
             "mtl", False
         )
 
+        self.to_monitor = kwargs.pop(
+            "to_monitor", ["img_classification"]
+        )
+
         self.interval = kwargs.pop(
             "interval", 1
         )  # interval at which objective evaluated for early stopping

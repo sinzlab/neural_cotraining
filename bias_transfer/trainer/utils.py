@@ -132,14 +132,14 @@ def early_stopping(
             # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
             if scheduler is not None:
                 if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):   # only works sofar with one task but not with MTL
-                    scheduler.step(current_objective[config.scheduler_options["to_monitor"][0]]['eval' if config.maximize else 'loss'])
+                    scheduler.step(current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'])
                 elif config.scheduler == "manual":
                     scheduler.step()
 
             def test_current_obj(obj, best_obj):
                 obj_key = 'eval' if config.maximize else 'loss'
                 result = [ obj[task][obj_key] * maximize < best_obj[task][obj_key] * maximize - tolerance for task in obj.keys()
-                           if task in config.scheduler_options["to_monitor"] ]
+                           if task in config.to_monitor ]
                 return np.array(result)
 
             if (test_current_obj(current_objective, best_objective)).all():
