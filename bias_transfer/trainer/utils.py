@@ -106,7 +106,7 @@ def early_stopping(
 
     if scheduler is not None:
         if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
-            scheduler.step(current_objective[config.scheduler_options["to_monitor"][0]]['eval' if config.maximize else 'loss'])
+            scheduler.step(current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'])
 
     for repeat in range(lr_decay_steps):
         patience_counter = -1
