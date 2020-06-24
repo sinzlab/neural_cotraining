@@ -233,9 +233,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
         #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
 
-        for param_group in optimizer.param_groups:
-            print(param_group['lr'])
-
         train_results, train_module_loss = main_loop(
             model=model,
             criterion=criterion,
