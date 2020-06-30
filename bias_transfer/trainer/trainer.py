@@ -25,7 +25,7 @@ from mlutils.training import MultipleObjectiveTracker #, early_stopping
 from .utils import early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
-from .utils import save_best_model, XEntropyLossWrapper, NBLossWrapper
+from .utils import XEntropyLossWrapper, NBLossWrapper
 from bias_transfer.trainer import utils as uts
 
 
@@ -33,7 +33,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     config = TrainerConfig.from_dict(kwargs)
     uid = nnf.utility.dj_helpers.make_hash(uid)
     device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
-    best_epoch = 0
     torch.manual_seed(seed)
     np.random.seed(seed)
 
@@ -57,7 +56,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     val_keys = list(dataloaders["validation"].keys())
 
-    best_eval = {k: {"eval": -100000, "loss": 100000} for k in val_keys}
     # Main-loop modules:
     main_loop_modules = [
         globals().get(k)(model, config, device, train_loader, seed)
@@ -167,7 +165,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     path = "./checkpoint/ckpt.{}.pth".format(uid)
     if os.path.isfile(path):
         model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
-        best_epoch = start_epoch
     elif config.transfer_from_path:
         dataloaders["train"] = transfer_model(
             model,
@@ -193,6 +190,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     train_stats = []
     epoch_iterator = early_stopping(
         model,
+        uid,
         stop_closure,
         config,
         interval=config.interval,
@@ -219,10 +217,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 print(key, tracker.log[key][-1], flush=True)
 
         if epoch > 1:
-            best_epoch, best_eval = save_best_model(
-                model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid
-            )
-
             train_stats.append(
                 {
                     "train_results": train_results,
@@ -249,12 +243,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         )
 
 
-    dev_eval = StopClosureWrapper(stop_closure)(model)
-    if epoch > 0:
-        best_epoch, best_eval = save_best_model(
-            model, optimizer, dev_eval, epoch + 1, best_eval, best_epoch, uid
-        )
 
+    dev_eval = StopClosureWrapper(stop_closure)(model)
     train_stats.append(
         {
             "train_results": train_results,
@@ -264,7 +254,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     )
 
     if not config.lottery_ticket and epoch > 0:
-        model, _, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
+        model, best_eval, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
     else:
         for module in main_loop_modules:
             module.pre_epoch(model, True, epoch + 1, optimizer=optimizer)
@@ -319,7 +309,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     final_results = {
         "test_results": test_results_dict,
         "dev_eval": best_eval,
-        "epoch": best_epoch,
+        "epoch": epoch,
         "dev_final_results": dev_final_results_dict,
     }
 

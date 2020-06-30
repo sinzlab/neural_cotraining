@@ -52,6 +52,7 @@ def map_to_task_dict(task_dict, fn):
 
 def early_stopping(
         model,
+        uid,
         objective_closure,
         config,
         interval=5,
@@ -83,7 +84,7 @@ def early_stopping(
             model.load_state_dict(best_state_dict)
             print("Restoring best model after lr decay! {} ---> {}".format(old_objective, best_objective), flush=True)
 
-    def finalize(model, best_state_dict, old_objective, best_objective):
+    def finalize(model, best_state_dict, old_objective, best_objective, best_epoch):
         if restore_best:
             model.load_state_dict(best_state_dict)
             print(
@@ -97,12 +98,21 @@ def early_stopping(
                     best_objective
                 )
             )
+        save_checkpoint(
+            model,
+            config.optimizer,
+            best_objective,
+            best_epoch,
+            "./checkpoint",
+            "ckpt.{}.pth".format(uid),
+        )
 
     epoch = start
     # turn into a sign
     maximize = -1 if maximize else 1
     best_objective = current_objective = _objective()
     best_state_dict = copy_state(model)
+    best_epoch = 0
 
     if scheduler is not None:
         if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
@@ -149,6 +159,7 @@ def early_stopping(
                 )
                 best_state_dict = copy_state(model)
                 best_objective = current_objective
+                best_epoch = epoch
                 patience_counter = -1
             else:
                 patience_counter += 1
@@ -157,33 +168,22 @@ def early_stopping(
                     flush=True,
                 )
 
+            if epoch % 10 == 0:
+                save_checkpoint(
+                    model,
+                    config.optimizer,
+                    best_objective,
+                    best_epoch,
+                    "./checkpoint",
+                    "ckpt.{}.pth".format(uid),
+                )
+
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
             if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
             decay_lr(model, best_state_dict, current_objective, best_objective)
 
-    finalize(model, best_state_dict, current_objective, best_objective)
-
-
-def save_best_model(model, optimizer, dev_eval, epoch, best_eval, best_epoch, uid):
-
-    def test_current_obj(obj, best_obj):
-        obj_key = 'eval' #if config.maximize else 'loss'
-        result = [obj[task][obj_key] > best_obj[task][obj_key] for task in obj.keys()]
-        return np.array(result)
-
-    if (test_current_obj(dev_eval, best_eval)).all():
-        save_checkpoint(
-            model,
-            optimizer,
-            dev_eval,
-            epoch - 1,
-            "./checkpoint",
-            "ckpt.{}.pth".format(uid),
-        )
-        best_eval = dev_eval
-        best_epoch = epoch - 1
-    return best_epoch, best_eval
+    finalize(model, best_state_dict, current_objective, best_objective, best_epoch)
 
 
 class MTL_Cycler:
