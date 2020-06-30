@@ -84,7 +84,7 @@ def early_stopping(
             model.load_state_dict(best_state_dict)
             print("Restoring best model after lr decay! {} ---> {}".format(old_objective, best_objective), flush=True)
 
-    def finalize(model, best_state_dict, old_objective, best_objective, best_epoch):
+    def finalize(model, best_state_dict, old_objective, best_objective):
         if restore_best:
             model.load_state_dict(best_state_dict)
             print(
@@ -98,14 +98,7 @@ def early_stopping(
                     best_objective
                 )
             )
-        save_checkpoint(
-            model,
-            config.optimizer,
-            best_objective,
-            best_epoch,
-            "./checkpoint",
-            "ckpt.{}.pth".format(uid),
-        )
+
 
     epoch = start
     # turn into a sign
@@ -159,7 +152,6 @@ def early_stopping(
                 )
                 best_state_dict = copy_state(model)
                 best_objective = current_objective
-                best_epoch = epoch
                 patience_counter = -1
             else:
                 patience_counter += 1
@@ -168,22 +160,14 @@ def early_stopping(
                     flush=True,
                 )
 
-            if epoch % 10 == 0:
-                save_checkpoint(
-                    model,
-                    config.optimizer,
-                    best_objective,
-                    best_epoch,
-                    "./checkpoint",
-                    "ckpt.{}.pth".format(uid),
-                )
+
 
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
             if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
             decay_lr(model, best_state_dict, current_objective, best_objective)
 
-    finalize(model, best_state_dict, current_objective, best_objective, best_epoch)
+    finalize(model, best_state_dict, current_objective, best_objective)
 
 
 class MTL_Cycler:

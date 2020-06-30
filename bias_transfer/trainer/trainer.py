@@ -164,7 +164,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     start_epoch = config.epoch
     path = "./checkpoint/ckpt.{}.pth".format(uid)
     if os.path.isfile(path):
-        model, best_eval, start_epoch = load_checkpoint(path, model, optimizer)
+        model, _, start_epoch = load_checkpoint(path, model, optimizer)
     elif config.transfer_from_path:
         dataloaders["train"] = transfer_model(
             model,
@@ -206,7 +206,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     )
 
     # train over epochs
-    train_results, train_module_loss, epoch = 0, 0, 0
+    train_results, train_module_loss, epoch = 0, 0, start_epoch
     for epoch, dev_eval in epoch_iterator:
         if cb:
             cb()
@@ -253,9 +253,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         }
     )
 
-    if not config.lottery_ticket and epoch > 0:
-        model, best_eval, epoch = load_checkpoint("./checkpoint/ckpt.{}.pth".format(uid), model)
-    else:
+    if config.lottery_ticket or epoch == 0:
         for module in main_loop_modules:
             module.pre_epoch(model, True, epoch + 1, optimizer=optimizer)
 
@@ -308,8 +306,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     final_results = {
         "test_results": test_results_dict,
-        "dev_eval": best_eval,
-        "epoch": epoch,
         "dev_final_results": dev_final_results_dict,
     }
 
