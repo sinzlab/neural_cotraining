@@ -105,7 +105,6 @@ def early_stopping(
     maximize = -1 if maximize else 1
     best_objective = current_objective = _objective()
     best_state_dict = copy_state(model)
-    best_epoch = 0
 
     if scheduler is not None:
         if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
@@ -160,6 +159,8 @@ def early_stopping(
                     flush=True,
                 )
 
+            if (config.scheduler == "manual") and (epoch in config.scheduler_options['milestones']):
+                decay_lr(model, best_state_dict, current_objective, best_objective)
 
 
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
