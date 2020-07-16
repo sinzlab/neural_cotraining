@@ -29,6 +29,7 @@ class TrainerConfig(BaseConfig):
         self.loss_functions = kwargs.pop(
             "loss_functions", {"img_classification": "CrossEntropyLoss"}
         )
+        self.loss_sum = kwargs.pop("loss_sum", False)
         self.loss_weighing = kwargs.pop("loss_weighing", False)
         if (
             len(self.loss_functions) > 1

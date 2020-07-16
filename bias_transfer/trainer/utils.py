@@ -250,9 +250,10 @@ class XEntropyLossWrapper(nn.Module):
 
 
 class NBLossWrapper(nn.Module):
-    def __init__(self):
+    def __init__(self, loss_sum):
         super(NBLossWrapper, self).__init__()
         self.log_w = nn.Parameter(torch.zeros(1)) #r: number of successes
+        self.loss_sum = loss_sum
 
     def forward(self, preds, targets):
         r = torch.exp(self.log_w)
@@ -265,4 +266,4 @@ class NBLossWrapper(nn.Module):
             + torch.lgamma(targets + 1)
             + 1e-5
         )
-        return loss.mean()
+        return loss.sum() if self.loss_sum else loss.mean()

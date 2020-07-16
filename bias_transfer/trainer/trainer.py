@@ -66,7 +66,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     for k in val_keys:
         if k != "img_classification":
             if config.loss_weighing:
-                criterion[k] = NBLossWrapper().to(device)
+                criterion[k] = NBLossWrapper(config.loss_sum).to(device)
             else:
                 criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
                     avg=config.avg_loss
@@ -89,7 +89,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         else:
             if config.loss_weighing:
                 criterion[k] = XEntropyLossWrapper(
-                    getattr(nn, config.loss_functions[k])()
+                    getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
                 ).to(device)
             else:
                 criterion[k] = getattr(nn, config.loss_functions[k])()
