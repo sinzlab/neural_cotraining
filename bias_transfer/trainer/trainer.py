@@ -260,49 +260,48 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     # test the final model with noise on the dev-set
     # test the final model on the test set
-    dev_final_results = test_results = {}
     test_results_dict, dev_final_results_dict = {}, {}
     for k in val_keys:
         if k != "img_classification":
-            # dev_final_results = test_neural_model(
-            #     model,
-            #     data_loader=dataloaders["validation"],
-            #     device=device,
-            #     epoch=epoch,
-            #     eval_type="Validation",
-            # )
-            # test_results = test_neural_model(
-            #     model,
-            #     data_loader=dataloaders["test"],
-            #     device=device,
-            #     epoch=epoch,
-            #     eval_type="Test",
-            # )
+            dev_final_results = test_neural_model(
+                model,
+                data_loader=dataloaders["validation"],
+                device=device,
+                epoch=epoch,
+                eval_type="Validation",
+            )
+            test_results = test_neural_model(
+                model,
+                data_loader=dataloaders["test"],
+                device=device,
+                epoch=epoch,
+                eval_type="Test",
+            )
             dev_final_results_dict.update(dev_final_results)
             test_results_dict.update(test_results)
         else:
-            # dev_final_results = test_model(
-            #     model=model,
-            #     epoch=epoch,
-            #     criterion=get_subdict(criterion, [k]),
-            #     device=device,
-            #     data_loader=dataloaders["validation"],
-            #     config=config,
-            #     noise_test=True,
-            #     seed=seed,
-            # )
+            dev_final_results = test_model(
+                model=model,
+                epoch=epoch,
+                criterion=get_subdict(criterion, [k]),
+                device=device,
+                data_loader=dataloaders["validation"],
+                config=config,
+                noise_test=True,
+                seed=seed,
+            )
             #
-            # test_results = test_model(
-            #     model=model,
-            #     epoch=epoch,
-            #     criterion=get_subdict(criterion, [k]),
-            #     device=device,
-            #     data_loader=dataloaders["test"],
-            #     config=config,
-            #     noise_test=False,
-            #     seed=seed,
-            #     eval_type="Test",
-            # )
+            test_results = test_model(
+                model=model,
+                epoch=epoch,
+                criterion=get_subdict(criterion, [k]),
+                device=device,
+                data_loader=dataloaders["test"],
+                config=config,
+                noise_test=False,
+                seed=seed,
+                eval_type="Test",
+            )
             test_results_dict.update(test_results)
             dev_final_results_dict.update(dev_final_results)
 
