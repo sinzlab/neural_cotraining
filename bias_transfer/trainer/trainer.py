@@ -44,17 +44,18 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    if config.mtl and ("neural" not in config.loss_functions.keys()):
-        dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
-        dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
-        dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
+    # if config.mtl and ("neural" not in config.loss_functions.keys()):
+    #     dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
+    #     dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
+    #     dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
 
     cycler_args = dict(config.train_cycler_args)
     if cycler_args:
         cycler_args['ratio'] = cycler_args['ratio'][1]
     train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **cycler_args)
 
-    val_keys = list(dataloaders["validation"].keys())
+    #val_keys = list(dataloaders["validation"].keys())
+    val_keys = list(config.loss_functions.keys())
 
     # Main-loop modules:
     main_loop_modules = [
@@ -74,14 +75,14 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             stop_closure[k] = {}
             stop_closure[k]['eval'] = partial(
                 getattr(measures, "get_correlations"),
-                dataloaders=dataloaders["validation"][k],
+                dataloaders=dataloaders["validation"],
                 device=device,
                 per_neuron=False,
                 avg=True,
             )
             stop_closure[k]['loss'] = partial(
                 get_poisson_loss,
-                dataloaders=dataloaders["validation"][k],
+                dataloaders=dataloaders["validation"],
                 device=device,
                 per_neuron=False,
                 avg=False,
@@ -97,7 +98,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 main_loop,
                 criterion=get_subdict(criterion, [k]),
                 device=device,
-                data_loader=get_subdict(dataloaders["validation"], [k]),
+                data_loader=dataloaders["validation"],
                 modules=main_loop_modules,
                 train_mode=False,
                 return_outputs=False,
@@ -259,48 +260,49 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     # test the final model with noise on the dev-set
     # test the final model on the test set
+    dev_final_results = test_results = {}
     test_results_dict, dev_final_results_dict = {}, {}
     for k in val_keys:
         if k != "img_classification":
-            dev_final_results = test_neural_model(
-                model,
-                data_loader=dataloaders["validation"][k],
-                device=device,
-                epoch=epoch,
-                eval_type="Validation",
-            )
-            test_results = test_neural_model(
-                model,
-                data_loader=dataloaders["test"][k],
-                device=device,
-                epoch=epoch,
-                eval_type="Test",
-            )
+            # dev_final_results = test_neural_model(
+            #     model,
+            #     data_loader=dataloaders["validation"],
+            #     device=device,
+            #     epoch=epoch,
+            #     eval_type="Validation",
+            # )
+            # test_results = test_neural_model(
+            #     model,
+            #     data_loader=dataloaders["test"],
+            #     device=device,
+            #     epoch=epoch,
+            #     eval_type="Test",
+            # )
             dev_final_results_dict.update(dev_final_results)
             test_results_dict.update(test_results)
         else:
-            dev_final_results = test_model(
-                model=model,
-                epoch=epoch,
-                criterion=get_subdict(criterion, [k]),
-                device=device,
-                data_loader=get_subdict(dataloaders["validation"], [k]),
-                config=config,
-                noise_test=True,
-                seed=seed,
-            )
-
-            test_results = test_model(
-                model=model,
-                epoch=epoch,
-                criterion=get_subdict(criterion, [k]),
-                device=device,
-                data_loader=get_subdict(dataloaders["test"], [k]),
-                config=config,
-                noise_test=False,
-                seed=seed,
-                eval_type="Test",
-            )
+            # dev_final_results = test_model(
+            #     model=model,
+            #     epoch=epoch,
+            #     criterion=get_subdict(criterion, [k]),
+            #     device=device,
+            #     data_loader=dataloaders["validation"],
+            #     config=config,
+            #     noise_test=True,
+            #     seed=seed,
+            # )
+            #
+            # test_results = test_model(
+            #     model=model,
+            #     epoch=epoch,
+            #     criterion=get_subdict(criterion, [k]),
+            #     device=device,
+            #     data_loader=dataloaders["test"],
+            #     config=config,
+            #     noise_test=False,
+            #     seed=seed,
+            #     eval_type="Test",
+            # )
             test_results_dict.update(test_results)
             dev_final_results_dict.update(dev_final_results)
 
@@ -319,7 +321,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     epoch=epoch,
                     criterion=get_subdict(criterion, ["img_classification"]),
                     device=device,
-                    data_loader={"img_classification": dataloader},
+                    data_loader={"999": dataloader},
                     config=config,
                     noise_test=False,
                     seed=seed,
@@ -328,19 +330,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 test_c_results[c_category][c_level] = results
         final_results["test_c_results"] = test_c_results
 
-    if "st_test" in dataloaders:
-        test_st_results = test_model(
-            model=model,
-            epoch=epoch,
-            criterion=get_subdict(criterion, ["img_classification"]),
-            device=device,
-            data_loader={"img_classification": dataloaders['st_test']},
-            config=config,
-            noise_test=False,
-            seed=seed,
-            eval_type="Test-ST",
-        )
-        final_results["test_st_results"] = test_st_results
     return (
         test_results_dict[list(config.loss_functions.keys())[0]]["eval"],
         (train_stats, final_results),

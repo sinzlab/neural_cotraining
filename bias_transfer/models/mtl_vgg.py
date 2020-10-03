@@ -135,7 +135,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
                 *list(vgg.features.children())[v1_model_layer:]
             )
 
-    def forward(self, x, classification=False):
+    def forward(self, x, classification=True):
         if (classification and self.classification_input_channels == 1) or (
             not classification and self.neural_input_channels == 1
         ):
@@ -196,19 +196,10 @@ class MTL_VGG(nn.Module):
         self.classification_input_channels = classification_input_channels
 
         # for neural dataloaders
-        if classification:
-            neural_train_dataloaders = {
-                k: loader
-                for k, loader in dataloaders["train"].items()
-                if k != "img_classification"
-            }
-        elif "train" in dataloaders.keys():
-            neural_train_dataloaders = dataloaders["train"]
-        else:
-            neural_train_dataloaders = dataloaders
+        neural_train_dataloaders = dataloaders["train"]
 
         session_shape_dict = get_dims_for_loader_dict(neural_train_dataloaders)
-        in_name, out_name = next(
+        in_name, _, out_name = next(
             iter(list(neural_train_dataloaders.values())[0])
         )._fields
         self.neural_input_channels = [
@@ -246,7 +237,7 @@ class MTL_VGG(nn.Module):
         )
         if v1_readout_bias:
             for key, value in neural_train_dataloaders.items():
-                _, targets = next(iter(value))
+                _, _, targets = next(iter(value))
                 self.v1_readout[key].bias.data = targets.mean(0)
 
         if classification:
@@ -261,16 +252,16 @@ class MTL_VGG(nn.Module):
             )
             self._initialize_weights_classification_readout()
 
-    def forward(self, x, data_key=None, classification=False):
-        shared_core_out, core_out = self.mtl_vgg_core(x, classification)
-        if classification:
-            if self.classification_readout_type == "dense":
-                core_out = core_out.view(core_out.size(0), -1)
-            classification_out = self.classification_readout(core_out)
-            return classification_out
+    def forward(self, x, data_key=None, classification=True):
+        shared_core_out, core_out = self.mtl_vgg_core(x, classification=True)
+        #if classification:
+        if self.classification_readout_type == "dense":
+            core_out = core_out.view(core_out.size(0), -1)
+        classification_out = self.classification_readout(core_out)
+            #return classification_out
         v1_out = self.v1_readout(shared_core_out, data_key=data_key)
         v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
-        return v1_out
+        return classification_out, v1_out
 
     def regularizer(self, data_key=None):
         return self.v1_readout.regularizer(data_key=data_key)

@@ -114,6 +114,27 @@ class NeuralDatasetConfig(DatasetConfig):
         self.update(**kwargs)
 
 
+class SharedDatasetConfig(DatasetConfig):
+    config_name = "dataset"
+    table = Dataset()
+    fn = "bias_transfer.dataset.shared_dataset_loader"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.train_frac = kwargs.pop("train_frac", 0.8)
+        self.dataset = kwargs.pop("dataset", "tin_labels_responses")
+        self.data_dir = "./data/monkey/toliaslab/{}".format(self.dataset)
+        self.seed = kwargs.pop("seed", 1000)
+        self.subsample = kwargs.pop("subsample", 1)
+        self.scale = kwargs.pop("scale", 1.0)
+        self.crop = kwargs.pop("crop", 0)
+        self.time_bins_sum = kwargs.pop("time_bins_sum", 12)
+        self.img_dataset_dict = kwargs.pop("img_dataset_dict", {"comment": "", "dataset_cls":"TinyImageNet",
+                                                                         "add_stylized_test":False, "add_corrupted_test":True})
+        self.img_dataset_config = ImageDatasetConfig(**self.img_dataset_dict).to_dict()
+        self.update(**kwargs)
+
+
 class MTLDatasetsConfig(DatasetConfig):
     config_name = "dataset"
     table = Dataset()
