@@ -9,16 +9,16 @@ class NoiseAugmentation(MainLoopModule):
     def __init__(self, model, config, device, data_loader, seed):
         super().__init__(model, config, device, data_loader, seed)
         self.rnd_gen = None
-        #if isinstance(data_loader, dict):
-        train_loader = data_loader["999"]
-        # else:
-        #     train_loader = data_loader.loaders["img_classification"]
-        #transform_list = train_loader.dataset.transforms.transform.transforms
+        if isinstance(data_loader, dict):
+            train_loader = data_loader["img_classification"]
+        else:
+            train_loader = data_loader.loaders["img_classification"]
+        transform_list = train_loader.dataset.transforms.transform.transforms
         # go through StandardTransform and Compose to get to  the actual transforms
         normalization = None
-        #for trans in transform_list:
-        #    if isinstance(trans, transforms.Normalize):
-        #        normalization = trans
+        for trans in transform_list:
+            if isinstance(trans, transforms.Normalize):
+                normalization = trans
         if normalization:
             # image = (image - mean) / std
             # => noisy_image = (image + noise - mean) / std
