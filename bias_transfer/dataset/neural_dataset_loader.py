@@ -14,7 +14,7 @@ def neural_dataset_loader(seed, **config):
     config["neuronal_data_files"] = [
         neuronal_data_path + f
         for f in listdir(neuronal_data_path)
-        if isfile(join(neuronal_data_path, f))
+        if (isfile(join(neuronal_data_path, f)) and f != "CSRF19_V4_3653663964522.pickle")
     ]
     config["image_cache_path"] = os.path.join(data_dir, "images/individual")
     torch.manual_seed(seed)
