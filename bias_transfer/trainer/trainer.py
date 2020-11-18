@@ -246,7 +246,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss,
-            freeze_bn={'last_layer': 17, 'mtl': False}   #config.freeze_bn
+            freeze_bn=config.freeze_bn
         )
 
 

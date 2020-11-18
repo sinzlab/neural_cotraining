@@ -100,7 +100,7 @@ class TrainerConfig(BaseConfig):
         self.representation_matching = kwargs.pop("representation_matching", None)
         # transfer
         self.freeze = kwargs.pop("freeze", None)
-        #self.freeze_bn = kwargs.pop("freeze_bn", {'last_layer': -1})
+        self.freeze_bn = kwargs.pop("freeze_bn", {'last_layer': -1})
         self.readout_name = kwargs.pop("readout_name", "fc")
         self.reset_linear = kwargs.pop("reset_linear", False)
         self.reset_linear_frequency = kwargs.pop("reset_linear_frequency", None)
