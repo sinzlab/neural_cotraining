@@ -267,3 +267,13 @@ class NBLossWrapper(nn.Module):
             + 1e-5
         )
         return loss.sum() if self.loss_sum else loss.mean()
+
+def set_bn_to_eval(model, freeze_bn):
+    if not freeze_bn['mtl']:
+        for name, param in model.features.named_children():
+            if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                param.train(False)
+    else:
+        for name, param in model.mtl_vgg_core.shared_block.named_children():
+            if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                param.train(False)

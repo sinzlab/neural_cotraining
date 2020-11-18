@@ -107,7 +107,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 optimizer=None,
                 loss_weighing=config.loss_weighing,
                 cycler_args={},
-                cycler="LongCycler"
+                cycler="LongCycler",
+                freeze_bn={'last_layer': -1}
             )
 
     if config.track_training:
@@ -226,6 +227,11 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )
 
         #print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
+        # for name, param in model.named_parameters():
+        #     print(name, param.requires_grad)
+        # for name, param in model.mtl_vgg_core.shared_block.named_children():
+        #     if "BatchNorm" in param.__class__.__name__:
+        #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
 
         train_results, train_module_loss = main_loop(
             model=model,
@@ -239,7 +245,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             cycler=config.train_cycler,
             cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,
-            scale_loss=config.scale_loss
+            scale_loss=config.scale_loss,
+            freeze_bn={'last_layer': 17, 'mtl': False}   #config.freeze_bn
         )
 
 

@@ -4,7 +4,8 @@ import numpy as np
 
 from bias_transfer.trainer import utils as uts
 from nnvision.utility.measures import get_correlations
-
+from functools import partial
+from .utils import set_bn_to_eval
 
 def neural_full_objective(
     model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets
@@ -57,8 +58,11 @@ def main_loop(
     cycler="LongCycler",
     cycler_args={},
     loss_weighing=False,
+    freeze_bn={'last_layer': -1}
 ):
     model.train() if train_mode else model.eval()
+    if train_mode and freeze_bn['last_layer'] > 0:
+        set_bn_to_eval(model, freeze_bn)
     task_dict = {}
     correct = 0
     if loss_weighing:
@@ -68,11 +72,13 @@ def main_loop(
     module_losses = {}
     collected_outputs = []
     for k in criterion:
-        task_dict[k] = {"epoch_loss": 0, "eval": 0}
+        task_dict[k] = {"epoch_loss": 0}
+        if k!= 'neural':
+            task_dict[k]['eval'] = 0
+            total[k] = 0
         if loss_weighing:
             task_dict[k]['loss_weight'] = 0
             total_loss_weight[k] = 0
-        total[k] = 0
         total_loss[k] = 0
     for module in modules:
         if module.criterion:  # some modules may compute an additonal output/loss
@@ -145,14 +151,6 @@ def main_loop(
                         inputs,
                         targets,
                     )
-                    total["neural"] += get_correlations(
-                        model,
-                        batch_dict,
-                        device=device,
-                        as_dict=False,
-                        per_neuron=False,
-                    )
-                    task_dict["neural"]["eval"] = average_loss(total["neural"])
                     total_loss["neural"] += loss.item()
                     task_dict["neural"]["epoch_loss"] = average_loss(
                         total_loss["neural"]
