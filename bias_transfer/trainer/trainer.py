@@ -266,9 +266,18 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     # test the final model with noise on the dev-set
     # test the final model on the test set
-    test_results_dict, dev_final_results_dict = {}, {}
+    train_final_results_dict, test_results_dict, dev_final_results_dict = {}, {}, {}
     for k in val_keys:
         if k != "img_classification":
+            train_final_results = test_neural_model(
+                model,
+                data_loader=get_subdict(dataloaders["train"], [ sess_key for sess_key in list(dataloaders["train"].keys())
+                                                                if sess_key != "img_classification"]),
+                device=device,
+                epoch=epoch,
+                eval_type="Train",
+            )
+
             dev_final_results = test_neural_model(
                 model,
                 data_loader=dataloaders["validation"][k],
@@ -285,7 +294,20 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )
             dev_final_results_dict.update(dev_final_results)
             test_results_dict.update(test_results)
+            train_final_results_dict.update(train_final_results)
         else:
+            train_final_results = test_model(
+                model=model,
+                epoch=epoch,
+                criterion=get_subdict(criterion, [k]),
+                device=device,
+                data_loader=get_subdict(dataloaders["train"], [k]),
+                config=config,
+                noise_test=False,
+                seed=seed,
+                eval_type="Train",
+            )
+
             dev_final_results = test_model(
                 model=model,
                 epoch=epoch,
@@ -310,8 +332,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )
             test_results_dict.update(test_results)
             dev_final_results_dict.update(dev_final_results)
+            train_final_results_dict.update(train_final_results)
 
     final_results = {
+        "train_final_results": train_final_results_dict,
         "test_results": test_results_dict,
         "dev_final_results": dev_final_results_dict,
     }
