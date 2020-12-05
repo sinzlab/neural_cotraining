@@ -136,9 +136,10 @@ class MTL_VGG_Core(Core2d, nn.Module):
             )
 
     def forward(self, x, classification=False):
-        if (classification and self.classification_input_channels == 1) or (
-            not classification and self.neural_input_channels == 1
-        ):
+        #if (classification and self.classification_input_channels == 1) or (
+        #    not classification and self.neural_input_channels == 1
+        #):
+        if x.shape[1] == 1:
             x = x.expand(-1, 3, -1, -1)
         v1_core_out = shared_core_out = self.shared_block(x)
         if self.v1_final_batchnorm:

@@ -359,6 +359,25 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 test_c_results[c_category][c_level] = results
         final_results["test_c_results"] = test_c_results
 
+    if "fly_c_test" in dataloaders:
+        fly_test_c_results = {}
+        for fly_noise_type in list(dataloaders["fly_c_test"].keys()):
+            fly_test_c_results[fly_noise_type] = {}
+            for level, dataloader in dataloaders["fly_c_test"][fly_noise_type].items():
+                results = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, ["img_classification"]),
+                    device=device,
+                    data_loader={"img_classification": dataloader},
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Fly-Test-C",
+                )
+                fly_test_c_results[fly_noise_type][level] = results
+        final_results["fly_test_c_results"] = fly_test_c_results
+
     if "st_test" in dataloaders:
         test_st_results = test_model(
             model=model,

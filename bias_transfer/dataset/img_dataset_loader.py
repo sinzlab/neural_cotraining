@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from imagecorruptions import corrupt
+from imagecorruptions.corruptions import *
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import datasets
 from bias_transfer.configs.dataset import ImageDatasetConfig
@@ -10,6 +12,7 @@ from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
 from bias_transfer.dataset.npy_dataset import NpyDataset
 from bias_transfer.trainer.main_loop_modules import NoiseAugmentation
 from .dataset_filters import *
+
 
 DATASET_URLS = {
     "TinyImageNet": "http://cs231n.stanford.edu/tiny-imagenet-200.zip",
@@ -191,6 +194,45 @@ def img_dataset_loader(seed, **config):
 
         test_dataset = datasets.ImageFolder(val_dir, transform=transform_test)
 
+        if config.add_fly_corrupted_test:
+            fly_test_datasets = {}
+            for fly_noise_type, levels in config.add_fly_corrupted_test.items():
+                fly_test_datasets[fly_noise_type] = {}
+                for level in levels:
+
+                    class Noise(object):
+                        def __init__(self, noise_type, severity, grayscale):
+                            self.noise_type = noise_type
+                            self.grayscale = grayscale
+                            self.severity = severity
+
+                        def __call__(self, pic):
+                            pic = np.asarray(pic)
+                            if self.grayscale:
+                                if self.noise_type in ['gaussian_noise', 'shot_noise', 'impulse_noise', 'defocus_blur',
+                                                       'zoom_blur', 'fog', 'frost',
+                                                       'snow', 'contrast', 'brightness', 'elastic_transform', ]:
+                                    img = np.uint8(eval(self.noise_type)(pic, self.severity))
+                                elif self.noise_type in ['glass_blur', 'motion_blur', 'pixelate', 'jpeg_compression']:
+                                    img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)[:, :, 0]
+                            else:
+                                img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
+                            return img
+
+                    transform_fly_test = [
+                        transforms.Grayscale() if config.apply_grayscale else None,
+                        Noise(fly_noise_type, level, config.apply_grayscale),
+                        transforms.ToTensor(),
+                        transforms.Normalize(config.train_data_mean, config.train_data_std)
+                        if config.apply_normalization
+                        else None,
+                    ]
+                    transform_fly_test = transforms.Compose(
+                        list(filter(lambda x: x is not None, transform_fly_test))
+                    )
+                    fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
+                                                                                    transform=transform_fly_test)
+
     if config.add_stylized_test:
         st_dataset_dir = get_dataset(
             DATASET_URLS[config.dataset_cls + "-ST"],
@@ -316,4 +358,18 @@ def img_dataset_loader(seed, **config):
                     shuffle=False,
                 )
         data_loaders["c_test"] = c_test_loaders
+
+    if config.add_fly_corrupted_test:
+        fly_test_loaders = {}
+        for fly_noise_type in fly_test_datasets.keys():
+            fly_test_loaders[fly_noise_type] = {}
+            for level, dataset in fly_test_datasets[fly_noise_type].items():
+                fly_test_loaders[fly_noise_type][level] = torch.utils.data.DataLoader(
+                    dataset,
+                    batch_size=config.batch_size,
+                    num_workers=config.num_workers,
+                    pin_memory=config.pin_memory,
+                    shuffle=False,
+                )
+        data_loaders["fly_c_test"] = fly_test_loaders
     return data_loaders

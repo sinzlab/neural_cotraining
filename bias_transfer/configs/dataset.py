@@ -79,6 +79,16 @@ class ImageDatasetConfig(DatasetConfig):
         else:
             raise NameError()
         self.add_corrupted_test = kwargs.pop("add_corrupted_test", True)
+        self.add_fly_corrupted_test = kwargs.pop("add_fly_corrupted_test",
+                                                 {'jpeg_compression': [1, 2, 3, 4, 5], 'pixelate': [1, 2, 3, 4, 5],
+                                                  'impulse_noise': [1, 2, 3, 4, 5], 'defocus_blur': [1, 2, 3, 4, 5],
+                                                  'contrast': [1, 2, 3, 4, 5], 'fog': [1, 2, 3, 4, 5],
+                                                  'brightness': [1, 2, 3, 4, 5], 'frost': [1, 2, 3, 4, 5],
+                                                  'glass_blur': [1, 2, 3, 4, 5], 'shot_noise': [1, 2, 3, 4, 5],
+                                                  'motion_blur': [1, 2, 3, 4, 5], 'gaussian_noise': [1, 2, 3, 4, 5],
+                                                  'elastic_transform': [1, 2, 3, 4, 5], 'snow': [1, 2, 3, 4, 5],
+                                                  'zoom_blur': [1, 2, 3, 4, 5]}
+                                                 )
         self.add_stylized_test = kwargs.pop("add_stylized_test", False)
         self.shuffle = kwargs.pop("shuffle", True)
         self.show_sample = kwargs.pop("show_sample", False)

@@ -62,7 +62,8 @@ class VGG(DefaultVGG):
             self._initialize_weights()
 
     def forward(self, x):
-        if self.input_channels == 1:
+        #if self.input_channels == 1:
+        if x.shape[1] == 1:
             x = x.expand(-1, 3, -1, -1)
         x = self.features(x)
         if self.avgpool:
