@@ -219,14 +219,26 @@ def img_dataset_loader(seed, **config):
                                 img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
                             return img
 
-                    transform_fly_test = [
-                        transforms.Grayscale() if config.apply_grayscale else None,
-                        Noise(fly_noise_type, level, config.apply_grayscale),
-                        transforms.ToTensor(),
-                        transforms.Normalize(config.train_data_mean, config.train_data_std)
-                        if config.apply_normalization
-                        else None,
-                    ]
+                    if config.dataset_cls == "ImageNet":
+                        transform_fly_test = [
+                            transforms.Resize(256),
+                            transforms.CenterCrop(224),
+                            transforms.Grayscale() if config.apply_grayscale else None,
+                            Noise(fly_noise_type, level, config.apply_grayscale),
+                            transforms.ToTensor(),
+                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            if config.apply_normalization
+                            else None,
+                        ]
+                    else:
+                        transform_fly_test = [
+                            transforms.Grayscale() if config.apply_grayscale else None,
+                            Noise(fly_noise_type, level, config.apply_grayscale),
+                            transforms.ToTensor(),
+                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            if config.apply_normalization
+                            else None,
+                        ]
                     transform_fly_test = transforms.Compose(
                         list(filter(lambda x: x is not None, transform_fly_test))
                     )
