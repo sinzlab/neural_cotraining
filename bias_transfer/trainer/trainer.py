@@ -269,70 +269,79 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     train_final_results_dict, test_results_dict, dev_final_results_dict = {}, {}, {}
     for k in val_keys:
         if k != "img_classification":
-            train_final_results = test_neural_model(
-                model,
-                data_loader=get_subdict(dataloaders["train"], [ sess_key for sess_key in list(dataloaders["train"].keys())
-                                                                if sess_key != "img_classification"]),
-                device=device,
-                epoch=epoch,
-                eval_type="Train",
-            )
+            if config.add_final_train_eval:
+                train_final_results = test_neural_model(
+                    model,
+                    data_loader=get_subdict(dataloaders["train"], [ sess_key for sess_key in list(dataloaders["train"].keys())
+                                                                    if sess_key != "img_classification"]),
+                    device=device,
+                    epoch=epoch,
+                    eval_type="Train",
+                )
+                train_final_results_dict.update(train_final_results)
 
-            dev_final_results = test_neural_model(
-                model,
-                data_loader=dataloaders["validation"][k],
-                device=device,
-                epoch=epoch,
-                eval_type="Validation",
-            )
-            test_results = test_neural_model(
-                model,
-                data_loader=dataloaders["test"][k],
-                device=device,
-                epoch=epoch,
-                eval_type="Test",
-            )
-            dev_final_results_dict.update(dev_final_results)
-            test_results_dict.update(test_results)
-            train_final_results_dict.update(train_final_results)
+            if config.add_final_val_eval:
+                dev_final_results = test_neural_model(
+                    model,
+                    data_loader=dataloaders["validation"][k],
+                    device=device,
+                    epoch=epoch,
+                    eval_type="Validation",
+                )
+                dev_final_results_dict.update(dev_final_results)
+            if config.add_final_test_eval:
+                test_results = test_neural_model(
+                    model,
+                    data_loader=dataloaders["test"][k],
+                    device=device,
+                    epoch=epoch,
+                    eval_type="Test",
+                )
+                test_results_dict.update(test_results)
+
         else:
-            train_final_results = test_model(
-                model=model,
-                epoch=epoch,
-                criterion=get_subdict(criterion, [k]),
-                device=device,
-                data_loader=get_subdict(dataloaders["train"], [k]),
-                config=config,
-                noise_test=False,
-                seed=seed,
-                eval_type="Train",
-            )
+            if config.add_final_train_eval:
+                train_final_results = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, [k]),
+                    device=device,
+                    data_loader=get_subdict(dataloaders["train"], [k]),
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Train",
+                )
+                train_final_results_dict.update(train_final_results)
 
-            dev_final_results = test_model(
-                model=model,
-                epoch=epoch,
-                criterion=get_subdict(criterion, [k]),
-                device=device,
-                data_loader=get_subdict(dataloaders["validation"], [k]),
-                config=config,
-                noise_test=True,
-                seed=seed,
-            )
+            if config.add_final_val_eval:
+                dev_final_results = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, [k]),
+                    device=device,
+                    data_loader=get_subdict(dataloaders["validation"], [k]),
+                    config=config,
+                    noise_test=True,
+                    seed=seed,
+                )
+                dev_final_results_dict.update(dev_final_results)
 
-            test_results = test_model(
-                model=model,
-                epoch=epoch,
-                criterion=get_subdict(criterion, [k]),
-                device=device,
-                data_loader=get_subdict(dataloaders["test"], [k]),
-                config=config,
-                noise_test=False,
-                seed=seed,
-                eval_type="Test",
-            )
-            test_results_dict.update(test_results)
-            dev_final_results_dict.update(dev_final_results)
-            train_final_results_dict.update(train_final_results)
+            if config.add_final_test_eval:
+                test_results = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, [k]),
+                    device=device,
+                    data_loader=get_subdict(dataloaders["test"], [k]),
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Test",
+                )
+                test_results_dict.update(test_results)
+
+
 
     final_results = {
         "train_final_results": train_final_results_dict,

@@ -65,6 +65,15 @@ class TrainerConfig(BaseConfig):
             "lr_decay_steps", 3
         )  # Number of times the learning rate should be reduced before stopping the training.
 
+        self.add_final_train_eval = kwargs.pop(
+            "add_final_train_eval", True
+        )
+        self.add_final_val_eval = kwargs.pop(
+            "add_final_val_eval", True
+        )
+        self.add_final_test_eval = kwargs.pop(
+            "add_final_test_eval", True
+        )
         self.track_training = kwargs.pop("track_training", False)
         # noise
         self.add_noise = kwargs.pop("add_noise", False)
