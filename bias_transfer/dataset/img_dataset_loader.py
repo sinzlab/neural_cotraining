@@ -106,6 +106,14 @@ def img_dataset_loader(seed, **config):
             if config.apply_normalization
             else None,
         ]
+        transform_test_c = [
+            transforms.CenterCrop(224),
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.ToTensor(),
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
     else:
         transform_train = [
             transforms.RandomCrop(config.input_size, padding=4)
@@ -135,8 +143,13 @@ def img_dataset_loader(seed, **config):
             if config.apply_normalization
             else None,
         ]
+        transform_test_c = transform_test
+
     transform_test = transforms.Compose(
         list(filter(lambda x: x is not None, transform_test))
+    )
+    transform_test_c = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_test_c))
     )
     transform_val = transforms.Compose(
         list(filter(lambda x: x is not None, transform_val))
@@ -293,7 +306,7 @@ def img_dataset_loader(seed, **config):
                             int(c_level)
                         ] = datasets.ImageFolder(
                             os.path.join(dataset_dir, c_category, c_level),
-                            transform=transform_test,
+                            transform= transform_test_c if config.dataset_cls == "ImageNet" else transform_test,
                         )
 
     filters = [globals().get(f)(config, train_dataset) for f in config.filters]
