@@ -70,8 +70,12 @@ class ImageDatasetConfig(DatasetConfig):
             self.num_workers = kwargs.pop("num_workers", 1)
             self.valid_size = kwargs.pop("valid_size", 0.1)
         elif self.dataset_cls == "ImageNet":
-            self.train_data_mean = (0.485, 0.456, 0.406)
-            self.train_data_std = (0.229, 0.224, 0.225)
+            if self.apply_grayscale:
+                self.train_data_mean = (0.4573,)
+                self.train_data_std = (0.2156,)
+            else:
+                self.train_data_mean = (0.485, 0.456, 0.406)
+                self.train_data_std = (0.229, 0.224, 0.225)
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
             self.input_size = 224
             self.num_workers = kwargs.pop("num_workers", 8)
