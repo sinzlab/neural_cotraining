@@ -214,30 +214,22 @@ def img_dataset_loader(seed, **config):
                 for level in levels:
 
                     class Noise(object):
-                        def __init__(self, noise_type, severity, grayscale):
+                        def __init__(self, noise_type, severity):
                             self.noise_type = noise_type
-                            self.grayscale = grayscale
                             self.severity = severity
 
                         def __call__(self, pic):
                             pic = np.asarray(pic)
-                            if self.grayscale:
-                                if self.noise_type in ['gaussian_noise', 'shot_noise', 'impulse_noise', 'defocus_blur',
-                                                       'zoom_blur', 'fog', 'frost',
-                                                       'snow', 'contrast', 'brightness', 'elastic_transform', ]:
-                                    img = np.uint8(eval(self.noise_type)(pic, self.severity))
-                                elif self.noise_type in ['glass_blur', 'motion_blur', 'pixelate', 'jpeg_compression']:
-                                    img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)[:, :, 0]
-                            else:
-                                img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
+                            img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
                             return img
 
                     if config.dataset_cls == "ImageNet":
                         transform_fly_test = [
                             transforms.Resize(256),
                             transforms.CenterCrop(224),
+                            Noise(fly_noise_type, level),
+                            transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
-                            Noise(fly_noise_type, level, config.apply_grayscale),
                             transforms.ToTensor(),
                             transforms.Normalize(config.train_data_mean, config.train_data_std)
                             if config.apply_normalization
@@ -245,8 +237,9 @@ def img_dataset_loader(seed, **config):
                         ]
                     else:
                         transform_fly_test = [
+                            Noise(fly_noise_type, level),
+                            transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
-                            Noise(fly_noise_type, level, config.apply_grayscale),
                             transforms.ToTensor(),
                             transforms.Normalize(config.train_data_mean, config.train_data_std)
                             if config.apply_normalization
