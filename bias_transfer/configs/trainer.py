@@ -80,27 +80,27 @@ class TrainerConfig(BaseConfig):
         self.noise_std = kwargs.pop("noise_std", None)
         self.noise_snr = kwargs.pop("noise_snr", None)
         self.noise_test = kwargs.pop(
-            "noise_test",
-            {
-                "noise_snr": [
-                    {5.0: 1.0},
-                    {4.0: 1.0},
-                    {3.0: 1.0},
-                    {2.0: 1.0},
-                    {1.0: 1.0},
-                    {0.5: 1.0},
-                    {0.0: 1.0},
-                ],
-                "noise_std": [
-                    {0.0: 1.0},
-                    {0.05: 1.0},
-                    {0.1: 1.0},
-                    {0.2: 1.0},
-                    {0.3: 1.0},
-                    {0.5: 1.0},
-                    {1.0: 1.0},
-                ],
-            },
+            "noise_test", {}
+            # {
+            #     "noise_snr": [
+            #         {5.0: 1.0},
+            #         {4.0: 1.0},
+            #         {3.0: 1.0},
+            #         {2.0: 1.0},
+            #         {1.0: 1.0},
+            #         {0.5: 1.0},
+            #         {0.0: 1.0},
+            #     ],
+            #     "noise_std": [
+            #         {0.0: 1.0},
+            #         {0.05: 1.0},
+            #         {0.1: 1.0},
+            #         {0.2: 1.0},
+            #         {0.3: 1.0},
+            #         {0.5: 1.0},
+            #         {1.0: 1.0},
+            #     ],
+            # },
         )
         self.noise_adv_classification = kwargs.pop("noise_adv_classification", False)
         self.noise_adv_regression = kwargs.pop("noise_adv_regression", False)

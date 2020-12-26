@@ -26,7 +26,6 @@ def neural_full_objective(
 def move_data(batch_data, device):
     batch_dict = None
     data_key, inputs = batch_data[0], batch_data[1][0]
-
     if len(batch_data[1]) > 2:
         targets = [b.to(device) for b in batch_data[1][1:]]
     else:
@@ -39,6 +38,8 @@ def move_data(batch_data, device):
         )
         batch_dict = {data_key: [(inputs, targets)]}
         return inputs, targets, data_key, batch_dict
+    if isinstance(inputs, list):
+        inputs = torch.cat(inputs)
     inputs = inputs.to(device, dtype=torch.float)
     return inputs, targets, data_key, batch_dict
 

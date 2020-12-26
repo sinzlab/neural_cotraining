@@ -5,13 +5,14 @@ import torchvision
 import torchvision.transforms as transforms
 from imagecorruptions import corrupt
 from imagecorruptions.corruptions import *
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torchvision import datasets
 from bias_transfer.configs.dataset import ImageDatasetConfig
-from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format
+from bias_transfer.dataset.utils import get_dataset, create_ImageFolder_format, ManyDatasetsInOne
 from bias_transfer.dataset.npy_dataset import NpyDataset
 from bias_transfer.trainer.main_loop_modules import NoiseAugmentation
 from .dataset_filters import *
+from functools import partial
 
 
 DATASET_URLS = {
@@ -56,23 +57,35 @@ def img_dataset_loader(seed, **config):
     - train_loader: training set iterator.
     - valid_loader: validation set iterator.
     """
+    seed = 1000
     config = ImageDatasetConfig.from_dict(config)
     torch.manual_seed(seed)
     np.random.seed(seed)
-    if config.apply_noise:
 
-        def apply_noise(x):
-            if config.apply_noise.get("noise_std"):
-                std = config.apply_noise.get("noise_std")
-                noise_config = {
-                    "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
-                }
-            elif config.apply_noise.get("noise_snr"):
-                snr = config.apply_noise.get("noise_snr")
-                noise_config = {
-                    "snr": {np.random.choice(list(snr.keys()), p=list(snr.values())): 1.0}
-                }
-            return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
+    def apply_noise(x):
+        if config.apply_noise.get("noise_std", False):
+            std = config.apply_noise.get("noise_std")
+            noise_config = {
+                "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+            }
+        elif config.apply_noise.get("noise_snr", False):
+            snr = config.apply_noise.get("noise_snr")
+            noise_config = {
+                "snr": {np.random.choice(list(snr.keys()), p=list(snr.values())): 1.0}
+            }
+        else:
+            std = {0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5}
+            noise_config = {
+                "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+            }
+        return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
+
+    def apply_one_noise(x, std_value=None):
+        noise_config = {
+            "std": {std_value: 1.0}
+        }
+
+        return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
 
     if config.dataset_cls == "ImageNet":
         transform_train = [
@@ -80,28 +93,41 @@ def img_dataset_loader(seed, **config):
             if config.apply_augmentation
             else None,
             transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
-            transforms.Grayscale() if config.apply_grayscale else None,
-            transforms.ToTensor(),
-            apply_noise if config.apply_noise else None,
-            transforms.Normalize(config.train_data_mean, config.train_data_std)
-            if config.apply_normalization
-            else None,
-        ]
-        transform_val = [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
             else None,
         ]
-        transform_test = [
+        if config.apply_noise.get("representation_matching", False):
+            transform_train_clean = [
+                transforms.RandomResizedCrop(config.input_size)
+                if config.apply_augmentation
+                else None,
+                transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+                transforms.ToTensor(),
+                transforms.Grayscale() if config.apply_grayscale else None,
+                transforms.Normalize(config.train_data_mean, config.train_data_std)
+                if config.apply_normalization
+                else None,
+            ]
+        transform_val_in_domain = [
             transforms.Resize(256),
             transforms.CenterCrop(224),
-            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_val_out_domain = [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if not config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
             else None,
@@ -114,6 +140,18 @@ def img_dataset_loader(seed, **config):
             if config.apply_normalization
             else None,
         ]
+        transform_val_gauss_levels = {}
+        for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
+            transform_val_gauss_levels[level] = [
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Lambda(partial(apply_one_noise, std_value=level)),
+                    transforms.Grayscale() if config.apply_grayscale else None,
+                    transforms.Normalize(config.train_data_mean, config.train_data_std)
+                    if config.apply_normalization
+                    else None,
+                ]
     else:
         transform_train = [
             transforms.RandomCrop(config.input_size, padding=4)
@@ -121,42 +159,80 @@ def img_dataset_loader(seed, **config):
             else None,
             transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
             transforms.RandomRotation(15) if config.apply_augmentation else None,
-            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
             else None,
         ]
-        transform_val = [
-            transforms.Grayscale() if config.apply_grayscale else None,
+        if config.apply_noise.get("representation_matching", False):
+            transform_train_clean = [
+                transforms.RandomCrop(config.input_size, padding=4)
+                if config.apply_augmentation
+                else None,
+                transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+                transforms.RandomRotation(15) if config.apply_augmentation else None,
+                transforms.ToTensor(),
+                transforms.Grayscale() if config.apply_grayscale else None,
+                transforms.Normalize(config.train_data_mean, config.train_data_std)
+                if config.apply_normalization
+                else None,
+            ]
+        transform_val_in_domain = [
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
             else None,
         ]
-        transform_test = [
+        transform_val_out_domain = [
+            transforms.ToTensor(),
+            transforms.Lambda(apply_noise) if not config.apply_noise else None,
+            transforms.Grayscale() if config.apply_grayscale else None,
+            transforms.Normalize(config.train_data_mean, config.train_data_std)
+            if config.apply_normalization
+            else None,
+        ]
+        transform_test_c = [
             transforms.Grayscale() if config.apply_grayscale else None,
             transforms.ToTensor(),
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
             else None,
         ]
-        transform_test_c = transform_test
+        transform_val_gauss_levels = {}
+        for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
+            transform_val_gauss_levels[level] = [
+                    transforms.ToTensor(),
+                    transforms.Lambda(partial(apply_one_noise, std_value=level)),
+                    transforms.Grayscale() if config.apply_grayscale else None,
+                    transforms.Normalize(config.train_data_mean, config.train_data_std)
+                    if config.apply_normalization
+                    else None,
+                ]
 
-    transform_test = transforms.Compose(
-        list(filter(lambda x: x is not None, transform_test))
-    )
     transform_test_c = transforms.Compose(
         list(filter(lambda x: x is not None, transform_test_c))
     )
-    transform_val = transforms.Compose(
-        list(filter(lambda x: x is not None, transform_val))
+    transform_val_in_domain = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_val_in_domain))
+    )
+    transform_val_out_domain = transforms.Compose(
+        list(filter(lambda x: x is not None, transform_val_out_domain))
     )
     transform_train = transforms.Compose(
         list(filter(lambda x: x is not None, transform_train))
     )
+    if config.apply_noise.get("representation_matching", False):
+        transform_train_clean = transforms.Compose(
+            list(filter(lambda x: x is not None, transform_train_clean))
+        )
+    for level in list(transform_val_gauss_levels.keys()):
+        transform_val_gauss_levels[level] = transforms.Compose(
+                list(filter(lambda x: x is not None, transform_val_gauss_levels[level]))
+            )
 
     error_msg = "[!] valid_size should be in the range [0, 1]."
     assert (config.valid_size >= 0) and (config.valid_size <= 1), error_msg
@@ -174,19 +250,50 @@ def img_dataset_loader(seed, **config):
             transform=transform_train,
         )
 
-        valid_dataset = dataset_cls(
+        if config.apply_noise.get("representation_matching", False):
+            train_dataset_clean = dataset_cls(
+                root=config.data_dir,
+                train=True,
+                download=config.download,
+                transform=transform_train_clean,
+            )
+            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_clean])
+
+        valid_dataset_in_domain = dataset_cls(
             root=config.data_dir,
             train=True,
             download=config.download,
-            transform=transform_val,
+            transform=transform_val_in_domain,
         )
 
-        test_dataset = dataset_cls(
+        test_dataset_in_domain = dataset_cls(
             root=config.data_dir,
             train=False,
             download=config.download,
-            transform=transform_test,
+            transform=transform_val_in_domain,
         )
+
+        valid_dataset_out_domain = dataset_cls(
+            root=config.data_dir,
+            train=True,
+            download=config.download,
+            transform=transform_val_out_domain,
+        )
+
+        test_dataset_out_domain = dataset_cls(
+            root=config.data_dir,
+            train=False,
+            download=config.download,
+            transform=transform_val_out_domain,
+        )
+        val_gauss_datasets = {}
+        for level in list(transform_val_gauss_levels.keys()):
+            val_gauss_datasets[level] = dataset_cls(
+                    root=config.data_dir,
+                    train=True,
+                    download=config.download,
+                    transform=transform_val_gauss_levels[level],
+                )
     else:
         dataset_dir = get_dataset(
             DATASET_URLS[config.dataset_cls],
@@ -203,9 +310,21 @@ def img_dataset_loader(seed, **config):
 
         train_dataset = datasets.ImageFolder(train_dir, transform=transform_train)
 
-        valid_dataset = datasets.ImageFolder(train_dir, transform=transform_val)
+        if config.apply_noise.get("representation_matching", False):
+            train_dataset_clean = datasets.ImageFolder(train_dir, transform=transform_train_clean)
+            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_clean])
 
-        test_dataset = datasets.ImageFolder(val_dir, transform=transform_test)
+        valid_dataset_in_domain = datasets.ImageFolder(train_dir, transform=transform_val_in_domain)
+
+        test_dataset_in_domain = datasets.ImageFolder(val_dir, transform=transform_val_in_domain)
+
+        valid_dataset_out_domain = datasets.ImageFolder(train_dir, transform=transform_val_out_domain)
+
+        test_dataset_out_domain = datasets.ImageFolder(val_dir, transform=transform_val_out_domain)
+
+        val_gauss_datasets = {}
+        for level in list(transform_val_gauss_levels.keys()):
+            val_gauss_datasets[level] = datasets.ImageFolder(train_dir, transform=transform_val_gauss_levels[level])
 
         if config.add_fly_corrupted_test:
             fly_test_datasets = {}
@@ -258,7 +377,7 @@ def img_dataset_loader(seed, **config):
             dataset_cls=config.dataset_cls + "-ST",
             download=config.dowload,
         )
-        st_test_dataset = datasets.ImageFolder(st_dataset_dir, transform=transform_test)
+        st_test_dataset = datasets.ImageFolder(st_dataset_dir, transform=transform_val_in_domain)
 
 
     if config.add_corrupted_test:
@@ -288,7 +407,7 @@ def img_dataset_loader(seed, **config):
                             root=dataset_dir,
                             start=start,
                             end=end,
-                            transform=transform_test,
+                            transform=transform_val_out_domain if config.apply_noise else transform_val_in_domain,
                         )
                 else:
                     if not os.path.isdir(os.path.join(dataset_dir, c_category)):
@@ -299,17 +418,17 @@ def img_dataset_loader(seed, **config):
                             int(c_level)
                         ] = datasets.ImageFolder(
                             os.path.join(dataset_dir, c_category, c_level),
-                            transform= transform_test_c if config.dataset_cls == "ImageNet" else transform_test,
+                            transform=transform_test_c,
                         )
 
-    filters = [globals().get(f)(config, train_dataset) for f in config.filters]
-    datasets_ = [train_dataset, valid_dataset, test_dataset]
-    if config.add_corrupted_test:
-        for c_ds in c_test_datasets.values():
-            datasets_ += list(c_ds.values())
-    for ds in datasets_:
-        for filt in filters:
-            filt.apply(ds)
+    # filters = [globals().get(f)(config, train_dataset) for f in config.filters]
+    # datasets_ = [train_dataset, valid_dataset, test_dataset]
+    # if config.add_corrupted_test:
+    #     for c_ds in c_test_datasets.values():
+    #         datasets_ += list(c_ds.values())
+    # for ds in datasets_:
+    #     for filt in filters:
+    #         filt.apply(ds)
 
     num_train = len(train_dataset)
     indices = list(range(num_train))
@@ -331,8 +450,16 @@ def img_dataset_loader(seed, **config):
         pin_memory=config.pin_memory,
         shuffle=False,
     )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
+    valid_loader_in_domain = torch.utils.data.DataLoader(
+        valid_dataset_in_domain,
+        batch_size=config.batch_size,
+        sampler=valid_sampler,
+        num_workers=config.num_workers,
+        pin_memory=config.pin_memory,
+        shuffle=False,
+    )
+    valid_loader_out_domain = torch.utils.data.DataLoader(
+        valid_dataset_out_domain,
         batch_size=config.batch_size,
         sampler=valid_sampler,
         num_workers=config.num_workers,
@@ -340,17 +467,38 @@ def img_dataset_loader(seed, **config):
         shuffle=False,
     )
 
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
+    test_loader_in_domain = torch.utils.data.DataLoader(
+        test_dataset_in_domain,
         batch_size=config.batch_size,
         num_workers=config.num_workers,
         pin_memory=config.pin_memory,
         shuffle=False,
     )
+    test_loader_out_domain = torch.utils.data.DataLoader(
+        test_dataset_out_domain,
+        batch_size=config.batch_size,
+        num_workers=config.num_workers,
+        pin_memory=config.pin_memory,
+        shuffle=False,
+    )
+
+    val_gauss_loaders = {}
+    for level in val_gauss_datasets.keys():
+        val_gauss_loaders[level] = torch.utils.data.DataLoader(
+                val_gauss_datasets[level],
+                batch_size=config.batch_size,
+                sampler=valid_sampler,
+                num_workers=config.num_workers,
+                pin_memory=config.pin_memory,
+                shuffle=False,
+            )
     data_loaders = {
         "train": {"img_classification": train_loader},
-        "validation": {"img_classification": valid_loader},
-        "test": {"img_classification": test_loader},
+        "validation": {"img_classification": valid_loader_in_domain},
+        "test": {"img_classification": test_loader_in_domain},
+        "validation_out_domain": {"img_classification": valid_loader_out_domain},
+        "test_out_domain": {"img_classification": test_loader_out_domain},
+        "validation_gauss": val_gauss_loaders
     }
 
     if config.add_stylized_test:

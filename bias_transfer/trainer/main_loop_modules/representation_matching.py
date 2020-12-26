@@ -13,47 +13,50 @@ class RepresentationMatching(NoiseAugmentation):
         else:
             self.criterion = nn.MSELoss()
 
-    def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
-        model, inputs1 = super().pre_forward(model, inputs, shared_memory, train_mode)
-        self.batch_size = inputs1.shape[0]
-        if self.config.representation_matching.get("only_for_clean", False):
-            # Perform representation matching only for the clean part of the input
-            self.clean_flags = (shared_memory["applied_std"] == 0.0).squeeze()
-        else:
-            self.clean_flags = torch.ones((self.batch_size,)).type(torch.BoolTensor)
-        if self.config.representation_matching.get(
-            "second_noise_std", None
-        ) or self.config.representation_matching.get("second_noise_snr", None):
-            inputs2, _ = self.apply_noise(
-                inputs[self.clean_flags],
-                self.device,
-                std=self.config.representation_matching.get("second_noise_std", None),
-                snr=self.config.representation_matching.get("second_noise_snr", None),
-                rnd_gen=self.rnd_gen if not train_mode else None,
-                img_min=self.img_min,
-                img_max=self.img_max,
-                noise_scale=self.noise_scale,
-            )
-        else:
-            inputs2 = inputs
-        inputs = torch.cat([inputs1, inputs2])
-        return model, inputs
+    # def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
+    #     model, inputs1 = super().pre_forward(model, inputs, shared_memory, train_mode)
+    #     self.batch_size = inputs1.shape[0]
+    #     if self.config.representation_matching.get("only_for_clean", False):
+    #         # Perform representation matching only for the clean part of the input
+    #         self.clean_flags = (shared_memory["applied_std"] == 0.0).squeeze()
+    #     else:
+    #         self.clean_flags = torch.ones((self.batch_size,)).type(torch.BoolTensor)
+    #     if self.config.representation_matching.get(
+    #         "second_noise_std", None
+    #     ) or self.config.representation_matching.get("second_noise_snr", None):
+    #         inputs2, _ = self.apply_noise(
+    #             inputs[self.clean_flags],
+    #             self.device,
+    #             std=self.config.representation_matching.get("second_noise_std", None),
+    #             snr=self.config.representation_matching.get("second_noise_snr", None),
+    #             rnd_gen=self.rnd_gen if not train_mode else None,
+    #             img_min=self.img_min,
+    #             img_max=self.img_max,
+    #             noise_scale=self.noise_scale,
+    #         )
+    #     else:
+    #         inputs2 = inputs
+    #     inputs = torch.cat([inputs1, inputs2])
+    #     return model, inputs
 
     def post_forward(self, outputs, loss, targets, extra_losses, train_mode, **kwargs):
+        self.batch_size = targets.shape[0]
         extra_outputs, outputs = outputs[0], outputs[1]
-        rep_1 = extra_outputs[self.rep][: self.batch_size][self.clean_flags]
-        rep_2 = extra_outputs[self.rep][self.batch_size :]
-        if self.config.representation_matching.get("criterion", "cosine") == "cosine":
-            o = torch.ones(
-                rep_1.shape[:1], device=self.device
-            )  # ones indicating that we want to measure similarity
-            sim_loss = self.criterion(rep_1, rep_2, o)
-        else:
-            sim_loss = self.criterion(rep_1, rep_2)
-        loss += self.config.representation_matching.get("lambda", 1.0) * sim_loss
-        for k, v in extra_outputs.items():
-            if isinstance(v, torch.Tensor):
-                extra_outputs[k] = v[: self.batch_size]
+        if train_mode:
+            self.clean_flags = torch.ones((self.batch_size,)).type(torch.BoolTensor)
+            rep_1 = extra_outputs[self.rep][: self.batch_size][self.clean_flags]
+            rep_2 = extra_outputs[self.rep][self.batch_size :]
+            if self.config.representation_matching.get("criterion", "cosine") == "cosine":
+                o = torch.ones(
+                    rep_1.shape[:1], device=self.device
+                )  # ones indicating that we want to measure similarity
+                sim_loss = self.criterion(rep_1, rep_2, o)
+            else:
+                sim_loss = self.criterion(rep_1, rep_2)
+            loss += self.config.representation_matching.get("lambda", 1.0) * sim_loss
+            for k, v in extra_outputs.items():
+                if isinstance(v, torch.Tensor):
+                    extra_outputs[k] = v[: self.batch_size]
+            extra_losses["RepresentationMatching"] += sim_loss.item()
         outputs = outputs[: self.batch_size]
-        extra_losses["RepresentationMatching"] += sim_loss.item()
         return (extra_outputs, outputs), loss, targets

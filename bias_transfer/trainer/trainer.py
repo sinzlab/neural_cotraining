@@ -30,6 +30,7 @@ from bias_transfer.trainer import utils as uts
 
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
+    seed = 1000
     config = TrainerConfig.from_dict(kwargs)
     uid = nnf.utility.dj_helpers.make_hash(uid)
     device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
@@ -290,7 +291,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 dev_final_results_dict.update(dev_final_results)
             if config.add_final_test_eval:
-                test_results = test_neural_model(
+                final_output_result = test_results = test_neural_model(
                     model,
                     data_loader=dataloaders["test"][k],
                     device=device,
@@ -315,20 +316,44 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 train_final_results_dict.update(train_final_results)
 
             if config.add_final_val_eval:
-                dev_final_results = test_model(
+                # dev_final_results = test_model(
+                #     model=model,
+                #     epoch=epoch,
+                #     criterion=get_subdict(criterion, [k]),
+                #     device=device,
+                #     data_loader=get_subdict(dataloaders["validation"], [k]),
+                #     config=config,
+                #     noise_test=True,
+                #     seed=seed,
+                # )
+                dev_final_results_in_domain = test_model(
                     model=model,
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
                     device=device,
                     data_loader=get_subdict(dataloaders["validation"], [k]),
                     config=config,
-                    noise_test=True,
+                    noise_test=False,
                     seed=seed,
+                    eval_type="Validation In-domain",
                 )
+                dev_final_results_out_domain = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, [k]),
+                    device=device,
+                    data_loader=get_subdict(dataloaders["validation_out_domain"], [k]),
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Validation Out-domain",
+                )
+                dev_final_results = {"img_classification": {"validation_in_domain": dev_final_results_in_domain,
+                                                            "validation_out_domain": dev_final_results_out_domain}}
                 dev_final_results_dict.update(dev_final_results)
 
             if config.add_final_test_eval:
-                test_results = test_model(
+                final_output_result = test_results_in_domain = test_model(
                     model=model,
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
@@ -337,8 +362,21 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     config=config,
                     noise_test=False,
                     seed=seed,
-                    eval_type="Test",
+                    eval_type="Test In-domain",
                 )
+                test_results_out_domain = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, [k]),
+                    device=device,
+                    data_loader=get_subdict(dataloaders["test_out_domain"], [k]),
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="Test Out-domain",
+                )
+                test_results = {"img_classification": {"test_in_domain": test_results_in_domain,
+                                                            "test_out_domain": test_results_out_domain}}
                 test_results_dict.update(test_results)
 
 
@@ -348,6 +386,23 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         "test_results": test_results_dict,
         "dev_final_results": dev_final_results_dict,
     }
+
+    if "validation_gauss" in dataloaders:
+        validation_gauss_results = {}
+        for level, dataloader in dataloaders["validation_gauss"].items():
+            results = test_model(
+                model=model,
+                epoch=epoch,
+                criterion=get_subdict(criterion, ["img_classification"]),
+                device=device,
+                data_loader={"img_classification": dataloader},
+                config=config,
+                noise_test=False,
+                seed=seed,
+                eval_type="Validation-Gauss-{}".format(level),
+            )
+            validation_gauss_results[level] = results
+        final_results["validation_gauss"] = validation_gauss_results
 
     if "c_test" in dataloaders:
         test_c_results = {}
@@ -401,7 +456,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         )
         final_results["test_st_results"] = test_st_results
     return (
-        test_results_dict[list(config.loss_functions.keys())[0]]["eval"],
+        final_output_result[list(config.loss_functions.keys())[0]]["eval"],
         (train_stats, final_results),
         model.state_dict(),
     )

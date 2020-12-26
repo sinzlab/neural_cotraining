@@ -8,6 +8,7 @@ from os.path import isfile, join
 
 
 def neural_dataset_loader(seed, **config):
+    seed = 1000
     config.pop("comment", None)
     data_dir = config.pop("data_dir", None)
     neuronal_data_path = os.path.join(data_dir, "neuronal_data/")
