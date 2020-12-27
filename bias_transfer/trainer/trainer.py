@@ -177,7 +177,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         )
 
     if config.freeze:
-        if config.mtl:
+        if config.freeze == ("shared_block",):
             model.freeze(config.freeze)
         else:
             if config.freeze == ("core",):
