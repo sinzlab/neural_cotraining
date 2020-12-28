@@ -22,6 +22,8 @@ def mtl_datasets_loader(seed, **config):
     data_loaders["test"]["img_classification"] = img_dataset_loaders["test"][
         "img_classification"
     ]
+    data_loaders["test_out_domain"] = {}
+    data_loaders["validation_out_domain"] = {}
     data_loaders["test_out_domain"]["img_classification"] = img_dataset_loaders["test_out_domain"][
         "img_classification"
     ]
