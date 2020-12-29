@@ -276,10 +276,10 @@ class MTL_VGG(nn.Module):
     def regularizer(self, data_key=None):
         return self.v1_readout.regularizer(data_key=data_key)
 
-    def freeze(self, selection=("shared_block",)):
-        if selection == ("shared_block",):
+    def freeze(self, selection=("v1",)):
+        if selection is True or "v1" in selection:
             for param in self.mtl_vgg_core.shared_block.parameters():
-                param.requires_grad = False
+                    param.requires_grad = False
 
 
     def _initialize_weights_classification_readout(self):
