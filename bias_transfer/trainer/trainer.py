@@ -179,7 +179,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     if config.freeze:
         if config.mtl:
             model.freeze(config.freeze)
-            print("yessssssssssssssssssssssssssssss")
         else:
             if config.freeze == ("core",):
                 kwargs = {"not_to_freeze": (config.readout_name,)}
@@ -228,15 +227,15 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 }
             )
 
-        print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
-        for name, param in model.named_parameters():
-            print(name, param.requires_grad)
-        for name, param in model.mtl_vgg_core.shared_block.named_children():
-            if "BatchNorm" in param.__class__.__name__:
-                print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
-        for name, param in model.mtl_vgg_core.unshared_block.named_children():
-            if "BatchNorm" in param.__class__.__name__:
-                print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
+        # print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
+        # for name, param in model.named_parameters():
+        #     print(name, param.requires_grad)
+        # for name, param in model.mtl_vgg_core.shared_block.named_children():
+        #     if "BatchNorm" in param.__class__.__name__:
+        #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
+        # for name, param in model.mtl_vgg_core.unshared_block.named_children():
+        #     if "BatchNorm" in param.__class__.__name__:
+        #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
 
         train_results, train_module_loss = main_loop(
             model=model,
