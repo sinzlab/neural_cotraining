@@ -57,3 +57,15 @@ def get_model_parameters(model):
             layer_parameter *= l
         total_parameters += layer_parameter
     return total_parameters
+
+
+def reset_params(model, reset=None):
+    model = model.module if isinstance(model, nn.DataParallel) else model
+    if reset == "all":
+        print(f"Resetting all parameters")
+        model.apply(weight_reset)
+    elif reset:
+        print(f"Resetting {reset}")
+        for name in reset:
+            block, layer = name.split(".")[0], int(name.split(".")[1])
+            getattr(model, block)[layer].apply(weight_reset)

@@ -6,7 +6,7 @@ import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
 
-from bias_transfer.models.utils import freeze_params
+from bias_transfer.models.utils import freeze_params, reset_params
 from bias_transfer.trainer.utils import (
     get_subdict,
     StopClosureWrapper,
@@ -178,15 +178,18 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if config.freeze:
         if config.mtl:
-            model.freeze(config.freeze)
+            model.freeze(config.freeze['freeze'])
         else:
-            if config.freeze == ("core",):
+            if config.freeze['freeze'] == ("core",):
                 kwargs = {"not_to_freeze": (config.readout_name,)}
-            elif config.freeze == ("readout",):
+            elif config.freeze['freeze'] == ("readout",):
                 kwargs = {"to_freeze": (config.readout_name,)}
             else:
-                kwargs = {"to_freeze": config.freeze}
+                kwargs = {"to_freeze": config.freeze['freeze']}
             freeze_params(model, **kwargs)
+
+        if config.freeze.get('reset', False):
+            reset_params(model, config.freeze['reset'])
 
     print("==> Starting model {}".format(config.comment), flush=True)
     train_stats = []
