@@ -49,7 +49,7 @@ class RepresentationMatching(NoiseAugmentation):
             if self.config.representation_matching.get("criterion", "cosine") == "cosine":
                 o = torch.ones(
                     rep_1.shape[:1], device=self.device
-                )  # ones indicating that we want to measure similarity
+                ).unsqueeze_(1).unsqueeze_(1)  # ones indicating that we want to measure similarity
                 sim_loss = self.criterion(rep_1, rep_2, o)
             else:
                 sim_loss = self.criterion(rep_1, rep_2)
