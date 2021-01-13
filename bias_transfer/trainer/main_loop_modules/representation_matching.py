@@ -40,7 +40,7 @@ class RepresentationMatching(NoiseAugmentation):
     #     return model, inputs
 
     def post_forward(self, outputs, loss, targets, extra_losses, train_mode, **kwargs):
-        self.batch_size = targets.shape[0]
+        self.batch_size = targets['img_classification'].shape[0]
         extra_outputs, outputs = outputs[0], outputs[1]
         if train_mode:
             self.clean_flags = torch.ones((self.batch_size,)).type(torch.BoolTensor)
