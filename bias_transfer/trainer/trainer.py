@@ -51,7 +51,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
 
     cycler_args = dict(config.train_cycler_args)
-    if cycler_args:
+    if cycler_args and config.train_cycler == "MTL_Cycler":
         cycler_args['ratio'] = cycler_args['ratio'][1]
     train_loader = getattr(uts, config.train_cycler)(dataloaders["train"], **cycler_args)
 
@@ -65,7 +65,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     criterion, stop_closure = {}, {}
     for k in val_keys:
-        if k != "img_classification":
+        if k == "neural":
             if config.loss_weighing:
                 criterion[k] = NBLossWrapper(config.loss_sum).to(device)
             else:
@@ -87,7 +87,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 per_neuron=False,
                 avg=False,
             )
-        else:
+        if k == "img_classification":
             if config.loss_weighing:
                 criterion[k] = XEntropyLossWrapper(
                     getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
@@ -98,7 +98,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 main_loop,
                 criterion=get_subdict(criterion, [k]),
                 device=device,
-                data_loader=get_subdict(dataloaders["validation"], [k]),
+                data_loader= dataloaders['validation'][k] if isinstance(dataloaders['validation'][k], dict) else get_subdict(dataloaders["validation"], [k]),
                 modules=main_loop_modules,
                 train_mode=False,
                 return_outputs=False,
@@ -275,7 +275,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model on the test set
     train_final_results_dict, test_results_dict, dev_final_results_dict = {}, {}, {}
     for k in val_keys:
-        if k != "img_classification":
+        if k == "neural":
             if config.add_final_train_eval:
                 train_final_results = test_neural_model(
                     model,
@@ -306,14 +306,14 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 test_results_dict.update(test_results)
 
-        else:
+        if k == "img_classification":
             if config.add_final_train_eval:
                 train_final_results = test_model(
                     model=model,
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
                     device=device,
-                    data_loader=get_subdict(dataloaders["train"], [k]),
+                    data_loader=get_subdict(dataloaders["train"], [k]) if k in dataloaders['train'].keys() else dataloaders['train'],
                     config=config,
                     noise_test=False,
                     seed=seed,
@@ -322,6 +322,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 train_final_results_dict.update(train_final_results)
 
             if config.add_final_val_eval:
+                dev_final_results = {"img_classification": {}}
                 # dev_final_results = test_model(
                 #     model=model,
                 #     epoch=epoch,
@@ -337,52 +338,55 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
                     device=device,
-                    data_loader=get_subdict(dataloaders["validation"], [k]),
+                    data_loader=dataloaders['validation'][k] if isinstance(dataloaders['validation'][k], dict) else get_subdict(dataloaders["validation"], [k]),
                     config=config,
                     noise_test=False,
                     seed=seed,
                     eval_type="Validation In-domain",
                 )
-                dev_final_results_out_domain = test_model(
-                    model=model,
-                    epoch=epoch,
-                    criterion=get_subdict(criterion, [k]),
-                    device=device,
-                    data_loader=get_subdict(dataloaders["validation_out_domain"], [k]),
-                    config=config,
-                    noise_test=False,
-                    seed=seed,
-                    eval_type="Validation Out-domain",
-                )
-                dev_final_results = {"img_classification": {"validation_in_domain": dev_final_results_in_domain,
-                                                            "validation_out_domain": dev_final_results_out_domain}}
+                dev_final_results["img_classification"]["validation_in_domain"] = dev_final_results_in_domain
+                if 'validation_out_domain' in dataloaders.keys():
+                    dev_final_results_out_domain = test_model(
+                        model=model,
+                        epoch=epoch,
+                        criterion=get_subdict(criterion, [k]),
+                        device=device,
+                        data_loader=get_subdict(dataloaders["validation_out_domain"], [k]),
+                        config=config,
+                        noise_test=False,
+                        seed=seed,
+                        eval_type="Validation Out-domain",
+                    )
+                    dev_final_results["img_classification"]["validation_out_domain"] =  dev_final_results_out_domain
                 dev_final_results_dict.update(dev_final_results)
 
             if config.add_final_test_eval:
+                test_results = {"img_classification": {}}
                 final_output_result = test_results_in_domain = test_model(
                     model=model,
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
                     device=device,
-                    data_loader=get_subdict(dataloaders["test"], [k]),
+                    data_loader=dataloaders['test'][k] if isinstance(dataloaders['test'][k], dict) else get_subdict(dataloaders["test"], [k]),
                     config=config,
                     noise_test=False,
                     seed=seed,
                     eval_type="Test In-domain",
                 )
-                test_results_out_domain = test_model(
-                    model=model,
-                    epoch=epoch,
-                    criterion=get_subdict(criterion, [k]),
-                    device=device,
-                    data_loader=get_subdict(dataloaders["test_out_domain"], [k]),
-                    config=config,
-                    noise_test=False,
-                    seed=seed,
-                    eval_type="Test Out-domain",
-                )
-                test_results = {"img_classification": {"test_in_domain": test_results_in_domain,
-                                                            "test_out_domain": test_results_out_domain}}
+                test_results["img_classification"]["test_in_domain"] = test_results_in_domain
+                if 'test_out_domain' in dataloaders.keys():
+                    test_results_out_domain = test_model(
+                        model=model,
+                        epoch=epoch,
+                        criterion=get_subdict(criterion, [k]),
+                        device=device,
+                        data_loader=get_subdict(dataloaders["test_out_domain"], [k]),
+                        config=config,
+                        noise_test=False,
+                        seed=seed,
+                        eval_type="Test Out-domain",
+                    )
+                    test_results["img_classification"]["test_out_domain"] = test_results_out_domain
                 test_results_dict.update(test_results)
 
 

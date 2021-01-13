@@ -125,6 +125,21 @@ class NeuralDatasetConfig(DatasetConfig):
         self.subsample = kwargs.pop("subsample", 1)
         self.crop = kwargs.pop("crop", 70)
         self.time_bins_sum = kwargs.pop("time_bins_sum", 12)
+        self.target_types = kwargs.pop("target_types", ["neural"])
+        self.normalize = kwargs.pop("normalize", True)
+        self.stats = kwargs.pop("stats", {})
+        self.apply_augmentation = kwargs.pop("apply_augmentation", False)
+        self.input_size = kwargs.pop("input_size", 64)
+        self.apply_grayscale = kwargs.pop("apply_grayscale", True)
+        self.add_fly_corrupted_test = kwargs.pop("add_fly_corrupted_test", {'jpeg_compression': [1, 2, 3, 4, 5], 'pixelate': [1, 2, 3, 4, 5],
+                                                  'impulse_noise': [1, 2, 3, 4, 5], 'defocus_blur': [1, 2, 3, 4, 5],
+                                                  'contrast': [1, 2, 3, 4, 5], 'fog': [1, 2, 3, 4, 5],
+                                                  'brightness': [1, 2, 3, 4, 5], 'frost': [1, 2, 3, 4, 5],
+                                                  'glass_blur': [1, 2, 3, 4, 5], 'shot_noise': [1, 2, 3, 4, 5],
+                                                  'motion_blur': [1, 2, 3, 4, 5], 'gaussian_noise': [1, 2, 3, 4, 5],
+                                                  'elastic_transform': [1, 2, 3, 4, 5], 'snow': [1, 2, 3, 4, 5],
+                                                  'zoom_blur': [1, 2, 3, 4, 5]})
+        self.resize = kwargs.pop("resize", 0)
         self.update(**kwargs)
 
 

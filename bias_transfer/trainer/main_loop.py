@@ -3,7 +3,6 @@ from tqdm import tqdm
 import numpy as np
 
 from bias_transfer.trainer import utils as uts
-from nnvision.utility.measures import get_correlations
 from functools import partial
 from .utils import set_bn_to_eval
 
@@ -23,25 +22,23 @@ def neural_full_objective(
     return loss
 
 
-def move_data(batch_data, device):
-    batch_dict = None
+def move_data(batch_data, tasks, device):
     data_key, inputs = batch_data[0], batch_data[1][0]
+    targets = dict()
     if len(batch_data[1]) > 2:
-        targets = [b.to(device) for b in batch_data[1][1:]]
+        for task, output_name in tasks.items():
+            targets[task] = getattr(batch_data[1], output_name).to(device)
+        inputs = inputs.to(device)
     else:
-        targets = batch_data[1][1].to(device)
-
-    if data_key != "img_classification":
-        inputs, targets = (
-            inputs.to(device),
-            targets.to(device),
-        )
-        batch_dict = {data_key: [(inputs, targets)]}
-        return inputs, targets, data_key, batch_dict
-    if isinstance(inputs, list):
-        inputs = torch.cat(inputs)
-    inputs = inputs.to(device, dtype=torch.float)
-    return inputs, targets, data_key, batch_dict
+        if data_key == "img_classification" or 'neural' not in list(tasks.keys()):
+            targets['img_classification'] = batch_data[1][1].to(device)
+            if isinstance(inputs, list):
+                inputs = torch.cat(inputs)
+            inputs = inputs.to(device, dtype=torch.float)
+        else:
+            targets['neural'] = batch_data[1][1].to(device)
+            inputs = inputs.to(device)
+    return inputs, targets, data_key
 
 
 def main_loop(
@@ -72,6 +69,8 @@ def main_loop(
     total_loss = {}
     module_losses = {}
     collected_outputs = []
+    tasks = {"img_classification": "labels", "neural": "responses"}
+    tasks = uts.get_subdict(tasks, list(criterion.keys()))
     for k in criterion:
         task_dict[k] = {"epoch_loss": 0}
         if k!= 'neural':
@@ -85,7 +84,7 @@ def main_loop(
         if module.criterion:  # some modules may compute an additonal output/loss
             module_losses[module.__class__.__name__] = 0
 
-    if cycler_args:
+    if cycler_args and cycler == "MTL_Cycler":
         cycler_args = dict(cycler_args)
         cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
 
@@ -113,7 +112,7 @@ def main_loop(
             for batch_idx, batch_data in t:
                 # Pre-Forward
                 loss = torch.zeros(1, device=device)
-                inputs, targets, data_key, batch_dict = move_data(batch_data, device)
+                inputs, targets, data_key = move_data(batch_data, tasks, device)
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 model_ = model
                 for module in modules:
@@ -123,6 +122,7 @@ def main_loop(
                         shared_memory,
                         train_mode=train_mode,
                         data_key=data_key,
+                        task_keys=list(targets.keys())
                     )
                 # Forward
                 outputs = model_(inputs)
@@ -139,18 +139,19 @@ def main_loop(
                         targets,
                         module_losses,
                         train_mode,
+                        task_keys=list(targets.keys()),
                         **shared_memory
                     )
-                if data_key != "img_classification":
+                if "neural" in targets.keys():
                     loss += neural_full_objective(
                         model,
-                        outputs,
+                        outputs['neural'],
                         data_loader,
                         criterion["neural"],
                         scale_loss,
                         data_key,
                         inputs,
-                        targets,
+                        targets['neural'],
                     )
                     total_loss["neural"] += loss.item()
                     task_dict["neural"]["epoch_loss"] = average_loss(
@@ -162,11 +163,11 @@ def main_loop(
                             total_loss_weight["neural"]
                         )
 
-                else:
-                    loss += criterion["img_classification"](outputs, targets)
-                    _, predicted = outputs.max(1)
-                    total["img_classification"] += targets.size(0)
-                    correct += predicted.eq(targets).sum().item()
+                if "img_classification" in targets.keys():
+                    loss += criterion["img_classification"](outputs['img_classification'], targets['img_classification'])
+                    _, predicted = outputs['img_classification'].max(1)
+                    total["img_classification"] += targets['img_classification'].size(0)
+                    correct += predicted.eq(targets['img_classification']).sum().item()
                     task_dict["img_classification"]["eval"] = (
                         100.0 * correct / total["img_classification"]
                     )

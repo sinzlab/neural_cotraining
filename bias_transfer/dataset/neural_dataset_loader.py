@@ -18,13 +18,18 @@ def neural_dataset_loader(seed, **config):
         if (isfile(join(neuronal_data_path, f)) and f != "CSRF19_V4_3653663964522.pickle")
     ]
     config["image_cache_path"] = os.path.join(data_dir, "images/individual")
+    config["original_image_cache_path"] = os.path.join(data_dir, "images/original/")
     torch.manual_seed(seed)
     np.random.seed(seed)
     dataset_fn = "nnvision.datasets.monkey_static_loader"
     data_loaders = builder.get_data(dataset_fn, config)
     dataloaders = {
         "train": data_loaders["train"],
-        "validation": {"neural": data_loaders["validation"]},
-        "test": {"neural": data_loaders["test"]},
+        "validation": {task: data_loaders["validation"] for task in config['target_types']},
+        "test": {task: data_loaders["test"] for task in config['target_types']},
     }
+    if "validation_gauss" in data_loaders.keys():
+        dataloaders['validation_gauss'] = data_loaders['validation_gauss']
+    if "fly_c_test" in data_loaders.keys():
+        dataloaders['fly_c_test'] = data_loaders['fly_c_test']
     return dataloaders

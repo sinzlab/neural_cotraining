@@ -209,9 +209,15 @@ class MTL_VGG(nn.Module):
             neural_train_dataloaders = dataloaders
 
         session_shape_dict = get_dims_for_loader_dict(neural_train_dataloaders)
-        in_name, out_name = next(
+
+        names = next(
             iter(list(neural_train_dataloaders.values())[0])
         )._fields
+        if  len(names) == 3:
+            in_name, _, out_name = names
+        else:
+            in_name, out_name = names
+
         self.neural_input_channels = [
             v[in_name][1] for v in session_shape_dict.values()
         ]
@@ -247,7 +253,7 @@ class MTL_VGG(nn.Module):
         )
         if v1_readout_bias:
             for key, value in neural_train_dataloaders.items():
-                _, targets = next(iter(value))
+                targets = getattr(next(iter(value)), out_name)
                 self.v1_readout[key].bias.data = targets.mean(0)
 
         if classification:
@@ -262,16 +268,23 @@ class MTL_VGG(nn.Module):
             )
             self._initialize_weights_classification_readout()
 
-    def forward(self, x, data_key=None, classification=False):
+    def forward(self, x, data_key=None, classification=False, both=False):
         shared_core_out, core_out = self.mtl_vgg_core(x, classification)
-        if classification:
+        if not classification and not both:
+            v1_out = self.v1_readout(shared_core_out, data_key=data_key)
+            v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
+            return v1_out
+        else:
             if self.classification_readout_type == "dense":
                 core_out = core_out.view(core_out.size(0), -1)
             classification_out = self.classification_readout(core_out)
-            return classification_out
-        v1_out = self.v1_readout(shared_core_out, data_key=data_key)
-        v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
-        return v1_out
+            if both:
+                v1_out = self.v1_readout(shared_core_out, data_key=data_key)
+                v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
+                return v1_out, classification_out
+            else:
+                return classification_out
+
 
     def regularizer(self, data_key=None):
         return self.v1_readout.regularizer(data_key=data_key)
