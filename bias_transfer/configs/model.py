@@ -53,6 +53,9 @@ class ClassificationModelConfig(ModelConfig):
             self.zero_init_residual = True
             self.adaptive_pooling = True
             self.avg_pool = True
+        elif dataset_cls == "V1_ImageNet":
+            self.num_classes = kwargs.pop("num_classes", 964)
+            self.input_size = 93
         else:
             raise NameError()
 
