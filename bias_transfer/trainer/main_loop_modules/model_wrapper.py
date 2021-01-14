@@ -11,16 +11,14 @@ class ModelWrapper(MainLoopModule):
         task_keys = kwargs.pop("task_keys", [])
         if self.mtl:
             if len(task_keys) == 1:
-                if data_key == "img_classification":
+                if (data_key == "img_classification") or (task_keys[0] == "img_classification" and len(task_keys) == 1):
                     model_ = partial(model, data_key=data_key, classification=True)
                 else:
                     model_ = partial(model, data_key=data_key)
             else:
                 model_ = partial(model, data_key=data_key, classification=True, both=True)
-        elif data_key == "img_classification":
+        elif (data_key == "img_classification") or (task_keys[0] == "img_classification" and len(task_keys) == 1):
             model_ = model
-        elif task_keys[0] == "img_classification" and len(task_keys) == 1:
-            model_ = partial(model, data_key=data_key, classification=True)
         else:
             model_ = partial(model, data_key=data_key)
         return model_, inputs
