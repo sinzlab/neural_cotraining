@@ -235,6 +235,26 @@ class LongCycler:
     def __len__(self):
         return len(self.loaders) * self.max_batches
 
+class ShortCycler:
+    """
+    Cycles through trainloaders until the loader with smallest size is exhausted.
+        Needed for dataloaders of unequal size (as in the monkey data).
+    """
+
+    def __init__(self, loaders):
+        self.loaders = loaders
+        self.min_batches = min([len(loader) for loader in self.loaders.values()])
+
+    def __iter__(self):
+        cycles = [cycle(loader) for loader in self.loaders.values()]
+        for k, loader, _ in zip(
+            cycle(self.loaders.keys()), (cycle(cycles)), range(len(self.loaders) * self.min_batches)
+        ):
+            yield k, next(loader)
+
+    def __len__(self):
+        return len(self.loaders) * self.min_batches
+
 
 class XEntropyLossWrapper(nn.Module):
     def __init__(self, criterion):

@@ -46,9 +46,10 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         torch.cuda.manual_seed(seed)
 
     if config.mtl and ("neural" not in config.loss_functions.keys()):
-        dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
-        dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
-        dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
+        if "img_classification" in dataloaders["train"].keys():
+            dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
+            dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
+            dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
 
     cycler_args = dict(config.train_cycler_args)
     if cycler_args and config.train_cycler == "MTL_Cycler":
