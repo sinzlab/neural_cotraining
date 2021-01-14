@@ -241,16 +241,22 @@ class ShortCycler:
         Needed for dataloaders of unequal size (as in the monkey data).
     """
 
-    def __init__(self, loaders):
+    def __init__(self, loaders, grad_accum_step=0):
         self.loaders = loaders
         self.min_batches = min([len(loader) for loader in self.loaders.values()])
+        self.backward = False
+        self.grad_accum_step = len(self.loaders) if not grad_accum_step else grad_accum_step
+
 
     def __iter__(self):
         cycles = [cycle(loader) for loader in self.loaders.values()]
-        for k, loader, _ in zip(
+        for k, loader, batch_idx in zip(
             cycle(self.loaders.keys()), (cycle(cycles)), range(len(self.loaders) * self.min_batches)
         ):
+            if (batch_idx + 1) % self.grad_accum_step == 0:
+                self.backward = True
             yield k, next(loader)
+            self.backward = False
 
     def __len__(self):
         return len(self.loaders) * self.min_batches
