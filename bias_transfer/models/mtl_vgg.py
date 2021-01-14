@@ -237,7 +237,7 @@ class MTL_VGG(nn.Module):
             v1_bias=v1_bias,
         )
 
-        n_neurons_dict = {k: v[out_name][1] for k, v in session_shape_dict.items()}
+        n_neurons_dict = {k: v[out_name][1] if out_name != "labels" else 1 for k, v in session_shape_dict.items()}
         in_shapes_dict = {k: v[in_name] for k, v in session_shape_dict.items()}
         in_shapes = {}
         for k in n_neurons_dict:
@@ -253,7 +253,10 @@ class MTL_VGG(nn.Module):
         )
         if v1_readout_bias:
             for key, value in neural_train_dataloaders.items():
-                targets = getattr(next(iter(value)), out_name)
+                if out_name == 'labels':
+                    targets = getattr(next(iter(value)), out_name).to(torch.float)
+                else:
+                    targets = getattr(next(iter(value)), out_name)
                 self.v1_readout[key].bias.data = targets.mean(0)
 
         if classification:

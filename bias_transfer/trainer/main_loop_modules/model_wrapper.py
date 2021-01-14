@@ -17,8 +17,10 @@ class ModelWrapper(MainLoopModule):
                     model_ = partial(model, data_key=data_key)
             else:
                 model_ = partial(model, data_key=data_key, classification=True, both=True)
-        elif (data_key == "img_classification") or (task_keys[0] == "img_classification" and len(task_keys) == 1):
+        elif data_key == "img_classification":
             model_ = model
+        elif task_keys[0] == "img_classification" and len(task_keys) == 1:
+            model_ = partial(model, data_key=data_key, classification=True)
         else:
             model_ = partial(model, data_key=data_key)
         return model_, inputs
