@@ -9,6 +9,7 @@ from torch.nn import functional as F
 from mlutils.layers.legacy import Gaussian2d
 from mlutils.training import eval_state
 from .vgg import create_vgg_readout
+from copy import deepcopy
 
 VGG_TYPES = {
     "vgg11": torchvision.models.vgg11,
@@ -90,7 +91,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
         v1_fine_tune=False,
         momentum=0.1,
         v1_bias=True,
-        v1_final_batchnorm=False,
+        v1_final_batchnorm=False, add_dropout={},
         **kwargs
     ):
 
@@ -102,15 +103,33 @@ class MTL_VGG_Core(Core2d, nn.Module):
         )
         self.v1_final_batchnorm = v1_final_batchnorm
         self.classification = classification
+        self.add_dropout = add_dropout
 
         # load convolutional part of vgg
         assert vgg_type in VGG_TYPES, "Unknown vgg_type '{}'".format(vgg_type)
         vgg_loader = VGG_TYPES[vgg_type]
         vgg = vgg_loader(pretrained=pretrained)
 
-        self.shared_block = nn.Sequential(
+        block = nn.Sequential(
             *list(vgg.features.children())[:v1_model_layer]
         )
+
+        if "shared_block" in self.add_dropout.keys():
+            layers = []
+            add_dropout_layer = False
+            for child in block:
+                if add_dropout_layer:
+                    layers.append(nn.Dropout(self.add_dropout['shared_block']))
+                    add_dropout_layer = False
+                layers.append(deepcopy(child))
+                if isinstance(child, nn.modules.activation.ReLU):
+                    add_dropout_layer = True
+            if isinstance(child, nn.modules.activation.ReLU):
+                layers.append(nn.Dropout(self.add_dropout['shared_block']))
+
+            self.shared_block  = nn.Sequential(*layers)
+        else:
+            self.shared_block = block
 
         # Remove the bias of the last conv layer if not bias:
         if not v1_bias:
@@ -131,9 +150,26 @@ class MTL_VGG_Core(Core2d, nn.Module):
             self.v1_extra.add_module("OutNonlin", nn.ReLU(inplace=True))
 
         if classification:
-            self.unshared_block = nn.Sequential(
+            block = nn.Sequential(
                 *list(vgg.features.children())[v1_model_layer:]
             )
+
+            if "unshared_block" in self.add_dropout.keys():
+                layers = []
+                add_dropout_layer = False
+                for child in block:
+                    if add_dropout_layer:
+                        layers.append(nn.Dropout(self.add_dropout['unshared_block']))
+                        add_dropout_layer = False
+                    layers.append(deepcopy(child))
+                    if isinstance(child, nn.modules.activation.ReLU):
+                        add_dropout_layer = True
+                if isinstance(child, nn.modules.activation.ReLU):
+                    layers.append(nn.Dropout(self.add_dropout['unshared_block']))
+
+                self.unshared_block = nn.Sequential(*layers)
+            else:
+                self.unshared_block = block
 
     def forward(self, x, classification=False):
         #if (classification and self.classification_input_channels == 1) or (
@@ -185,6 +221,7 @@ class MTL_VGG(nn.Module):
         v1_final_batchnorm=False,
         v1_gamma_readout=0.002,
         v1_elu_offset=-1,
+        detach_neural_readout=False, add_dropout={},
         **kwargs
     ):
 
@@ -195,6 +232,8 @@ class MTL_VGG(nn.Module):
         self.v1_elu_offset = v1_elu_offset
         self.neural_input_channels = neural_input_channels
         self.classification_input_channels = classification_input_channels
+        self.detach_neural_readout = detach_neural_readout
+        self.add_dropout = add_dropout
 
         # for neural dataloaders
         if "img_classification" in dataloaders["train"].keys():
@@ -234,7 +273,7 @@ class MTL_VGG(nn.Module):
             neural_input_channels=self.neural_input_channels[0],
             classification_input_channels=self.classification_input_channels,
             v1_final_batchnorm=v1_final_batchnorm,
-            v1_bias=v1_bias,
+            v1_bias=v1_bias, add_dropout=self.add_dropout
         )
 
         n_neurons_dict = {k: v[out_name][1] if out_name != "labels" else 1 for k, v in session_shape_dict.items()}
@@ -282,7 +321,11 @@ class MTL_VGG(nn.Module):
                 core_out = core_out.view(core_out.size(0), -1)
             classification_out = self.classification_readout(core_out)
             if both:
-                v1_out = self.v1_readout(shared_core_out, data_key=data_key)
+                if self.detach_neural_readout:
+                    v1_readout_input = shared_core_out.detach()
+                else:
+                    v1_readout_input = shared_core_out
+                v1_out = self.v1_readout(v1_readout_input, data_key=data_key)
                 v1_out = F.elu(v1_out + self.v1_elu_offset) + 1
                 return v1_out, classification_out
             else:

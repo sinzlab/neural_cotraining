@@ -48,6 +48,8 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         v1_gamma_readout=config.v1_gamma_readout,
         v1_elu_offset=config.v1_elu_offset,
         v1_final_batchnorm=config.v1_final_batchnorm,
+        detach_neural_readout=config.detach_neural_readout,
+        add_dropout=config.add_dropout
     )
 
     print("Model with {} parameters.".format(get_model_parameters(model)))
