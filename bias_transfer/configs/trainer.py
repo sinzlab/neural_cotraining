@@ -15,6 +15,7 @@ class TrainerConfig(BaseConfig):
         self.optimizer_options = kwargs.pop(
             "optimizer_options", {"amsgrad": False, "lr": 0.0003, "weight_decay": 5e-4}
         )
+        self.specific_opt_options = kwargs.pop("specific_opt_options", {})
         self.lr_decay = kwargs.pop("lr_decay", 0.8)
         self.epoch = kwargs.pop("epoch", 0)
         self.scheduler = kwargs.pop("scheduler", None)

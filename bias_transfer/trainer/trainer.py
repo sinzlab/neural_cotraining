@@ -138,11 +138,29 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     else:
         tracker = None
 
-    params = list(model.parameters())
-    if config.loss_weighing:
-        for _, loss_object in criterion.items():
-            params += list(loss_object.parameters())
-    optimizer = getattr(optim, config.optimizer)(params, **config.optimizer_options)
+    if not config.specific_opt_options:
+        all_params = list(model.parameters())
+        if config.loss_weighing:
+            for _, loss_object in criterion.items():
+                all_params += list(loss_object.parameters())
+    else:
+        params = {'params': []}
+        specific_opt_options_dict = config.specific_opt_options
+        for name, parameter in model.named_parameters():
+            param_exist = False
+            for name_part in specific_opt_options_dict.keys():
+                if name_part in name:
+                    specific_opt_options_dict[name_part]['params'].append(parameter)
+                    param_exist = True
+                    break
+            if not param_exist:
+                params['params'].append(parameter)
+
+        if config.loss_weighing:
+            for _, loss_object in criterion.items():
+                params['params'] += list(loss_object.parameters())
+        all_params = [params] + list(specific_opt_options_dict.values())
+    optimizer = getattr(optim, config.optimizer)(all_params, **config.optimizer_options)
     if config.scheduler is not None:
         if config.scheduler == "adaptive":
             if config.scheduler_options['mtl']:
