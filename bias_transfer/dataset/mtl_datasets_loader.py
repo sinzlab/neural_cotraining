@@ -14,12 +14,13 @@ def mtl_datasets_loader(seed, **config):
     data_loaders = neural_dataset_loaders
     if classification_loader == "img_classification":
         img_dataset_loaders = img_dataset_loader(seed, **img_dataset_config)
-        data_loaders["train"]["img_classification"] = img_dataset_loaders["train"]
-    else:
-        img_dataset_loaders = neural_dataset_loader(seed, **img_dataset_config)
         data_loaders["train"]["img_classification"] = img_dataset_loaders["train"][
             "img_classification"
         ]
+    else:
+        img_dataset_loaders = neural_dataset_loader(seed, **img_dataset_config)
+        data_loaders["train"]["img_classification"] = img_dataset_loaders["train"]
+
     data_loaders["validation"]["img_classification"] = img_dataset_loaders[
         "validation"
     ]["img_classification"]
