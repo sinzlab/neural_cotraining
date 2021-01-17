@@ -47,7 +47,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if config.mtl and ("neural" not in config.loss_functions.keys()):
         if "img_classification" in dataloaders["train"].keys():
-            dataloaders["train"] = get_subdict(dataloaders["train"], ["img_classification"])
+            dataloaders["train"] = dataloaders['train']["img_classification"] if isinstance(dataloaders['train']["img_classification"], dict) \
+                else get_subdict(dataloaders["train"], ["img_classification"])
             dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
             dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
 

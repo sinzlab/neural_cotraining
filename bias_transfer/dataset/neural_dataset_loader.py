@@ -11,7 +11,8 @@ def neural_dataset_loader(seed, **config):
     seed = 1000
     config.pop("comment", None)
     data_dir = config.pop("data_dir", None)
-    neuronal_data_path = os.path.join(data_dir, "neuronal_data/")
+    sessions_dir = config.pop("sessions_dir", None)
+    neuronal_data_path = os.path.join(data_dir, "{}/".format(sessions_dir))
     config["neuronal_data_files"] = [
         neuronal_data_path + f
         for f in listdir(neuronal_data_path)

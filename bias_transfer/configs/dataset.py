@@ -120,6 +120,7 @@ class NeuralDatasetConfig(DatasetConfig):
         super().__init__(**kwargs)
         self.train_frac = kwargs.pop("train_frac", 0.8)
         self.dataset = kwargs.pop("dataset", "CSRF19_V1")
+        self.sessions_dir = kwargs.pop("sessions_dir", "neuronal_data")
         self.data_dir = "./data/monkey/toliaslab/{}".format(self.dataset)
         self.seed = kwargs.pop("seed", 1000)
         self.subsample = kwargs.pop("subsample", 1)
@@ -150,11 +151,15 @@ class MTLDatasetsConfig(DatasetConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.classification_loader = kwargs.pop("classification_loader", "img_classification")
         self.neural_dataset_dict = kwargs.pop("neural_dataset_dict", {})
         self.neural_dataset_config = NeuralDatasetConfig(
             **self.neural_dataset_dict
         ).to_dict()
         self.img_dataset_dict = kwargs.pop("img_dataset_dict", {})
-        self.img_dataset_config = ImageDatasetConfig(**self.img_dataset_dict).to_dict()
+        if self.classification_loader == "img_classification":
+            self.img_dataset_config = ImageDatasetConfig(**self.img_dataset_dict).to_dict()
+        else:
+            self.img_dataset_config = NeuralDatasetConfig(**self.img_dataset_dict).to_dict()
 
         self.update(**kwargs)

@@ -197,7 +197,7 @@ class MTL_VGG(nn.Module):
         self.classification_input_channels = classification_input_channels
 
         # for neural dataloaders
-        if classification:
+        if "img_classification" in dataloaders["train"].keys():
             neural_train_dataloaders = {
                 k: loader
                 for k, loader in dataloaders["train"].items()
