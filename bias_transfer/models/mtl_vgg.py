@@ -171,17 +171,23 @@ class MTL_VGG_Core(Core2d, nn.Module):
             else:
                 self.unshared_block = block
 
-    def forward(self, x, classification=False):
+    def forward(self, x, classification=False, detach_classification_layers=False):
         #if (classification and self.classification_input_channels == 1) or (
         #    not classification and self.neural_input_channels == 1
         #):
         if x.shape[1] == 1:
             x = x.expand(-1, 3, -1, -1)
-        v1_core_out = shared_core_out = self.shared_block(x)
+        shared_core_out = self.shared_block(x)
         if self.v1_final_batchnorm:
             v1_core_out = self.v1_extra(shared_core_out)
+        else:
+            v1_core_out = shared_core_out
         if classification:
-            core_out = self.unshared_block(shared_core_out)
+            if detach_classification_layers:
+                unshared_block_input = shared_core_out.detach()
+            else:
+                unshared_block_input = shared_core_out
+            core_out = self.unshared_block(unshared_block_input)
             return v1_core_out, core_out
         return v1_core_out, None
 
@@ -221,7 +227,7 @@ class MTL_VGG(nn.Module):
         v1_final_batchnorm=False,
         v1_gamma_readout=0.002,
         v1_elu_offset=-1,
-        detach_neural_readout=False, add_dropout={},
+        detach_neural_readout=False, add_dropout={}, detach_classification_layers=False,
         **kwargs
     ):
 
@@ -234,6 +240,7 @@ class MTL_VGG(nn.Module):
         self.classification_input_channels = classification_input_channels
         self.detach_neural_readout = detach_neural_readout
         self.add_dropout = add_dropout
+        self.detach_classification_layers = detach_classification_layers
 
         # for neural dataloaders
         if "img_classification" in dataloaders["train"].keys():
@@ -311,7 +318,7 @@ class MTL_VGG(nn.Module):
             self._initialize_weights_classification_readout()
 
     def forward(self, x, data_key=None, classification=False, both=False):
-        shared_core_out, core_out = self.mtl_vgg_core(x, classification)
+        shared_core_out, core_out = self.mtl_vgg_core(x, classification, self.detach_classification_layers)
         if not classification and not both:
             v1_out = self.v1_readout(shared_core_out, data_key=data_key)
             v1_out = F.elu(v1_out + self.v1_elu_offset) + 1

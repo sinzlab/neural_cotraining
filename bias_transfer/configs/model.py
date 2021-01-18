@@ -116,6 +116,7 @@ class MTLModelConfig(ModelConfig):
         self.num_classes = kwargs.pop("num_classes", 200)
         self.pretrained = kwargs.pop("pretrained", True)
         self.add_dropout = kwargs.pop("add_dropout", {})
+        self.detach_classification_layers = kwargs.pop("detach_classification_layers", False)
 
         self.detach_neural_readout = kwargs.pop("detach_neural_readout", False)
         self.v1_model_layer = kwargs.pop("v1_model_layer", 17)

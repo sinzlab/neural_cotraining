@@ -49,7 +49,7 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         v1_elu_offset=config.v1_elu_offset,
         v1_final_batchnorm=config.v1_final_batchnorm,
         detach_neural_readout=config.detach_neural_readout,
-        add_dropout=config.add_dropout
+        add_dropout=config.add_dropout, detach_classification_layers=config.detach_classification_layers
     )
 
     print("Model with {} parameters.".format(get_model_parameters(model)))
