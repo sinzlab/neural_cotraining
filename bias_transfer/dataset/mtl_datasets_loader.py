@@ -18,6 +18,7 @@ def mtl_datasets_loader(seed, **config):
             "img_classification"
         ]
     else:
+        img_dataset_config.pop("seed")
         img_dataset_loaders = neural_dataset_loader(seed, **img_dataset_config)
         data_loaders["train"]["img_classification"] = img_dataset_loaders["train"]
 
