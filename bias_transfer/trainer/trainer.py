@@ -25,7 +25,7 @@ from mlutils.training import MultipleObjectiveTracker #, early_stopping
 from .utils import early_stopping
 from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
-from .utils import XEntropyLossWrapper, NBLossWrapper
+from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from bias_transfer.trainer import utils as uts
 
 
@@ -69,11 +69,19 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     for k in val_keys:
         if k == "neural":
             if config.loss_weighing:
-                criterion[k] = NBLossWrapper(config.loss_sum).to(device)
+                if config.loss_functions[k] == "PoissonLoss":
+                    criterion[k] = NBLossWrapper(config.loss_sum).to(device)
+                else:
+                    criterion[k] = MSELossWrapper(
+                        getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
+                    ).to(device)
             else:
-                criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
-                    avg=config.avg_loss
-                )
+                if config.loss_functions[k] == "PoissonLoss":
+                    criterion[k] = getattr(mlmeasures, config.loss_functions[k])(
+                        avg=config.avg_loss
+                    )
+                else:
+                    criterion[k] = getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
             stop_closure[k] = {}
             stop_closure[k]['eval'] = partial(
                 getattr(measures, "get_correlations"),
@@ -95,7 +103,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
                 ).to(device)
             else:
-                criterion[k] = getattr(nn, config.loss_functions[k])()
+                criterion[k] = getattr(nn, config.loss_functions[k])(reduction="sum" if config.loss_sum else "mean")
             stop_closure[k] = partial(
                 main_loop,
                 criterion=get_subdict(criterion, [k]),

@@ -265,12 +265,24 @@ class ShortCycler:
 class XEntropyLossWrapper(nn.Module):
     def __init__(self, criterion):
         super(XEntropyLossWrapper, self).__init__()
-        self.log_w = nn.Parameter(torch.zeros(1))  #std
+        self.log_w = nn.Parameter(torch.zeros(1))  #std corrected to var
         self.criterion = criterion  # it is nn.CrossEntropyLoss
 
     def forward(self, preds, targets):
         precision = torch.exp(-self.log_w)
-        loss = precision * self.criterion(preds, targets) + self.log_w
+        loss = precision * self.criterion(preds, targets) + (0.5*self.log_w)
+        return loss
+
+
+class MSELossWrapper(nn.Module):
+    def __init__(self, criterion):
+        super(MSELossWrapper, self).__init__()
+        self.log_w = nn.Parameter(torch.zeros(1))  #std corrected to var
+        self.criterion = criterion  # it is .nn.MSELoss
+
+    def forward(self, preds, targets):
+        precision = torch.exp(-self.log_w)
+        loss = (0.5*precision) * self.criterion(preds, targets) + (0.5*self.log_w)
         return loss
 
 
