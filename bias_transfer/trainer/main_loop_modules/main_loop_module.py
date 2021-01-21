@@ -5,6 +5,7 @@ class MainLoopModule(object):
         self.seed = seed
         self.criterion = None
         self.mtl = config.mtl
+        self.return_classification_subset = config.return_classification_subset
 
     def pre_epoch(self, model, train_mode, epoch, **kwargs):
         pass

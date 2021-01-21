@@ -27,6 +27,10 @@ class ModelWrapper(MainLoopModule):
         task_keys = kwargs.pop("task_keys", [])
         if len(task_keys) == 1:
             outputs = {task_keys[0]: outputs}
+            if self.return_classification_subset > 0 and task_keys[0] == "img_classification":
+                outputs["img_classification"] = outputs["img_classification"][:,:self.return_classification_subset]
         else:
             outputs = {task: outputs[0] if task == "neural" else outputs[1] for task in task_keys}
+            if self.return_classification_subset > 0:
+                outputs["img_classification"] = outputs["img_classification"][:,:self.return_classification_subset]
         return outputs, loss, targets

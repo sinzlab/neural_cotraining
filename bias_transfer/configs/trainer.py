@@ -48,6 +48,10 @@ class TrainerConfig(BaseConfig):
             "mtl", False
         )
 
+        self.return_classification_subset = kwargs.pop(
+            "return_classification_subset", -1
+        )
+
         self.to_monitor = kwargs.pop(
             "to_monitor", ["img_classification"]
         )
