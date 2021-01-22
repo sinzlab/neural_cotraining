@@ -14,7 +14,6 @@ from bias_transfer.trainer.main_loop_modules import NoiseAugmentation
 from .dataset_filters import *
 from functools import partial
 
-
 DATASET_URLS = {
     "TinyImageNet": "http://cs231n.stanford.edu/tiny-imagenet-200.zip",
     "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
@@ -113,8 +112,8 @@ def img_dataset_loader(seed, **config):
                 else None,
             ]
         transform_val_in_domain = [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize(config.in_resize),
+            transforms.CenterCrop(config.input_size),
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise else None,
             transforms.Grayscale() if config.apply_grayscale else None,
@@ -123,8 +122,8 @@ def img_dataset_loader(seed, **config):
             else None,
         ]
         transform_val_out_domain = [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize(config.in_resize),
+            transforms.CenterCrop(config.input_size),
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if not config.apply_noise else None,
             transforms.Grayscale() if config.apply_grayscale else None,
@@ -133,7 +132,8 @@ def img_dataset_loader(seed, **config):
             else None,
         ]
         transform_test_c = [
-            transforms.CenterCrop(224),
+            transforms.Resize(config.in_resize),
+            transforms.CenterCrop(config.input_size),
             transforms.Grayscale() if config.apply_grayscale else None,
             transforms.ToTensor(),
             transforms.Normalize(config.train_data_mean, config.train_data_std)
@@ -143,8 +143,8 @@ def img_dataset_loader(seed, **config):
         transform_val_gauss_levels = {}
         for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
             transform_val_gauss_levels[level] = [
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
+                    transforms.Resize(config.in_resize),
+                    transforms.CenterCrop(config.input_size),
                     transforms.ToTensor(),
                     transforms.Lambda(partial(apply_one_noise, std_value=level)),
                     transforms.Grayscale() if config.apply_grayscale else None,
@@ -344,8 +344,8 @@ def img_dataset_loader(seed, **config):
 
                     if config.dataset_cls == "ImageNet":
                         transform_fly_test = [
-                            transforms.Resize(256),
-                            transforms.CenterCrop(224),
+                            transforms.Resize(config.in_resize),
+                            transforms.CenterCrop(config.input_size),
                             Noise(fly_noise_type, level),
                             transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
@@ -421,14 +421,18 @@ def img_dataset_loader(seed, **config):
                             transform=transform_test_c,
                         )
 
-    # filters = [globals().get(f)(config, train_dataset) for f in config.filters]
-    # datasets_ = [train_dataset, valid_dataset, test_dataset]
-    # if config.add_corrupted_test:
-    #     for c_ds in c_test_datasets.values():
-    #         datasets_ += list(c_ds.values())
-    # for ds in datasets_:
-    #     for filt in filters:
-    #         filt.apply(ds)
+    filters = [globals().get(f)(config, train_dataset) for f in config.filters]
+    datasets_ = [train_dataset, valid_dataset_in_domain, valid_dataset_out_domain, test_dataset_in_domain, test_dataset_out_domain]
+    datasets_ += list(val_gauss_datasets.values())
+    if config.add_fly_corrupted_test:
+        for fly_ds in fly_test_datasets.values():
+            datasets_ += list(fly_ds.values())
+    if config.add_corrupted_test:
+        for c_ds in c_test_datasets.values():
+            datasets_ += list(c_ds.values())
+    for ds in datasets_:
+        for filt in filters:
+            filt.apply(ds)
 
     num_train = len(train_dataset)
     indices = list(range(num_train))

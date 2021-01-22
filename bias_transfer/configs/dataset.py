@@ -26,6 +26,7 @@ class ImageDatasetConfig(DatasetConfig):
         self.apply_grayscale = kwargs.pop("apply_grayscale", False)
         self.apply_noise = kwargs.pop("apply_noise", {})
         self.input_size = kwargs.pop("input_size", 32)
+        self.in_resize = kwargs.pop("in_resize", 256)
         if self.dataset_cls == "CIFAR100":
             self.train_data_mean = (
                 0.5070751592371323,
@@ -77,7 +78,7 @@ class ImageDatasetConfig(DatasetConfig):
                 self.train_data_mean = (0.485, 0.456, 0.406)
                 self.train_data_std = (0.229, 0.224, 0.225)
             self.data_dir = kwargs.pop("data_dir", "./data/image_classification/")
-            self.input_size = 224
+            #self.input_size = 224
             self.num_workers = kwargs.pop("num_workers", 8)
             self.valid_size = kwargs.pop("valid_size", 0.01)
         else:

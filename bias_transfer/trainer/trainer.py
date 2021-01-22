@@ -27,19 +27,19 @@ from nnvision.utility import measures
 from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from bias_transfer.trainer import utils as uts
-
+from nnfabrik.utility.nn_helpers import move_to_device
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     seed = 1000
     config = TrainerConfig.from_dict(kwargs)
     uid = nnf.utility.dj_helpers.make_hash(uid)
-    device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
+    #device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     # Model
     print("==> Building model..", flush=True)
-    model = model.to(device)
+    model, device = move_to_device(model)
     if device == "cuda":
         cudnn.benchmark = False
         cudnn.deterministic = True
