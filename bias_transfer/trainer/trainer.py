@@ -335,13 +335,20 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 test_results_dict.update(test_results)
 
         if k == "img_classification":
+            if k in dataloaders['train'].keys():
+                if isinstance(dataloaders['train'][k], dict):
+                    imgcls_train_loader_input = dataloaders['train'][k]
+                else:
+                    imgcls_train_loader_input = get_subdict(dataloaders["train"], [k])
+            else:
+                imgcls_train_loader_input = dataloaders['train']
             if config.add_final_train_eval:
                 train_final_results = test_model(
                     model=model,
                     epoch=epoch,
                     criterion=get_subdict(criterion, [k]),
                     device=device,
-                    data_loader=get_subdict(dataloaders["train"], [k]) if k in dataloaders['train'].keys() else dataloaders['train'],
+                    data_loader=imgcls_train_loader_input,
                     config=config,
                     noise_test=False,
                     seed=seed,

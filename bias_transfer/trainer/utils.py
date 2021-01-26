@@ -174,7 +174,11 @@ def early_stopping(
 class MTL_Cycler:
     def __init__(self, loaders, main_key="img_classification", ratio=1):
         self.main_key = main_key  # data_key of the dataset whose batch ratio is always 1
-        self.main_loader = loaders[main_key]
+        if isinstance(loaders[main_key], dict):
+            second_key = list(loaders[main_key].keys())[0]
+            self.main_loader = loaders[main_key][second_key]
+        else:
+            self.main_loader = loaders[main_key]
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
         self.ratio = ratio   # number of neural batches vs. one batch from TIN
         self.num_batches = int(len(self.main_loader) * (ratio + 1))
