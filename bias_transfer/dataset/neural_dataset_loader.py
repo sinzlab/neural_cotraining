@@ -18,8 +18,12 @@ def neural_dataset_loader(seed, **config):
         for f in listdir(neuronal_data_path)
         if (isfile(join(neuronal_data_path, f)) and f != "CSRF19_V4_3653663964522.pickle")
     ]
-    config["image_cache_path"] = os.path.join(data_dir, "images/individual")
-    config["original_image_cache_path"] = os.path.join(data_dir, "images/original/")
+    if not config['individual_image_paths']:
+        config["image_cache_path"] = os.path.join(data_dir, "images/individual")
+        config["original_image_cache_path"] = os.path.join(data_dir, "images/original/")
+    else:
+        config["image_cache_path"] = os.path.join(data_dir, "images/individual_image_paths.pickle")
+        config["original_image_cache_path"] = os.path.join(data_dir, "images/individual_image_paths.pickle")
     torch.manual_seed(seed)
     np.random.seed(seed)
     dataset_fn = "nnvision.datasets.monkey_static_loader"

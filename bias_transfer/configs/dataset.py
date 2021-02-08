@@ -129,6 +129,8 @@ class NeuralDatasetConfig(DatasetConfig):
         self.time_bins_sum = kwargs.pop("time_bins_sum", 12)
         self.target_types = kwargs.pop("target_types", ["neural"])
         self.normalize = kwargs.pop("normalize", True)
+        self.train_transformation = kwargs.pop("train_transformation", False)  #for resize and grayscale
+        self.individual_image_paths = kwargs.pop("individual_image_paths", False)
         self.stats = kwargs.pop("stats", {})
         self.apply_augmentation = kwargs.pop("apply_augmentation", False)
         self.input_size = kwargs.pop("input_size", 64)
