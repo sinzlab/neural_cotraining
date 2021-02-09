@@ -1,9 +1,9 @@
-from itertools import cycle
 from bias_transfer.utils.io import save_checkpoint
 from mlutils.training import copy_state
 import torch
 from torch import nn
 import numpy as np
+from mlutils.training import cycle
 
 def get_subdict(dictionary:dict, keys:list=None):
     """
