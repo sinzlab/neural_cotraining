@@ -132,6 +132,8 @@ class NeuralDatasetConfig(DatasetConfig):
         self.train_transformation = kwargs.pop("train_transformation", False)  #for resize and grayscale
         self.individual_image_paths = kwargs.pop("individual_image_paths", False)
         self.stats = kwargs.pop("stats", {})
+        self.pin_memory = kwargs.pop("pin_memory", True)
+        self.num_workers = kwargs.pop("num_workers", 1)
         self.apply_augmentation = kwargs.pop("apply_augmentation", False)
         self.input_size = kwargs.pop("input_size", 64)
         self.apply_grayscale = kwargs.pop("apply_grayscale", True)
