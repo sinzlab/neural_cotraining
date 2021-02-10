@@ -79,6 +79,13 @@ def img_dataset_loader(seed, **config):
             }
         return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
 
+    def apply_only_noise(x):
+        std = {0.08: 0.2, 0.12: 0.2, 0.18: 0.2, 0.26: 0.2, 0.38: 0.2}
+        noise_config = {
+            "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+        }
+        return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
+
     def apply_one_noise(x, std_value=None):
         noise_config = {
             "std": {std_value: 1.0}
@@ -100,12 +107,13 @@ def img_dataset_loader(seed, **config):
             else None,
         ]
         if config.apply_noise.get("representation_matching", False):
-            transform_train_clean = [
+            transform_train_only_noise = [
                 transforms.RandomResizedCrop(config.input_size)
                 if config.apply_augmentation
                 else None,
                 transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
                 transforms.ToTensor(),
+                transforms.Lambda(apply_only_noise) if config.apply_noise else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
@@ -167,13 +175,14 @@ def img_dataset_loader(seed, **config):
             else None,
         ]
         if config.apply_noise.get("representation_matching", False):
-            transform_train_clean = [
+            transform_train_only_noise = [
                 transforms.RandomCrop(config.input_size, padding=4)
                 if config.apply_augmentation
                 else None,
                 transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
                 transforms.RandomRotation(15) if config.apply_augmentation else None,
                 transforms.ToTensor(),
+                transforms.Lambda(apply_only_noise) if config.apply_noise else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
@@ -226,8 +235,8 @@ def img_dataset_loader(seed, **config):
         list(filter(lambda x: x is not None, transform_train))
     )
     if config.apply_noise.get("representation_matching", False):
-        transform_train_clean = transforms.Compose(
-            list(filter(lambda x: x is not None, transform_train_clean))
+        transform_train_only_noise = transforms.Compose(
+            list(filter(lambda x: x is not None, transform_train_only_noise))
         )
     for level in list(transform_val_gauss_levels.keys()):
         transform_val_gauss_levels[level] = transforms.Compose(
@@ -251,13 +260,13 @@ def img_dataset_loader(seed, **config):
         )
 
         if config.apply_noise.get("representation_matching", False):
-            train_dataset_clean = dataset_cls(
+            train_dataset_only_noise = dataset_cls(
                 root=config.data_dir,
                 train=True,
                 download=config.download,
-                transform=transform_train_clean,
+                transform=transform_train_only_noise,
             )
-            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_clean])
+            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_only_noise])
 
         valid_dataset_in_domain = dataset_cls(
             root=config.data_dir,
@@ -311,8 +320,8 @@ def img_dataset_loader(seed, **config):
         train_dataset = datasets.ImageFolder(train_dir, transform=transform_train)
 
         if config.apply_noise.get("representation_matching", False):
-            train_dataset_clean = datasets.ImageFolder(train_dir, transform=transform_train_clean)
-            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_clean])
+            train_dataset_only_noise = datasets.ImageFolder(train_dir, transform=transform_train_only_noise)
+            train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_only_noise])
 
         valid_dataset_in_domain = datasets.ImageFolder(train_dir, transform=transform_val_in_domain)
 
