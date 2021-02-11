@@ -28,6 +28,7 @@ from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from bias_transfer.trainer import utils as uts
 from nnfabrik.utility.nn_helpers import move_to_device
+from .checkpointing import LocalCheckpointing
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     seed = 1000
@@ -221,6 +222,16 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     print("==> Starting model {}".format(config.comment), flush=True)
     train_stats = []
+
+    checkpointing = LocalCheckpointing(
+        model,
+        train_scheduler,
+        train_stats,
+        {},
+        config.maximize,
+        hash=uid,
+    )
+
     epoch_iterator = early_stopping(
         model,
         uid,
@@ -235,7 +246,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         restore_best=config.restore_best,
         tracker=tracker,
         scheduler=train_scheduler,
-        lr_decay_steps=config.lr_decay_steps,
+        lr_decay_steps=config.lr_decay_steps, checkpointing=checkpointing
     )
 
     # train over epochs

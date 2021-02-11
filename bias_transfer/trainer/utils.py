@@ -66,6 +66,7 @@ def early_stopping(
         tracker=None,
         scheduler=None,
         lr_decay_steps=1,
+        checkpointing=None,
 ):
 
     training_status = model.training
@@ -79,28 +80,27 @@ def early_stopping(
             model.train(training_status)
         return ret
 
-    def decay_lr(model, best_state_dict, old_objective, best_objective):
+    def decay_lr():
         if restore_best:
-            model.load_state_dict(best_state_dict)
-            print("Restoring best model after lr decay! {} ---> {}".format(old_objective, best_objective), flush=True)
-
-    def finalize(model, best_state_dict, old_objective, best_objective):
-        if restore_best:
-            model.load_state_dict(best_state_dict)
+            restored_epoch, _ = checkpointing.restore(
+                restore_only_state=True, action="best"
+            )
             print(
-                "Restoring best model! {} ---> {}".format(
-                    old_objective, best_objective
+                "Restoring best model from epoch {} after lr-decay!".format(
+                    restored_epoch
                 )
             )
+    def finalize(best_objective):
+        if restore_best:
+            restored_epoch, _ = checkpointing.restore(
+                restore_only_state=True, action="best"
+            )
+            print("Restoring best model from epoch! {}".format(restored_epoch))
         else:
-            print(
-                "Final best model! objective {}".format(
-                    best_objective
-                )
-            )
+            print("Final best model! objective {}".format(best_objective))
 
 
-    epoch = start
+    epoch, patience_counter = checkpointing.restore(action="last")
     # turn into a sign
     maximize = -1 if maximize else 1
     best_objective = current_objective = _objective()
@@ -158,6 +158,9 @@ def early_stopping(
                     "Validation [{:03d}|{:02d}/{:02d}] -/-> {}".format(epoch, patience_counter, patience, current_objective),
                     flush=True,
                 )
+            checkpointing.save(
+                epoch=epoch, score=current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'], patience_counter=patience_counter,
+            )  # save model
 
             if (config.scheduler == "manual") and (epoch in config.scheduler_options['milestones']):
                 decay_lr(model, best_state_dict, current_objective, best_objective)
