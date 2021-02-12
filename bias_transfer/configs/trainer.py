@@ -48,6 +48,10 @@ class TrainerConfig(BaseConfig):
             "mtl", False
         )
 
+        self.hash = kwargs.pop(
+            "hash", None
+        )
+
         self.return_classification_subset = kwargs.pop(
             "return_classification_subset", -1
         )

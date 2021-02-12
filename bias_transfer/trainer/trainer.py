@@ -33,7 +33,10 @@ from .checkpointing import LocalCheckpointing
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     seed = 1000
     config = TrainerConfig.from_dict(kwargs)
-    uid = nnf.utility.dj_helpers.make_hash(uid)
+    if config.hash is not None:
+        uid = config.hash
+    else:
+        uid = nnf.utility.dj_helpers.make_hash(uid)
     #device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
     torch.manual_seed(seed)
     np.random.seed(seed)
