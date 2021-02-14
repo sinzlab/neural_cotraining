@@ -169,9 +169,9 @@ def early_stopping(
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
             if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
-            decay_lr(model, best_state_dict, current_objective, best_objective)
+            decay_lr()
 
-    finalize(model, best_state_dict, current_objective, best_objective)
+    finalize(best_objective)
 
 
 class MTL_Cycler:
