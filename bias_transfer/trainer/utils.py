@@ -104,14 +104,12 @@ def early_stopping(
     # turn into a sign
     maximize = -1 if maximize else 1
     best_objective = current_objective = _objective()
-    best_state_dict = copy_state(model)
 
     if scheduler is not None:
         if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
             scheduler.step(current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'])
 
     for repeat in range(lr_decay_steps):
-        patience_counter = -1
 
         while patience_counter < patience and epoch < max_iter:
 
@@ -125,7 +123,7 @@ def early_stopping(
 
                 if (map_to_task_dict(current_objective, isnotfinite)).any():
                     print("Objective is not Finite. Stopping training")
-                    finalize(model, best_state_dict, current_objective, best_objective)
+                    finalize(best_objective)
                     return
                 yield epoch, current_objective
 
@@ -149,7 +147,6 @@ def early_stopping(
                     "Validation [{:03d}|{:02d}/{:02d}] ---> {}".format(epoch, patience_counter, patience, current_objective),
                     flush=True,
                 )
-                best_state_dict = copy_state(model)
                 best_objective = current_objective
                 patience_counter = -1
             else:
@@ -163,13 +160,14 @@ def early_stopping(
             )  # save model
 
             if (config.scheduler == "manual") and (epoch in config.scheduler_options['milestones']):
-                decay_lr(model, best_state_dict, current_objective, best_objective)
+                decay_lr()
 
 
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
             if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
             decay_lr()
+        patience_counter = -1
 
     finalize(best_objective)
 
