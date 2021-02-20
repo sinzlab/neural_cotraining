@@ -22,9 +22,13 @@ def freeze_params(model, to_freeze=None, not_to_freeze=None):
         if freeze and param.requires_grad:
             param.requires_grad = False
 
-def freeze_mtl_shared_block(model):
-    for param in model.mtl_vgg_core.shared_block.parameters():
-        param.requires_grad = False
+def freeze_mtl_shared_block(model, multi):
+    if multi:
+        for param in model.module.mtl_vgg_core.shared_block.parameters():
+            param.requires_grad = False
+    else:
+        for param in model.mtl_vgg_core.shared_block.parameters():
+            param.requires_grad = False
 
 
 def weight_reset(m, advanced_init=False, zero_init_residual=False):

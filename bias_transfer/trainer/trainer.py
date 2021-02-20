@@ -43,7 +43,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     # Model
     print("==> Building model..", flush=True)
-    model, device = move_to_device(model)
+    model, device, multi = move_to_device(model)
     if device == "cuda":
         cudnn.benchmark = False
         cudnn.deterministic = True
@@ -210,7 +210,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if config.freeze:
         if config.mtl:
-            freeze_mtl_shared_block(model)
+            freeze_mtl_shared_block(model, multi)
             #model.freeze(config.freeze['freeze'])
         else:
             if config.freeze['freeze'] == ("core",):
