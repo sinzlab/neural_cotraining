@@ -595,5 +595,6 @@ def img_dataset_loader(seed, **config):
                         shuffle=False,
                     )
         data_loaders["fly_c_test"] = fly_test_loaders
-        data_loaders["imagenet_fly_c_test"] = imagenet_fly_test_loaders
+        if config.dataset_cls == "TinyImageNet":
+            data_loaders["imagenet_fly_c_test"] = imagenet_fly_test_loaders
     return data_loaders
