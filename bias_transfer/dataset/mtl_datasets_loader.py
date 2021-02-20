@@ -41,6 +41,8 @@ def mtl_datasets_loader(seed, **config):
         data_loaders["validation_gauss"] = img_dataset_loaders["validation_gauss"]
     if "fly_c_test" in img_dataset_loaders:
         data_loaders["fly_c_test"] = img_dataset_loaders["fly_c_test"]
+    if "imagenet_fly_c_test" in img_dataset_loaders:
+        data_loaders["imagenet_fly_c_test"] = img_dataset_loaders["imagenet_fly_c_test"]
     if "c_test" in img_dataset_loaders:
         data_loaders["c_test"] = img_dataset_loaders["c_test"]
     if "st_test" in img_dataset_loaders:

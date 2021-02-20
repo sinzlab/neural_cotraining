@@ -313,6 +313,7 @@ def img_dataset_loader(seed, **config):
 
         if config.dataset_cls != "ImageNet":
             create_ImageFolder_format(dataset_dir)
+            imagenet_val_dir = os.path.join(dataset_dir, "imagenet_val", "images")
 
         train_dir = os.path.join(dataset_dir, "train")
         val_dir = os.path.join(dataset_dir, "val", "images")
@@ -337,8 +338,12 @@ def img_dataset_loader(seed, **config):
 
         if config.add_fly_corrupted_test:
             fly_test_datasets = {}
+            if config.dataset_cls != "ImageNet":
+                imagenet_fly_test_datasets = {}
             for fly_noise_type, levels in config.add_fly_corrupted_test.items():
                 fly_test_datasets[fly_noise_type] = {}
+                if config.dataset_cls != "ImageNet":
+                    imagenet_fly_test_datasets[fly_noise_type] = {}
                 for level in levels:
 
                     class Noise(object):
@@ -363,6 +368,11 @@ def img_dataset_loader(seed, **config):
                             if config.apply_normalization
                             else None,
                         ]
+                        transform_fly_test = transforms.Compose(
+                            list(filter(lambda x: x is not None, transform_fly_test))
+                        )
+                        fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
+                                                                                        transform=transform_fly_test)
                     else:
                         transform_fly_test = [
                             Noise(fly_noise_type, level),
@@ -373,11 +383,27 @@ def img_dataset_loader(seed, **config):
                             if config.apply_normalization
                             else None,
                         ]
-                    transform_fly_test = transforms.Compose(
-                        list(filter(lambda x: x is not None, transform_fly_test))
-                    )
-                    fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
-                                                                                    transform=transform_fly_test)
+                        imagenet_transform_fly_test = [
+                            transforms.Resize(config.in_resize),
+                            transforms.CenterCrop(config.input_size),
+                            Noise(fly_noise_type, level),
+                            transforms.ToPILImage() if config.apply_grayscale else None,
+                            transforms.Grayscale() if config.apply_grayscale else None,
+                            transforms.ToTensor(),
+                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            if config.apply_normalization
+                            else None,
+                        ]
+                        transform_fly_test = transforms.Compose(
+                            list(filter(lambda x: x is not None, transform_fly_test))
+                        )
+                        imagenet_transform_fly_test = transforms.Compose(
+                            list(filter(lambda x: x is not None, imagenet_transform_fly_test))
+                        )
+                        fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
+                                                                                        transform=transform_fly_test)
+                        imagenet_fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(imagenet_val_dir,
+                                                                                        transform=imagenet_transform_fly_test)
 
     if config.add_stylized_test:
         st_dataset_dir = get_dataset(
@@ -436,9 +462,15 @@ def img_dataset_loader(seed, **config):
     if config.add_fly_corrupted_test:
         for fly_ds in fly_test_datasets.values():
             datasets_ += list(fly_ds.values())
+        if config.dataset_cls == "TinyImageNet":
+            for in_fly_ds in imagenet_fly_test_datasets.values():
+                datasets_ += list(in_fly_ds.values())
+
+
     if config.add_corrupted_test:
         for c_ds in c_test_datasets.values():
             datasets_ += list(c_ds.values())
+
     for ds in datasets_:
         for filt in filters:
             filt.apply(ds)
@@ -540,8 +572,12 @@ def img_dataset_loader(seed, **config):
 
     if config.add_fly_corrupted_test:
         fly_test_loaders = {}
+        if config.dataset_cls == "TinyImageNet":
+            imagenet_fly_test_loaders = {}
         for fly_noise_type in fly_test_datasets.keys():
             fly_test_loaders[fly_noise_type] = {}
+            if config.dataset_cls == "TinyImageNet":
+                imagenet_fly_test_loaders[fly_noise_type] = {}
             for level, dataset in fly_test_datasets[fly_noise_type].items():
                 fly_test_loaders[fly_noise_type][level] = torch.utils.data.DataLoader(
                     dataset,
@@ -550,5 +586,14 @@ def img_dataset_loader(seed, **config):
                     pin_memory=config.pin_memory,
                     shuffle=False,
                 )
+                if config.dataset_cls == "TinyImageNet":
+                    imagenet_fly_test_loaders[fly_noise_type][level] = torch.utils.data.DataLoader(
+                        imagenet_fly_test_datasets[fly_noise_type][level],
+                        batch_size=config.batch_size,
+                        num_workers=config.num_workers,
+                        pin_memory=config.pin_memory,
+                        shuffle=False,
+                    )
         data_loaders["fly_c_test"] = fly_test_loaders
+        data_loaders["imagenet_fly_c_test"] = imagenet_fly_test_loaders
     return data_loaders

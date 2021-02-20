@@ -6,7 +6,7 @@ import torch
 from torch import nn, optim
 from torch.backends import cudnn as cudnn
 
-from bias_transfer.models.utils import freeze_params, reset_params
+from bias_transfer.models.utils import freeze_params, reset_params, freeze_mtl_shared_block
 from bias_transfer.trainer.utils import (
     get_subdict,
     StopClosureWrapper,
@@ -210,7 +210,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if config.freeze:
         if config.mtl:
-            model.freeze(config.freeze['freeze'])
+            freeze_mtl_shared_block(model)
+            #model.freeze(config.freeze['freeze'])
         else:
             if config.freeze['freeze'] == ("core",):
                 kwargs = {"not_to_freeze": (config.readout_name,)}
@@ -500,6 +501,25 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 )
                 fly_test_c_results[fly_noise_type][level] = results
         final_results["fly_test_c_results"] = fly_test_c_results
+
+    if "imagenet_fly_c_test" in dataloaders:
+        imagenet_fly_test_c_results = {}
+        for fly_noise_type in list(dataloaders["imagenet_fly_c_test"].keys()):
+            imagenet_fly_test_c_results[fly_noise_type] = {}
+            for level, dataloader in dataloaders["imagenet_fly_c_test"][fly_noise_type].items():
+                results = test_model(
+                    model=model,
+                    epoch=epoch,
+                    criterion=get_subdict(criterion, ["img_classification"]),
+                    device=device,
+                    data_loader={"img_classification": dataloader},
+                    config=config,
+                    noise_test=False,
+                    seed=seed,
+                    eval_type="ImageNet-Fly-Test-C",
+                )
+                imagenet_fly_test_c_results[fly_noise_type][level] = results
+        final_results["imagenet_fly_test_c_results"] = imagenet_fly_test_c_results
 
     if "st_test" in dataloaders:
         test_st_results = test_model(
