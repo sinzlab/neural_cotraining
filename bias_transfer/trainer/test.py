@@ -30,7 +30,7 @@ def test_model(
     config,
     seed,
     noise_test: bool = True,
-    eval_type="Validation",
+    eval_type="Validation", multi=False
 ):
     if config.noise_test and noise_test:
         test_results = {}
@@ -65,7 +65,7 @@ def test_model(
                     loss_weighing=config.loss_weighing,
                     scale_loss=config.scale_loss,
                     cycler_args={},
-                    cycler="LongCycler"
+                    cycler="LongCycler", multi=multi
                 )
     else:
         main_loop_modules = []
@@ -87,6 +87,6 @@ def test_model(
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss,
             cycler_args={},
-            cycler="LongCycler"
+            cycler="LongCycler", multi=multi
         )
     return test_results

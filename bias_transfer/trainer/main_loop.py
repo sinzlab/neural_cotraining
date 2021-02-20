@@ -7,7 +7,7 @@ from functools import partial
 from .utils import set_bn_to_eval
 
 def neural_full_objective(
-    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets
+    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets, multi
 ):
 
     loss = criterion(outputs, targets)
@@ -18,7 +18,10 @@ def neural_full_objective(
     )
     loss *= loss_scale
     if scale_loss:
-        loss += model.regularizer(data_key)
+        if not multi:
+            loss += model.regularizer(data_key)
+        else:
+            loss += model.module.regularizer(data_key)
     return loss
 
 
@@ -55,12 +58,12 @@ def main_loop(
     eval_type="Validation",
     cycler="LongCycler",
     cycler_args={},
-    loss_weighing=False,
+    loss_weighing=False, multi=False,
     freeze_bn={'last_layer': -1}
 ):
     model.train() if train_mode else model.eval()
     if train_mode and freeze_bn['last_layer'] > 0:
-        set_bn_to_eval(model, freeze_bn)
+        set_bn_to_eval(model, freeze_bn, multi)
     task_dict = {}
     correct = 0
     if loss_weighing:
@@ -151,7 +154,7 @@ def main_loop(
                         scale_loss,
                         data_key,
                         inputs,
-                        targets['neural'],
+                        targets['neural'], multi=multi
                     )
                     total_loss["neural"] += loss.item()
                     task_dict["neural"]["epoch_loss"] = average_loss(

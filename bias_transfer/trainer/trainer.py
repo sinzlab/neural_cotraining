@@ -40,7 +40,6 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     #device = "cuda" if torch.cuda.is_available() and not config.force_cpu else "cpu"
     torch.manual_seed(seed)
     np.random.seed(seed)
-
     # Model
     print("==> Building model..", flush=True)
     model, device, multi = move_to_device(model)
@@ -123,7 +122,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 loss_weighing=config.loss_weighing,
                 cycler_args={},
                 cycler="LongCycler",
-                freeze_bn={'last_layer': -1}
+                freeze_bn={'last_layer': -1},
+                multi=multi
             )
 
     if config.track_training:
@@ -274,9 +274,9 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             )
 
         # print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
-        # for name, param in model.named_parameters():
+        # for name, param in model.module.named_parameters():
         #     print(name, param.requires_grad)
-        # for name, param in model.mtl_vgg_core.shared_block.named_children():
+        # for name, param in model.module.mtl_vgg_core.shared_block.named_children():
         #     if "BatchNorm" in param.__class__.__name__:
         #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
         # for name, param in model.mtl_vgg_core.unshared_block.named_children():
@@ -296,7 +296,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss,
-            freeze_bn=config.freeze_bn
+            freeze_bn=config.freeze_bn, multi=multi
         )
 
 
@@ -367,7 +367,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     config=config,
                     noise_test=False,
                     seed=seed,
-                    eval_type="Train",
+                    eval_type="Train", multi=multi
                 )
                 train_final_results_dict.update(train_final_results)
 
@@ -392,7 +392,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     config=config,
                     noise_test=False,
                     seed=seed,
-                    eval_type="Validation In-domain",
+                    eval_type="Validation In-domain", multi=multi
                 )
                 dev_final_results["img_classification"]["validation_in_domain"] = dev_final_results_in_domain
                 if 'validation_out_domain' in dataloaders.keys():
@@ -404,7 +404,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                         data_loader=get_subdict(dataloaders["validation_out_domain"], [k]),
                         config=config,
                         noise_test=False,
-                        seed=seed,
+                        seed=seed, multi=multi,
                         eval_type="Validation Out-domain",
                     )
                     dev_final_results["img_classification"]["validation_out_domain"] =  dev_final_results_out_domain
@@ -421,7 +421,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     config=config,
                     noise_test=False,
                     seed=seed,
-                    eval_type="Test In-domain",
+                    eval_type="Test In-domain", multi=multi
                 )
                 test_results["img_classification"]["test_in_domain"] = test_results_in_domain
                 if 'test_out_domain' in dataloaders.keys():
@@ -434,7 +434,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                         config=config,
                         noise_test=False,
                         seed=seed,
-                        eval_type="Test Out-domain",
+                        eval_type="Test Out-domain",multi=multi
                     )
                     test_results["img_classification"]["test_out_domain"] = test_results_out_domain
                 test_results_dict.update(test_results)
@@ -458,7 +458,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 data_loader={"img_classification": dataloader},
                 config=config,
                 noise_test=False,
-                seed=seed,
+                seed=seed, multi=multi,
                 eval_type="Validation-Gauss-{}".format(level),
             )
             validation_gauss_results[level] = results
@@ -477,7 +477,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     data_loader={"img_classification": dataloader},
                     config=config,
                     noise_test=False,
-                    seed=seed,
+                    seed=seed, multi=multi,
                     eval_type="Test-C",
                 )
                 test_c_results[c_category][c_level] = results
@@ -496,7 +496,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     data_loader={"img_classification": dataloader},
                     config=config,
                     noise_test=False,
-                    seed=seed,
+                    seed=seed, multi=multi,
                     eval_type="Fly-Test-C",
                 )
                 fly_test_c_results[fly_noise_type][level] = results
@@ -515,7 +515,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     data_loader={"img_classification": dataloader},
                     config=config,
                     noise_test=False,
-                    seed=seed,
+                    seed=seed,multi=multi,
                     eval_type="ImageNet-Fly-Test-C",
                 )
                 imagenet_fly_test_c_results[fly_noise_type][level] = results
@@ -530,7 +530,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             data_loader={"img_classification": dataloaders['st_test']},
             config=config,
             noise_test=False,
-            seed=seed,
+            seed=seed, multi=multi,
             eval_type="Test-ST",
         )
         final_results["test_st_results"] = test_st_results
