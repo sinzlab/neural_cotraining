@@ -384,8 +384,8 @@ def img_dataset_loader(seed, **config):
                             else None,
                         ]
                         imagenet_transform_fly_test = [
-                            transforms.Resize(config.in_resize),
-                            transforms.CenterCrop(config.input_size),
+                            transforms.Resize(config.input_size),
+                            #transforms.CenterCrop(config.input_size),
                             Noise(fly_noise_type, level),
                             transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
