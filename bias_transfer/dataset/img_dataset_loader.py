@@ -61,6 +61,31 @@ def img_dataset_loader(seed, **config):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    class Distort(object):
+        def __init__(self, with_clean):
+
+            self.noises = ['impulse_noise', 'shot_noise', 'gaussian_noise', 'snow', 'jpeg_compression',
+                      'contrast', 'fog', 'defocus_blur', 'frost', 'pixelate', 'motion_blur', 'zoom_blur', 'brightness', 'elastic_transform']
+            self.levels = [1,2,3,4,5]
+            self.with_clean = with_clean
+
+        def __call__(self, pic):
+            pic = np.asarray(pic)
+            if self.with_clean:
+                clean = np.random.binomial(1, p=0.5)
+                if clean:
+                    return pic
+                else:
+                    noise_type = np.random.choice(self.noises)
+                    severity = np.random.choice(self.levels)
+                    img = corrupt(pic, corruption_name=noise_type, severity=severity)
+                    return img
+            else:
+                noise_type = np.random.choice(self.noises)
+                severity = np.random.choice(self.levels)
+                img = corrupt(pic, corruption_name=noise_type, severity=severity)
+                return img
+
     def apply_noise(x):
         if config.apply_noise.get("noise_std", False):
             std = config.apply_noise.get("noise_std")
@@ -167,8 +192,9 @@ def img_dataset_loader(seed, **config):
             else None,
             transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
             transforms.RandomRotation(15) if config.apply_augmentation else None,
+            transforms.Lambda(Distort(True)) if config.apply_noise.get("all_noises", False) else None,
             transforms.ToTensor(),
-            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
             transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
@@ -181,16 +207,18 @@ def img_dataset_loader(seed, **config):
                 else None,
                 transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
                 transforms.RandomRotation(15) if config.apply_augmentation else None,
+                transforms.Lambda(Distort(False)) if config.apply_noise.get("all_noises", False) else None,
                 transforms.ToTensor(),
-                transforms.Lambda(apply_only_noise) if config.apply_noise else None,
+                transforms.Lambda(apply_only_noise) if config.apply_noise.get("noise_std", False) else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
                 else None,
             ]
         transform_val_in_domain = [
+            transforms.Lambda(Distort(True)) if config.apply_noise.get("all_noises", False) else None,
             transforms.ToTensor(),
-            transforms.Lambda(apply_noise) if config.apply_noise else None,
+            transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
             transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
@@ -198,7 +226,7 @@ def img_dataset_loader(seed, **config):
         ]
         transform_val_out_domain = [
             transforms.ToTensor(),
-            transforms.Lambda(apply_noise) if not config.apply_noise else None,
+            transforms.Lambda(apply_noise) if (not config.apply_noise.get("noise_std", False) and not config.apply_noise.get("all_noises", False)) else None,
             transforms.Grayscale() if config.apply_grayscale else None,
             transforms.Normalize(config.train_data_mean, config.train_data_std)
             if config.apply_normalization
