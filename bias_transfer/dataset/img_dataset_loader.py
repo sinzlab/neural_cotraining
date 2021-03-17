@@ -62,10 +62,10 @@ def img_dataset_loader(seed, **config):
     np.random.seed(seed)
 
     class Distort(object):
-        def __init__(self, with_clean):
+        def __init__(self, with_clean, noises):
 
-            self.noises = ['impulse_noise', 'shot_noise', 'gaussian_noise', 'snow', 'jpeg_compression',
-                      'contrast', 'fog', 'defocus_blur', 'frost', 'pixelate', 'motion_blur', 'zoom_blur', 'brightness', 'elastic_transform']
+            self.noises = noises #['impulse_noise', 'shot_noise', 'gaussian_noise', 'snow', 'jpeg_compression',
+            # 'contrast', 'fog', 'defocus_blur', 'frost', 'pixelate', 'motion_blur', 'zoom_blur', 'brightness', 'elastic_transform']
             self.levels = [1,2,3,4,5]
             self.with_clean = with_clean
 
@@ -192,7 +192,7 @@ def img_dataset_loader(seed, **config):
             else None,
             transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
             transforms.RandomRotation(15) if config.apply_augmentation else None,
-            transforms.Lambda(Distort(True)) if config.apply_noise.get("all_noises", False) else None,
+            transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
             transforms.Grayscale() if config.apply_grayscale else None,
@@ -207,7 +207,7 @@ def img_dataset_loader(seed, **config):
                 else None,
                 transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
                 transforms.RandomRotation(15) if config.apply_augmentation else None,
-                transforms.Lambda(Distort(False)) if config.apply_noise.get("all_noises", False) else None,
+                transforms.Lambda(Distort(False, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
                 transforms.ToTensor(),
                 transforms.Lambda(apply_only_noise) if config.apply_noise.get("noise_std", False) else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
@@ -216,7 +216,7 @@ def img_dataset_loader(seed, **config):
                 else None,
             ]
         transform_val_in_domain = [
-            transforms.Lambda(Distort(True)) if config.apply_noise.get("all_noises", False) else None,
+            transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
             transforms.ToTensor(),
             transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
             transforms.Grayscale() if config.apply_grayscale else None,
