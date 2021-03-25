@@ -182,30 +182,34 @@ class MTL_Cycler:
             self.main_loader = loaders[main_key]
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
         self.ratio = ratio   # number of neural batches vs. one batch from TIN
-        self.num_batches = int(len(self.main_loader) * (ratio + 1))
+        self.num_batches = int(len(self.main_loader) * (ratio*len(self.other_loaders.keys()) + 1))
         self.backward = False
 
     def generate_batch(self, main_cycle, other_cycles_dict):
         if self.ratio >= 1 or self.ratio == 0:
             for main_batch_idx in range(len(self.main_loader)):
-                for batch_idx in range(self.ratio):
-                    key, loader = next(other_cycles_dict)
-                    yield key, loader
+                for neural_set in other_cycles_dict.keys():
+                    for batch_idx in range(self.ratio):
+                        key, loader = next(other_cycles_dict[neural_set])
+                        yield (neural_set, key), loader
                 self.backward = True
                 yield self.main_key, main_cycle
                 self.backward = False
         else:
             for i in range(len(self.main_loader)):
-                if (i+1) % (1/self.ratio) == 0:
-                    key, loader = next(other_cycles_dict)
-                    yield key, loader
+                for neural_set in other_cycles_dict.keys():
+                    if (i+1) % (1/self.ratio) == 0:
+                        key, loader = next(other_cycles_dict[neural_set])
+                        yield (neural_set, key), loader
                 self.backward = True
                 yield self.main_key, main_cycle
                 self.backward = False
 
     def __iter__(self):
-        other_cycles = {k: cycle(v) for k, v in self.other_loaders.items()}
-        other_cycles_dict = cycle(other_cycles.items())
+        other_cycles_dict = {}
+        for neural_set, loaders_set in self.other_loaders.items():
+            other_cycles = {k: cycle(v) for k, v in loaders_set.items()}
+            other_cycles_dict[neural_set] = cycle(other_cycles.items())
         main_cycle = cycle(self.main_loader)
         for k, loader in self.generate_batch(main_cycle, other_cycles_dict):
             yield k, next(loader)
@@ -221,7 +225,12 @@ class LongCycler:
     """
 
     def __init__(self, loaders, grad_accum_step=0):
-        self.loaders = loaders
+        if isinstance(loaders[list(loaders.keys())[0]], dict):
+            self.main_key = list(loaders.keys())[0]
+            self.loaders = loaders[self.main_key]
+        else:
+            self.main_key = ""
+            self.loaders = loaders
         self.max_batches = max([len(loader) for loader in self.loaders.values()])
         self.backward = False
         self.grad_accum_step = len(self.loaders) if not grad_accum_step else grad_accum_step
@@ -234,7 +243,10 @@ class LongCycler:
         ):
             if (batch_idx + 1) % self.grad_accum_step == 0:
                 self.backward = True
-            yield k, next(loader)
+            if self.main_key:
+                yield (self.main_key, k), next(loader)
+            else:
+                yield k, next(loader)
             self.backward = False
 
     def __len__(self):
@@ -247,7 +259,12 @@ class ShortCycler:
     """
 
     def __init__(self, loaders, grad_accum_step=0):
-        self.loaders = loaders
+        if isinstance(loaders[list(loaders.keys())[0]], dict):
+            self.main_key = list(loaders.keys())[0]
+            self.loaders = loaders[self.main_key]
+        else:
+            self.main_key = ""
+            self.loaders = loaders
         self.min_batches = min([len(loader) for loader in self.loaders.values()])
         self.backward = False
         self.grad_accum_step = len(self.loaders) if not grad_accum_step else grad_accum_step
@@ -260,7 +277,10 @@ class ShortCycler:
         ):
             if (batch_idx + 1) % self.grad_accum_step == 0:
                 self.backward = True
-            yield k, next(loader)
+            if self.main_key:
+                yield (self.main_key, k), next(loader)
+            else:
+                yield k, next(loader)
             self.backward = False
 
     def __len__(self):
@@ -310,17 +330,27 @@ class NBLossWrapper(nn.Module):
         )
         return loss.sum() if self.loss_sum else loss.mean()
 
-def set_bn_to_eval(model, freeze_bn, multi):
+def set_bn_to_eval(model, freeze_bn, multi, tasks):
     if not freeze_bn['mtl']:
         for name, param in model.features.named_children():
             if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
                 param.train(False)
     else:
         if not multi:
-            for name, param in model.mtl_vgg_core.shared_block.named_children():
-                if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
-                    param.train(False)
+            if "v1" in tasks:
+                for name, param in model.mtl_vgg_core.v1_block.named_children():
+                    if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                        param.train(False)
+            if "v4" in tasks:
+                for name, param in model.mtl_vgg_core.v4_block.named_children():
+                    if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                        param.train(False)
         else:
-            for name, param in model.module.mtl_vgg_core.shared_block.named_children():
-                if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
-                    param.train(False)
+            if "v1" in tasks:
+                for name, param in model.module.mtl_vgg_core.v1_block.named_children():
+                    if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                        param.train(False)
+            if "v4" in tasks:
+                for name, param in model.module.mtl_vgg_core.v4_block.named_children():
+                    if int(name) < freeze_bn['last_layer'] and "BatchNorm" in param.__class__.__name__:
+                        param.train(False)

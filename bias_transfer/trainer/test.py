@@ -7,15 +7,15 @@ from nnvision.utility.measures import get_poisson_loss, get_correlations
 from bias_transfer.trainer.main_loop_modules import *
 
 
-def test_neural_model(model, data_loader, device, epoch, eval_type="Validation"):
-    loss = get_poisson_loss(model, data_loader, device, as_dict=False, per_neuron=False)
+def test_neural_model(model, data_loader, device, neural_set, epoch, mtl, eval_type="Validation"):
+    loss = get_poisson_loss(model, data_loader, device=device, as_dict=False, per_neuron=False, neural_set=neural_set, mtl=mtl)
     eval = get_correlations(
-        model, data_loader, device=device, as_dict=False, per_neuron=False
+        model, data_loader, device=device, as_dict=False, per_neuron=False, neural_set=neural_set, mtl=mtl
     )
-    results = {"neural": {"eval": eval, "loss": loss}}
+    results = {neural_set: {"eval": eval, "loss": loss}}
     print(
         "Neural {} Epoch {}: eval={}, loss={}".format(
-            eval_type, epoch, results["neural"]["eval"], results["neural"]["loss"]
+            eval_type, epoch, results[neural_set]["eval"], results[neural_set]["loss"]
         )
     )
     return results
@@ -64,7 +64,7 @@ def test_model(
                     epoch=epoch,
                     loss_weighing=config.loss_weighing,
                     scale_loss=config.scale_loss,
-                    cycler_args={},
+                    cycler_args={}, mtl=config.mtl,
                     cycler="LongCycler", multi=multi
                 )
     else:
@@ -86,7 +86,7 @@ def test_model(
             epoch=epoch,
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss,
-            cycler_args={},
+            cycler_args={}, mtl=config.mtl,
             cycler="LongCycler", multi=multi
         )
     return test_results

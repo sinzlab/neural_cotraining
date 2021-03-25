@@ -37,7 +37,7 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         input_size=config.input_size,
         num_classes=config.num_classes,
         pretrained=config.pretrained,
-        v1_model_layer=config.v1_model_layer,
+        v1_model_layer=config.v1_model_layer, v4_model_layer=config.v4_model_layer,
         neural_input_channels=config.neural_input_channels,
         classification_input_channels=config.classification_input_channels,
         v1_fine_tune=config.v1_fine_tune,
@@ -48,8 +48,8 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         v1_gamma_readout=config.v1_gamma_readout,
         v1_elu_offset=config.v1_elu_offset,
         v1_final_batchnorm=config.v1_final_batchnorm,
-        detach_neural_readout=config.detach_neural_readout,
-        add_dropout=config.add_dropout, detach_classification_layers=config.detach_classification_layers
+        #detach_neural_readout=config.detach_neural_readout,
+        add_dropout=config.add_dropout, #detach_classification_layers=config.detach_classification_layers
     )
 
     print("Model with {} parameters.".format(get_model_parameters(model)))

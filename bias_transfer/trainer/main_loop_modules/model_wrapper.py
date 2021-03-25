@@ -8,15 +8,16 @@ class ModelWrapper(MainLoopModule):
 
     def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
         data_key = kwargs.pop("data_key", None)
+        neural_set = kwargs.pop("neural_set", None)
         task_keys = kwargs.pop("task_keys", [])
         if self.mtl:
             if len(task_keys) == 1:
                 if (data_key == "img_classification") or (task_keys[0] == "img_classification" and len(task_keys) == 1):
-                    model_ = partial(model, data_key=data_key, classification=True)
+                    model_ = partial(model, neural_set=neural_set, data_key=data_key, classification=True)
                 else:
-                    model_ = partial(model, data_key=data_key)
+                    model_ = partial(model, neural_set=neural_set, data_key=data_key)
             else:
-                model_ = partial(model, data_key=data_key, classification=True, both=True)
+                model_ = partial(model, neural_set=neural_set, data_key=data_key, classification=True, both=True)
         elif (data_key == "img_classification") or (task_keys[0] == "img_classification" and len(task_keys) == 1):
             model_ = model
         else:
@@ -30,7 +31,7 @@ class ModelWrapper(MainLoopModule):
             if self.return_classification_subset > 0 and task_keys[0] == "img_classification":
                 outputs["img_classification"] = outputs["img_classification"][:,:self.return_classification_subset]
         else:
-            outputs = {task: outputs[0] if task == "neural" else outputs[1] for task in task_keys}
+            outputs = {task: outputs[0] if task in ['v1', 'v4'] else outputs[1] for task in task_keys}
             if self.return_classification_subset > 0:
                 outputs["img_classification"] = outputs["img_classification"][:,:self.return_classification_subset]
         return outputs, loss, targets

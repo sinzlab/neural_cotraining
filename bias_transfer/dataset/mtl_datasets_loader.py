@@ -4,14 +4,25 @@ from .neural_dataset_loader import neural_dataset_loader
 
 def mtl_datasets_loader(seed, **config):
     seed = 1000
-    neural_dataset_config = config.pop("neural_dataset_config")
+    v1_dataset_config = config.pop("v1_dataset_config")
+    v4_dataset_config = config.pop("v4_dataset_config")
     img_dataset_config = config.pop("img_dataset_config")
     classification_loader = config.pop("classification_loader")
 
-    neural_dataset_config.pop("seed")
+    data_loaders = {'train': {}, "validation": {}, "test": {}}
+    if v1_dataset_config:
+        v1_dataset_config.pop("seed")
+        v1_dataset_loaders = neural_dataset_loader(seed, **v1_dataset_config)
+        data_loaders['train']['v1'] = v1_dataset_loaders['train']['v1']
+        data_loaders['validation']['v1'] = v1_dataset_loaders['validation']['v1']
+        data_loaders['test']['v1'] = v1_dataset_loaders['test']['v1']
+    if v4_dataset_config:
+        v4_dataset_config.pop("seed")
+        v4_dataset_loaders = neural_dataset_loader(seed, **v4_dataset_config)
+        data_loaders['train']['v4'] = v4_dataset_loaders['train']['v4']
+        data_loaders['validation']['v4'] = v4_dataset_loaders['validation']['v4']
+        data_loaders['test']['v4'] = v4_dataset_loaders['test']['v4']
 
-    neural_dataset_loaders = neural_dataset_loader(seed, **neural_dataset_config)
-    data_loaders = neural_dataset_loaders
     if classification_loader == "img_classification":
         img_dataset_loaders = img_dataset_loader(seed, **img_dataset_config)
         data_loaders["train"]["img_classification"] = img_dataset_loaders["train"][
@@ -21,7 +32,6 @@ def mtl_datasets_loader(seed, **config):
         img_dataset_config.pop("seed")
         img_dataset_loaders = neural_dataset_loader(seed, **img_dataset_config)
         data_loaders["train"]["img_classification"] = img_dataset_loaders["train"]
-
     data_loaders["validation"]["img_classification"] = img_dataset_loaders[
         "validation"
     ]["img_classification"]

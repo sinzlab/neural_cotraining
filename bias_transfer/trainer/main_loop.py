@@ -7,41 +7,52 @@ from functools import partial
 from .utils import set_bn_to_eval
 
 def neural_full_objective(
-    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets, multi
+    model, outputs, dataloader, criterion, scale_loss, data_key, inputs, targets, multi, neural_set, mtl
 ):
 
     loss = criterion(outputs, targets)
     loss_scale = (
-        np.sqrt(len(dataloader[data_key].dataset) / inputs.shape[0])
+        np.sqrt(len(dataloader[neural_set][data_key].dataset) / inputs.shape[0])
         if scale_loss
         else 1.0
     )
     loss *= loss_scale
     if scale_loss:
         if not multi:
-            loss += model.regularizer(data_key)
+            if mtl:
+                loss += model.regularizer(neural_set, data_key)
+            else:
+                loss += model.regularizer(data_key)
         else:
-            loss += model.module.regularizer(data_key)
+            if mtl:
+                loss += model.module.regularizer(neural_set, data_key)
+            else:
+                loss += model.module.regularizer(data_key)
     return loss
 
 
 def move_data(batch_data, tasks, device):
     data_key, inputs = batch_data[0], batch_data[1][0]
+    if isinstance(data_key, tuple):
+        neural_set = data_key[0]
+        data_key = data_key[1]
+    else:
+        neural_set = None
     targets = dict()
     if len(batch_data[1]) > 2:
         for task, output_name in tasks.items():
             targets[task] = getattr(batch_data[1], output_name).to(device)
         inputs = inputs.to(device)
     else:
-        if data_key == "img_classification" or 'neural' not in list(tasks.keys()):
+        if data_key == "img_classification" or ('v1' not in list(tasks.keys()) and 'v4' not in list(tasks.keys())) :
             targets['img_classification'] = batch_data[1][1].to(device)
             if isinstance(inputs, list):
                 inputs = torch.cat(inputs)
             inputs = inputs.to(device, dtype=torch.float)
         else:
-            targets['neural'] = batch_data[1][1].to(device)
+            targets[neural_set] = batch_data[1][1].to(device)
             inputs = inputs.to(device)
-    return inputs, targets, data_key
+    return inputs, targets, data_key, neural_set
 
 
 def main_loop(
@@ -58,7 +69,7 @@ def main_loop(
     eval_type="Validation",
     cycler="LongCycler",
     cycler_args={},
-    loss_weighing=False, multi=False,
+    loss_weighing=False, multi=False, mtl=False,
     freeze_bn={'last_layer': -1}
 ):
     model.train() if train_mode else model.eval()
@@ -72,11 +83,11 @@ def main_loop(
     total_loss = {}
     module_losses = {}
     collected_outputs = []
-    tasks = {"img_classification": "labels", "neural": "responses"}
+    tasks = {"img_classification": "labels", "v1": "responses", "v4": "responses"}
     tasks = uts.get_subdict(tasks, list(criterion.keys()))
     for k in criterion:
         task_dict[k] = {"epoch_loss": 0}
-        if k!= 'neural':
+        if k== 'img_classification':
             task_dict[k]['eval'] = 0
             total[k] = 0
         if loss_weighing:
@@ -115,7 +126,7 @@ def main_loop(
             for batch_idx, batch_data in t:
                 # Pre-Forward
                 loss = torch.zeros(1, device=device)
-                inputs, targets, data_key = move_data(batch_data, tasks, device)
+                inputs, targets, data_key, neural_set = move_data(batch_data, tasks, device)
                 shared_memory = {}  # e.g. to remember where which noise was applied
                 model_ = model
                 for module in modules:
@@ -124,7 +135,7 @@ def main_loop(
                         inputs,
                         shared_memory,
                         train_mode=train_mode,
-                        data_key=data_key,
+                        data_key=data_key,neural_set=neural_set,
                         task_keys=list(targets.keys())
                     )
                 # Forward
@@ -145,25 +156,26 @@ def main_loop(
                         task_keys=list(targets.keys()),
                         **shared_memory
                     )
-                if "neural" in targets.keys():
+                if "v1" in targets.keys() or "v4" in targets.keys():
+                    neural_set = "v1" if "v1" in targets.keys() else "v4"
                     loss += neural_full_objective(
                         model,
-                        outputs['neural'],
+                        outputs[neural_set],
                         data_loader,
-                        criterion["neural"],
+                        criterion[neural_set],
                         scale_loss,
                         data_key,
                         inputs,
-                        targets['neural'], multi=multi
+                        targets[neural_set], multi=multi, neural_set=neural_set, mtl=mtl
                     )
-                    total_loss["neural"] += loss.item()
-                    task_dict["neural"]["epoch_loss"] = average_loss(
-                        total_loss["neural"]
+                    total_loss[neural_set] += loss.item()
+                    task_dict[neural_set]["epoch_loss"] = average_loss(
+                        total_loss[neural_set]
                     )
                     if loss_weighing:
-                        total_loss_weight["neural"] += np.exp(criterion["neural"].log_w.item())
-                        task_dict["neural"]["loss_weight"] = average_loss(
-                            total_loss_weight["neural"]
+                        total_loss_weight[neural_set] += np.exp(criterion[neural_set].log_w.item())
+                        task_dict[neural_set]["loss_weight"] = average_loss(
+                            total_loss_weight[neural_set]
                         )
 
                 if "img_classification" in targets.keys():

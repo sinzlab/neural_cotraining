@@ -116,10 +116,11 @@ class MTLModelConfig(ModelConfig):
         self.num_classes = kwargs.pop("num_classes", 200)
         self.pretrained = kwargs.pop("pretrained", True)
         self.add_dropout = kwargs.pop("add_dropout", {})
-        self.detach_classification_layers = kwargs.pop("detach_classification_layers", False)
+        #self.detach_classification_layers = kwargs.pop("detach_classification_layers", False)
 
-        self.detach_neural_readout = kwargs.pop("detach_neural_readout", False)
+        #self.detach_neural_readout = kwargs.pop("detach_neural_readout", False)
         self.v1_model_layer = kwargs.pop("v1_model_layer", 17)
+        self.v4_model_layer = kwargs.pop("v4_model_layer", -1)
         self.neural_input_channels = kwargs.pop("neural_input_channels", 1)
         self.v1_fine_tune = kwargs.pop("v1_fine_tune", False)
         self.v1_init_mu_range = kwargs.pop("v1_init_mu_range", 0.3)

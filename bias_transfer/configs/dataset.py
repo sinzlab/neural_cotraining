@@ -158,10 +158,20 @@ class MTLDatasetsConfig(DatasetConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.classification_loader = kwargs.pop("classification_loader", "img_classification")
-        self.neural_dataset_dict = kwargs.pop("neural_dataset_dict", {})
-        self.neural_dataset_config = NeuralDatasetConfig(
-            **self.neural_dataset_dict
-        ).to_dict()
+        self.v1_dataset_dict = kwargs.pop("v1_dataset_dict", {})
+        self.v4_dataset_dict = kwargs.pop("v4_dataset_dict", {})
+        if self.v1_dataset_dict:
+            self.v1_dataset_config = NeuralDatasetConfig(
+                **self.v1_dataset_dict
+            ).to_dict()
+        else:
+            self.v1_dataset_config = {}
+        if self.v4_dataset_dict:
+            self.v4_dataset_config = NeuralDatasetConfig(
+                **self.v4_dataset_dict
+            ).to_dict()
+        else:
+            self.v4_dataset_config = {}
         self.img_dataset_dict = kwargs.pop("img_dataset_dict", {})
         if self.classification_loader == "img_classification":
             self.img_dataset_config = ImageDatasetConfig(**self.img_dataset_dict).to_dict()

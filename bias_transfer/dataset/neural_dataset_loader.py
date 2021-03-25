@@ -29,10 +29,14 @@ def neural_dataset_loader(seed, **config):
     dataset_fn = "nnvision.datasets.monkey_static_loader"
     data_loaders = builder.get_data(dataset_fn, config)
     dataloaders = {
-        "train": data_loaders["train"],
         "validation": {task: data_loaders["validation"] for task in config['target_types']},
         "test": {task: data_loaders["test"] for task in config['target_types']},
     }
+    if len(config['target_types'])==1:
+        dataloaders["train"]= {task: data_loaders["train"] for task in config['target_types']}
+    else:
+        neural_set = "v1" if "v1" in config['target_types'] else "v4"
+        dataloaders["train"]= {neural_set: data_loaders["train"]}
     if "validation_gauss" in data_loaders.keys():
         dataloaders['validation_gauss'] = data_loaders['validation_gauss']
     if "fly_c_test" in data_loaders.keys():

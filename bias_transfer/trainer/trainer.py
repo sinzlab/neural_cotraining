@@ -48,7 +48,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
         cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    if config.mtl and ("neural" not in config.loss_functions.keys()):
+    if config.mtl and ("v1" not in config.loss_functions.keys()) and ("v4" not in config.loss_functions.keys()):
         if "img_classification" in dataloaders["train"].keys():
             dataloaders["train"] = dataloaders['train']["img_classification"] if isinstance(dataloaders['train']["img_classification"], dict) \
                 else get_subdict(dataloaders["train"], ["img_classification"])
@@ -70,7 +70,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     criterion, stop_closure = {}, {}
     for k in val_keys:
-        if k == "neural":
+        if k in ['v1', 'v4']:
             if config.loss_weighing:
                 if config.loss_functions[k] == "PoissonLoss":
                     criterion[k] = NBLossWrapper(config.loss_sum).to(device)
@@ -91,13 +91,13 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 dataloaders=dataloaders["validation"][k],
                 device=device,
                 per_neuron=False,
-                avg=True,
+                avg=True, mtl=config.mtl, neural_set=k
             )
             stop_closure[k]['loss'] = partial(
                 get_poisson_loss,
                 dataloaders=dataloaders["validation"][k],
                 device=device,
-                per_neuron=False,
+                per_neuron=False, mtl=config.mtl, neural_set=k,
                 avg=False,
             )
         if k == "img_classification":
@@ -123,7 +123,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 cycler_args={},
                 cycler="LongCycler",
                 freeze_bn={'last_layer': -1},
-                multi=multi
+                multi=multi, mtl=config.mtl
             )
 
     if config.track_training:
@@ -210,7 +210,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
 
     if config.freeze:
         if config.mtl:
-            freeze_mtl_shared_block(model, multi)
+            freeze_mtl_shared_block(model, multi, [task for task in list(config.loss_functions.keys()) if task in ['v1', 'v4']])
             #model.freeze(config.freeze['freeze'])
         else:
             if config.freeze['freeze'] == ("core",):
@@ -296,7 +296,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
             cycler_args=config.train_cycler_args,
             loss_weighing=config.loss_weighing,
             scale_loss=config.scale_loss,
-            freeze_bn=config.freeze_bn, multi=multi
+            freeze_bn=config.freeze_bn, multi=multi, mtl=config.mtl
         )
 
 
@@ -318,14 +318,13 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     # test the final model on the test set
     train_final_results_dict, test_results_dict, dev_final_results_dict = {}, {}, {}
     for k in val_keys:
-        if k == "neural":
+        if k in ['v1', 'v4']:
             if config.add_final_train_eval:
                 train_final_results = test_neural_model(
                     model,
-                    data_loader=get_subdict(dataloaders["train"], [ sess_key for sess_key in list(dataloaders["train"].keys())
-                                                                    if sess_key != "img_classification"]),
+                    data_loader=dataloaders['train'][k],
                     device=device,
-                    epoch=epoch,
+                    epoch=epoch, neural_set=k, mtl=config.mtl,
                     eval_type="Train",
                 )
                 train_final_results_dict.update(train_final_results)
@@ -334,8 +333,8 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                 dev_final_results = test_neural_model(
                     model,
                     data_loader=dataloaders["validation"][k],
-                    device=device,
-                    epoch=epoch,
+                    device=device, neural_set=k,
+                    epoch=epoch,mtl=config.mtl,
                     eval_type="Validation",
                 )
                 dev_final_results_dict.update(dev_final_results)
@@ -344,7 +343,7 @@ def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
                     model,
                     data_loader=dataloaders["test"][k],
                     device=device,
-                    epoch=epoch,
+                    epoch=epoch, neural_set=k,mtl=config.mtl,
                     eval_type="Test",
                 )
                 test_results_dict.update(test_results)
