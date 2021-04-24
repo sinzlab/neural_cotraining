@@ -74,7 +74,7 @@ def main_loop(
 ):
     model.train() if train_mode else model.eval()
     if train_mode and freeze_bn['last_layer'] > 0:
-        set_bn_to_eval(model, freeze_bn, multi)
+        set_bn_to_eval(model, freeze_bn, multi, [task for task in list(criterion.keys()) if task in ['v1', 'v4']])
     task_dict = {}
     correct = 0
     if loss_weighing:
