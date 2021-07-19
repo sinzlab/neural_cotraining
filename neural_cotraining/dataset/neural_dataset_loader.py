@@ -21,7 +21,7 @@ class NeuralDatasetLoader:
             neuronal_data_path + f
             for f in listdir(neuronal_data_path)
             if (isfile(join(neuronal_data_path, f)) and f != "CSRF19_V4_3653663964522.pickle")
-        ][:2]
+        ]
         if not config['individual_image_paths']:
             config["image_cache_path"] = os.path.join(data_dir, "images/individual")
             config["original_image_cache_path"] = os.path.join(data_dir, "images/original/")
