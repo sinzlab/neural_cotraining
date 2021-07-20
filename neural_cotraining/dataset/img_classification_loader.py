@@ -19,8 +19,6 @@ from functools import partial
 
 DATASET_URLS = {
     "TinyImageNet": "http://cs231n.stanford.edu/tiny-imagenet-200.zip",
-    "CIFAR10-C": "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar",
-    "CIFAR100-C": "https://zenodo.org/record/3555552/files/CIFAR-100-C.tar",
     "TinyImageNet-C": "https://zenodo.org/record/2536630/files/Tiny-ImageNet-C.tar",
     "ImageNet": None,
     "ImageNet-C": {
@@ -258,6 +256,7 @@ class ImageClassificationLoader(BaseImageLoader):
                         fly_test_transforms[fly_noise_type][level] = transform_fly_test
 
         else:
+            #transforms for the training set
             transform_train = [
                 transforms.RandomCrop(config.input_size, padding=4)
                 if config.apply_augmentation
@@ -272,6 +271,7 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.apply_normalization
                 else None,
             ]
+            # transforms for the training set i ncase of representation matching
             if config.apply_noise.get("representation_matching", False):
                 transform_train_only_noise = [
                     transforms.RandomCrop(config.input_size, padding=4)
@@ -289,6 +289,9 @@ class ImageClassificationLoader(BaseImageLoader):
                 ]
             else:
                 transform_train_only_noise = None
+
+            # transforms for the validation set that is within the domain of the training set\
+            # if the training set has only clean images, then the validation set also has clean images only and vice versa.
             transform_val_in_domain = [
                 transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
                 transforms.ToTensor(),
@@ -298,6 +301,8 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.apply_normalization
                 else None,
             ]
+            # transforms for the valitation set that is out of the training domain
+            # for example if the training set has clean images, the validation set would have noisy images.
             transform_val_out_domain = [
                 transforms.ToTensor(),
                 transforms.Lambda(apply_noise) if (not config.apply_noise.get("noise_std", False) and not config.apply_noise.get("all_noises", False)) else None,
@@ -306,6 +311,7 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.apply_normalization
                 else None,
             ]
+            # transforms for the TinyImageNet-C test set
             transform_test_c = [
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.ToTensor(),
@@ -313,6 +319,7 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.apply_normalization
                 else None,
             ]
+            # transforms for the validation set after applying gaussian noise with different std values of noise
             transform_val_gauss_levels = {}
             for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
                 transform_val_gauss_levels[level] = [
@@ -324,6 +331,7 @@ class ImageClassificationLoader(BaseImageLoader):
                         else None,
                     ]
 
+            # transforms for the TinyImageNet-C test set after applying the image corruptions on the fly
             fly_test_transforms = {}
             imagenet_fly_test_transforms = {}
             if config.add_fly_corrupted_test:
@@ -411,38 +419,23 @@ class ImageClassificationLoader(BaseImageLoader):
 
 
                 for c_category in os.listdir(dataset_dir):
-                    if config.dataset_cls in ("CIFAR10", "CIFAR100"):
-                        if c_category == "labels.npy" or not c_category.endswith(".npy"):
-                            continue
-                        c_test_datasets[c_category[:-4]] = {}
-                        for c_level in range(1, 6):
-                            start = (c_level - 1) * 10000
-                            end = c_level * 10000
-                            c_test_datasets[c_category[:-4]][c_level] = NpyDataset(
-                                sample_file=c_category,
-                                target_file="labels.npy",
-                                root=dataset_dir,
-                                start=start,
-                                end=end,
-                                transform=transform_val_out_domain if config.apply_noise else transform_val_in_domain,
-                            )
-                    else:
-                        if not os.path.isdir(os.path.join(dataset_dir, c_category)):
-                            continue
-                        c_test_datasets[c_category] = {}
-                        for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
-                            c_test_datasets[c_category][
-                                int(c_level)
-                            ] = datasets.ImageFolder(
-                                os.path.join(dataset_dir, c_category, c_level),
-                                transform=transform_test_c,
-                            )
+                    if not os.path.isdir(os.path.join(dataset_dir, c_category)):
+                        continue
+                    c_test_datasets[c_category] = {}
+                    for c_level in os.listdir(os.path.join(dataset_dir, c_category)):
+                        c_test_datasets[c_category][
+                            int(c_level)
+                        ] = datasets.ImageFolder(
+                            os.path.join(dataset_dir, c_category, c_level),
+                            transform=transform_test_c,
+                        )
 
         return c_test_datasets
 
     def get_datasets(self, config, transform_train, transform_train_only_noise, transform_val_in_domain, transform_val_out_domain, transform_val_gauss_levels,
                      transform_test_c, fly_test_transforms, imagenet_fly_test_transforms):
 
+        # if the dataset in torchvision and it is not ImageNet
         if (
                 config.dataset_cls in list(torchvision.datasets.__dict__.keys())
                 and config.dataset_cls != "ImageNet"
@@ -501,6 +494,7 @@ class ImageClassificationLoader(BaseImageLoader):
                     download=config.download,
                     transform=transform_val_gauss_levels[level],
                 )
+        # if the dataset is mainly TinyImageNet or ImageNet
         else:
             dataset_dir = get_dataset(
                 DATASET_URLS[config.dataset_cls],

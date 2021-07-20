@@ -9,27 +9,6 @@ class NoiseAugmentation(MainLoopModule):
     def __init__(self, model, config, device, data_loader, seed):
         super().__init__(model, config, device, data_loader, seed)
         self.rnd_gen = None
-        # if isinstance(data_loader, dict):
-        #     train_loader = data_loader["img_classification"]
-        # else:
-        #     train_loader = data_loader.loaders["img_classification"]
-        # transform_list = train_loader.dataset.transforms.transform.transforms
-        # # go through StandardTransform and Compose to get to  the actual transforms
-        # normalization = None
-        # for trans in transform_list:
-        #     if isinstance(trans, transforms.Normalize):
-        #         normalization = trans
-        # if normalization:
-        #     # image = (image - mean) / std
-        #     # => noisy_image = (image + noise - mean) / std
-        #     #                = (image - mean) / std + noise/ std
-        #     img_mean = torch.tensor(normalization.mean)
-        #     img_std = torch.tensor(normalization.std)
-        #     self.img_min = -img_mean / img_std
-        #     self.img_max = (1 - img_mean) / img_std
-        #     self.noise_scale = 1 / img_std
-        #     self.noise_scale = self.noise_scale.view(1, -1, 1, 1).to(device)
-        # else:
         self.img_min = 0
         self.img_max = 1
         self.noise_scale = None
@@ -101,24 +80,3 @@ class NoiseAugmentation(MainLoopModule):
                 x = torch.clamp(x, max=img_max, min=img_min)
         return x, applied_std
 
-    # def pre_epoch(self, model, train_mode, epoch, **kwargs):
-    #     if not train_mode:
-    #         rnd_gen = torch.Generator(device=self.device)
-    #         if isinstance(self.seed, np.generic):
-    #             self.seed = np.asscalar(self.seed)
-    #         self.rnd_gen = rnd_gen.manual_seed(
-    #             self.seed
-    #         )  # so that we always have the same noise for evaluation!
-
-    # def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
-    #     inputs, shared_memory["applied_std"] = self.apply_noise(
-    #         inputs,
-    #         self.device,
-    #         std=self.config.noise_std,
-    #         snr=self.config.noise_snr,
-    #         rnd_gen=self.rnd_gen if not train_mode else None,
-    #         img_min=self.img_min,
-    #         img_max=self.img_max,
-    #         noise_scale=self.noise_scale,
-    #     )
-    #     return model, inputs

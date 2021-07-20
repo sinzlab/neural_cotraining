@@ -3,7 +3,11 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torchvision.models import vgg
 from torchvision.models.vgg import VGG as DefaultVGG
-
+from nntransfer.models.wrappers import *
+from torch.hub import load_state_dict_from_url
+from neural_cotraining.configs.model import ClassificationModelConfig
+import numpy as np
+from neural_cotraining.models.utils import get_model_parameters
 
 def create_vgg_readout(readout_type, n_features, num_classes=None):
     if readout_type == "dense":
@@ -94,4 +98,30 @@ def vgg_builder(seed: int, config):
         readout_type=config.readout_type,
         input_channels=config.input_channels,
     )
+    return model
+
+
+def classification_cnn_builder(data_loader, seed: int, **config):
+    config = ClassificationModelConfig.from_dict(config)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if "vgg" in config.type:
+        model = vgg_builder(seed, config)
+        from torchvision.models.vgg import model_urls
+    else:
+        raise Exception("Unknown type {}".format(config.type))
+
+    if config.pretrained:
+        print("Downloading pretrained model:", flush=True)
+        state_dict = load_state_dict_from_url(
+            model_urls[config.type], progress=True
+        )
+        model.load_state_dict(state_dict)
+
+    # Add wrappers
+    if config.get_intermediate_rep:
+        model = IntermediateLayerGetter(
+            model, return_layers=config.get_intermediate_rep, keep_output=True
+        )
+    print("Model with {} parameters.".format(get_model_parameters(model)))
     return model

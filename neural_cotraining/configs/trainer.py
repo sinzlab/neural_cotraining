@@ -57,34 +57,6 @@ class CoTrainerConfig(TrainerConfig):
         self.add_final_test_eval : bool = True
         self.track_training : bool = False
         # noise
-        self.add_noise : bool = False
-        self.noise_std : dict = None
-        self.noise_snr : dict = None
-        self.noise_test : dict = {}
-            # {
-            #     "noise_snr": [
-            #         {5.0: 1.0},
-            #         {4.0: 1.0},
-            #         {3.0: 1.0},
-            #         {2.0: 1.0},
-            #         {1.0: 1.0},
-            #         {0.5: 1.0},
-            #         {0.0: 1.0},
-            #     ],
-            #     "noise_std": [
-            #         {0.0: 1.0},
-            #         {0.05: 1.0},
-            #         {0.1: 1.0},
-            #         {0.2: 1.0},
-            #         {0.3: 1.0},
-            #         {0.5: 1.0},
-            #         {1.0: 1.0},
-            #     ],
-            # },
-        self.noise_adv_classification : bool = False
-        self.noise_adv_regression : bool = False
-        self.noise_adv_loss_factor : float = 1.0
-        self.noise_adv_gamma : float = 10.0
         self.representation_matching : dict = {}
         # transfer
         self.freeze : dict = {}

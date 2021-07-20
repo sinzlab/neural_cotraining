@@ -13,31 +13,6 @@ class RepresentationMatching(NoiseAugmentation):
         else:
             self.criterion = nn.MSELoss()
 
-    # def pre_forward(self, model, inputs, shared_memory, train_mode, **kwargs):
-    #     model, inputs1 = super().pre_forward(model, inputs, shared_memory, train_mode)
-    #     self.batch_size = inputs1.shape[0]
-    #     if self.config.representation_matching.get("only_for_clean", False):
-    #         # Perform representation matching only for the clean part of the input
-    #         self.clean_flags = (shared_memory["applied_std"] == 0.0).squeeze()
-    #     else:
-    #         self.clean_flags = torch.ones((self.batch_size,)).type(torch.BoolTensor)
-    #     if self.config.representation_matching.get(
-    #         "second_noise_std", None
-    #     ) or self.config.representation_matching.get("second_noise_snr", None):
-    #         inputs2, _ = self.apply_noise(
-    #             inputs[self.clean_flags],
-    #             self.device,
-    #             std=self.config.representation_matching.get("second_noise_std", None),
-    #             snr=self.config.representation_matching.get("second_noise_snr", None),
-    #             rnd_gen=self.rnd_gen if not train_mode else None,
-    #             img_min=self.img_min,
-    #             img_max=self.img_max,
-    #             noise_scale=self.noise_scale,
-    #         )
-    #     else:
-    #         inputs2 = inputs
-    #     inputs = torch.cat([inputs1, inputs2])
-    #     return model, inputs
 
     def post_forward(self, outputs, loss, targets, extra_losses, train_mode, **kwargs):
         self.batch_size = targets['img_classification'].shape[0]

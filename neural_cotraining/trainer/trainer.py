@@ -17,10 +17,11 @@ from nntransfer.trainer.utils.checkpointing import LocalCheckpointing
 from neuralpredictors.training.tracking import AdvancedTracker
 from neural_cotraining.configs.trainer import CoTrainerConfig
 from neuralpredictors.measures import modules as mlmeasures
-from .utils import early_stopping
+from early_stopping import early_stopping
 from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from neural_cotraining.trainer import utils as uts
+from neural_cotraining.trainer import cyclers as cyclers
 from nnfabrik.utility.nn_helpers import move_to_device
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
@@ -51,7 +52,7 @@ class MTLTrainer(Trainer):
         self.cycler_args = dict(self.config.train_cycler_args)
         if self.cycler_args and self.config.train_cycler == "MTL_Cycler":
             self.cycler_args['ratio'] = self.cycler_args['ratio'][1]
-        self.train_loader = getattr(uts, self.config.train_cycler)(dataloaders["train"], **self.cycler_args)
+        self.train_loader = getattr(cyclers, self.config.train_cycler)(dataloaders["train"], **self.cycler_args)
         self.val_keys = list(dataloaders["validation"].keys())
         self.data_loaders = dataloaders
 
@@ -102,7 +103,9 @@ class MTLTrainer(Trainer):
     def get_training_controls(self):
         criterion, stop_closure = {}, {}
         for k in self.val_keys:
+            # in case of neural datasets
             if k in ['v1', 'v4']:
+                #get the loss function with one of two cases: normal loss or likelihood loss for weighing
                 if self.config.loss_weighing:
                     if self.config.loss_functions[k] == "PoissonLoss":
                         criterion[k] = NBLossWrapper(self.config.loss_sum).to(self.device)
@@ -118,6 +121,8 @@ class MTLTrainer(Trainer):
                     else:
                         criterion[k] = getattr(nn, self.config.loss_functions[k])(
                             reduction="sum" if self.config.loss_sum else "mean")
+
+                #get the evaluation function to apply to the validation/test sets
                 stop_closure[k] = {}
                 stop_closure[k] = partial(
                     self.test_neural_model,
@@ -146,6 +151,7 @@ class MTLTrainer(Trainer):
                     freeze_bn = {'last_layer': -1}, epoch_tqdm = None
                 )
 
+        #get all params and the optimizer instance
         if not self.config.specific_opt_options:
             all_params = list(self.model.parameters())
             if self.config.loss_weighing:
@@ -338,7 +344,7 @@ class MTLTrainer(Trainer):
         if cycler_args and cycler == "MTL_Cycler":
             cycler_args = dict(cycler_args)
             cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
-        data_cycler = getattr(uts, cycler)(data_loader, **cycler_args)
+        data_cycler = getattr(cyclers, cycler)(data_loader, **cycler_args)
         n_iterations = len(data_cycler)
         if hasattr(
                 tqdm, "_instances"
@@ -456,18 +462,6 @@ class MTLTrainer(Trainer):
                     freeze_bn = self.config.freeze_bn,
                 )
 
-
-
-            # print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
-            # for name, param in model.module.named_parameters():
-            #     print(name, param.requires_grad)
-            # for name, param in model.module.mtl_vgg_core.shared_block.named_children():
-            #     if "BatchNorm" in param.__class__.__name__:
-            #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
-            # for name, param in model.mtl_vgg_core.unshared_block.named_children():
-            #     if "BatchNorm" in param.__class__.__name__:
-            #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
-
         test_result = self.test_final_model(epoch)
         return (
             test_result,
@@ -507,8 +501,6 @@ class MTLTrainer(Trainer):
         n_log = self.tracker._normalize_log(self.tracker.log)
         current_log = self.tracker._gather_log(n_log, (mode,), index=-1)
         print("{} {}".format(mode, current_log))
-        #self.tracker.display_log(key=(mode,))
-
         return self.tracker.get_current_objective((mode, neural_set, "eval"))
 
 

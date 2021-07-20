@@ -15,12 +15,8 @@ class ClassificationModelConfig(ModelConfig):
         self.type : str = "vgg19_bn"
         self.input_size : int = 64
         self.avg_pool : bool = False
-        self.dataset_cls : str = "CIFAR100"
-        if self.dataset_cls == "CIFAR100":
-            self.num_classes : int = 100
-        elif self.dataset_cls == "CIFAR10":
-            self.num_classes : int = 10
-        elif self.dataset_cls == "TinyImageNet":
+        self.dataset_cls : str = "TinyImageNet"
+        if self.dataset_cls == "TinyImageNet":
             self.num_classes : int = 200
             self.input_size = 64
         elif self.dataset_cls == "ImageNet":
@@ -78,9 +74,7 @@ class MTLModelConfig(ModelConfig):
         self.num_classes : int = 200
         self.pretrained : bool = True
         self.add_dropout : dict = {}
-        #self.detach_classification_layers = kwargs.pop("detach_classification_layers", False)
 
-        #self.detach_neural_readout = kwargs.pop("detach_neural_readout", False)
         self.v1_model_layer : int = 17
         self.v4_model_layer : int = -1
         self.neural_input_channels : int = 1
