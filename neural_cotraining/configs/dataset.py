@@ -12,7 +12,7 @@ class ImageDatasetConfig(DatasetConfig):
         self.dataset_cls : str = "TinyImageNet"
         self.apply_augmentation : bool = True
         self.apply_normalization : bool = True
-        self.apply_grayscale : bool = False
+        self.apply_grayscale : bool = True
         self.apply_noise : dict = {}
         self.in_resize : int = 256
         if self.dataset_cls == "TinyImageNet":
@@ -58,7 +58,6 @@ class ImageDatasetConfig(DatasetConfig):
                                                 'elastic_transform': [1, 2, 3, 4, 5], 'snow': [1, 2, 3, 4, 5],
                                                   'zoom_blur': [1, 2, 3, 4, 5]}
 
-        self.add_stylized_test : bool = False
         self.shuffle : bool = True
         self.show_sample : bool = False
         self.filter_classes : tuple = None  # (start,end)
@@ -86,10 +85,11 @@ class NeuralDatasetConfig(DatasetConfig):
         self.data_dir = "./data/monkey/toliaslab/{}".format(self.dataset)
         self.seed : int = 1000
         self.subsample : int = 1
-        self.crop : int = 70
+        self.crop : int = 36
         self.time_bins_sum : int = 12
         self.target_types : list = ["v1"]
         self.normalize : bool = True
+        self.scale : float = 0.4
         self.train_transformation : bool = False  #for resize and grayscale
         self.individual_image_paths : bool = False
         self.stats : dict = {}

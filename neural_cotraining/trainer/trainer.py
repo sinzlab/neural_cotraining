@@ -527,6 +527,17 @@ class MTLTrainer(Trainer):
         )
         return result
 
+    def create_cls_objective_dict(self, mode, task):
+        return {
+            mode : {
+                task : {
+                    "eval": 0,
+                    "loss": 0,
+                    "normalization": 0,
+                }
+            }
+        }
+
     def test_final_model(self, epoch):
 
        self.test_result = {}
@@ -552,44 +563,20 @@ class MTLTrainer(Trainer):
                 else:
                     imgcls_train_loader_input = self.data_loaders['train']
                 if self.config.add_final_train_eval:
-                    objectives = {
-                        "FinalTraining": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
+                    objectives = self.create_cls_objective_dict("FinalTraining", k)
                     self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
                                         imgcls_train_loader_input, objectives,
                                         "FinalTraining")
 
                 if self.config.add_final_val_eval:
-                    objectives = {
-                        "FinalValidationInDomain": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
+                    objectives = self.create_cls_objective_dict("FinalValidationInDomain", k)
                     self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
                                         self.data_loaders['validation'][k] if isinstance(self.data_loaders['validation'][k], dict) else get_subdict(self.data_loaders["validation"], [k]),
                                         objectives,
                                         "FinalValidationInDomain")
 
                     if 'validation_out_domain' in self.data_loaders.keys():
-                       objectives = {
-                           "FinalValidationOutDomain": {
-                               k: {
-                                   "eval": 0,
-                                   "loss": 0,
-                                   "normalization": 0,
-                               }
-                           }
-                       }
+                       objectives = self.create_cls_objective_dict("FinalValidationOutDomain", k)
                        self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
                                            get_subdict(self.data_loaders["validation_out_domain"], [k]),
                                            objectives,
@@ -597,15 +584,7 @@ class MTLTrainer(Trainer):
 
 
                 if self.config.add_final_test_eval:
-                    objectives = {
-                        "FinalTestInDomain": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
+                    objectives = self.create_cls_objective_dict("FinalTestInDomain", k)
                     self.test_result[k] = self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
                                         self.data_loaders['test'][k] if isinstance(
                                             self.data_loaders['test'][k], dict) else get_subdict(
@@ -614,15 +593,7 @@ class MTLTrainer(Trainer):
                                         "FinalTestInDomain")
 
                     if 'test_out_domain' in self.data_loaders.keys():
-                        objectives = {
-                            "FinalTestOutDomain": {
-                                k: {
-                                    "eval": 0,
-                                    "loss": 0,
-                                    "normalization": 0,
-                                }
-                            }
-                        }
+                        objectives = self.create_cls_objective_dict("FinalTestOutDomain", k)
                         self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
                                             get_subdict(self.data_loaders["test_out_domain"], [k]),
                                             objectives,
@@ -631,15 +602,7 @@ class MTLTrainer(Trainer):
 
        if "validation_gauss" in self.data_loaders:
             for level, dataloader in self.data_loaders["validation_gauss"].items():
-                objectives = {
-                    "Validation_gauss " + str(level): {
-                        k: {
-                            "eval": 0,
-                            "loss": 0,
-                            "normalization": 0,
-                        }
-                    }
-                }
+                objectives = self.create_cls_objective_dict("Validation_gauss " + str(level), k)
                 self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
                                     {"img_classification": dataloader},
                                     objectives,
@@ -648,15 +611,7 @@ class MTLTrainer(Trainer):
        if "c_test" in self.data_loaders:
             for c_category in list(self.data_loaders["c_test"].keys()):
                 for c_level, dataloader in self.data_loaders["c_test"][c_category].items():
-                    objectives = {
-                        "c_test {} {}".format(str(c_category), str(c_level)): {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
+                    objectives = self.create_cls_objective_dict("c_test {} {}".format(str(c_category), str(c_level)), k)
                     self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
                                         {"img_classification": dataloader},
                                         objectives,
@@ -666,15 +621,7 @@ class MTLTrainer(Trainer):
        if "fly_c_test" in self.data_loaders:
             for fly_noise_type in list(self.data_loaders["fly_c_test"].keys()):
                 for level, dataloader in self.data_loaders["fly_c_test"][fly_noise_type].items():
-                    objectives = {
-                        "fly_c_test {} {}".format(str(fly_noise_type), str(level)): {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
+                    objectives = self.create_cls_objective_dict("fly_c_test {} {}".format(str(fly_noise_type), str(level)), k)
                     self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
                                         {"img_classification": dataloader},
                                         objectives,
@@ -683,15 +630,7 @@ class MTLTrainer(Trainer):
        if "imagenet_fly_c_test" in self.data_loaders:
            for fly_noise_type in list(self.data_loaders["imagenet_fly_c_test"].keys()):
                for level, dataloader in self.data_loaders["imagenet_fly_c_test"][fly_noise_type].items():
-                   objectives = {
-                       "imagenet_fly_c_test {} {}".format(str(fly_noise_type), str(level)): {
-                           k: {
-                               "eval": 0,
-                               "loss": 0,
-                               "normalization": 0,
-                           }
-                       }
-                   }
+                   objectives = self.create_cls_objective_dict("imagenet_fly_c_test {} {}".format(str(fly_noise_type), str(level)), k)
                    self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
                                        {"img_classification": dataloader},
                                        objectives,

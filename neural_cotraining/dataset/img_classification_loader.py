@@ -271,7 +271,7 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.apply_normalization
                 else None,
             ]
-            # transforms for the training set i ncase of representation matching
+            # transforms for the training set in case of representation matching
             if config.apply_noise.get("representation_matching", False):
                 transform_train_only_noise = [
                     transforms.RandomCrop(config.input_size, padding=4)
@@ -290,8 +290,9 @@ class ImageClassificationLoader(BaseImageLoader):
             else:
                 transform_train_only_noise = None
 
-            # transforms for the validation set that is within the domain of the training set\
+            # transforms for the validation set that is within the domain/distribution of the training set\
             # if the training set has only clean images, then the validation set also has clean images only and vice versa.
+            # in this example the trianing set domain is natural images without noise
             transform_val_in_domain = [
                 transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
                 transforms.ToTensor(),
