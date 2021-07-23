@@ -1,21 +1,21 @@
-
-
 from neuralpredictors.training.cyclers import cycle
-
-
 
 
 class MTL_Cycler:
     def __init__(self, loaders, main_key="img_classification", ratio=1):
-        self.main_key = main_key  # data_key of the dataset whose batch ratio is always 1
+        self.main_key = (
+            main_key  # data_key of the dataset whose batch ratio is always 1
+        )
         if isinstance(loaders[main_key], dict):
             second_key = list(loaders[main_key].keys())[0]
             self.main_loader = loaders[main_key][second_key]
         else:
             self.main_loader = loaders[main_key]
         self.other_loaders = {k: loaders[k] for k in loaders.keys() if k != main_key}
-        self.ratio = ratio   # number of neural batches vs. one batch from TIN
-        self.num_batches = int(len(self.main_loader) * (ratio*len(self.other_loaders.keys()) + 1))
+        self.ratio = ratio  # number of neural batches vs. one batch from TIN
+        self.num_batches = int(
+            len(self.main_loader) * (ratio * len(self.other_loaders.keys()) + 1)
+        )
         self.backward = False
 
     def generate_batch(self, main_cycle, other_cycles_dict):
@@ -31,7 +31,7 @@ class MTL_Cycler:
         else:
             for i in range(len(self.main_loader)):
                 for neural_set in other_cycles_dict.keys():
-                    if (i+1) % (1/self.ratio) == 0:
+                    if (i + 1) % (1 / self.ratio) == 0:
                         key, loader = next(other_cycles_dict[neural_set])
                         yield (neural_set, key), loader
                 self.backward = True
@@ -67,7 +67,10 @@ class LongCycler:
             self.loaders = loaders
         self.max_batches = max([len(loader) for loader in self.loaders.values()])
         self.backward = False
-        self.grad_accum_step = len(self.loaders) if not grad_accum_step else grad_accum_step
+        self.grad_accum_step = (
+            len(self.loaders) if not grad_accum_step else grad_accum_step
+        )
+
     def __iter__(self):
         cycles = [cycle(loader) for loader in self.loaders.values()]
         for k, loader, batch_idx in zip(
@@ -86,6 +89,7 @@ class LongCycler:
     def __len__(self):
         return len(self.loaders) * self.max_batches
 
+
 class ShortCycler:
     """
     Cycles through trainloaders until the loader with smallest size is exhausted.
@@ -101,13 +105,16 @@ class ShortCycler:
             self.loaders = loaders
         self.min_batches = min([len(loader) for loader in self.loaders.values()])
         self.backward = False
-        self.grad_accum_step = len(self.loaders) if not grad_accum_step else grad_accum_step
-
+        self.grad_accum_step = (
+            len(self.loaders) if not grad_accum_step else grad_accum_step
+        )
 
     def __iter__(self):
         cycles = [cycle(loader) for loader in self.loaders.values()]
         for k, loader, batch_idx in zip(
-            cycle(self.loaders.keys()), (cycle(cycles)), range(len(self.loaders) * self.min_batches)
+            cycle(self.loaders.keys()),
+            (cycle(cycles)),
+            range(len(self.loaders) * self.min_batches),
         ):
             if (batch_idx + 1) % self.grad_accum_step == 0:
                 self.backward = True

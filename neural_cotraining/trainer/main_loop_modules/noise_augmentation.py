@@ -38,7 +38,9 @@ class NoiseAugmentation(MainLoopModule):
                 abs(sum(noise_levels.values()) - 1.0) < 0.00001
             ), "Percentage for noise levels should sum to one!"
             indices = torch.randperm(x.shape[0])
-            applied_std = torch.zeros([x.shape[0], 1], device=device, dtype=torch.float32)
+            applied_std = torch.zeros(
+                [x.shape[0], 1], device=device, dtype=torch.float32
+            )
             start = 0
             for (
                 level,
@@ -79,4 +81,3 @@ class NoiseAugmentation(MainLoopModule):
             else:
                 x = torch.clamp(x, max=img_max, min=img_min)
         return x, applied_std
-

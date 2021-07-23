@@ -43,6 +43,7 @@ def freeze_params(model, to_freeze=None, not_to_freeze=None):
         if freeze and param.requires_grad:
             param.requires_grad = False
 
+
 def freeze_mtl_shared_block(model, multi, tasks):
     if multi:
         if "v1" in tasks:
@@ -54,10 +55,10 @@ def freeze_mtl_shared_block(model, multi, tasks):
     else:
         if "v1" in tasks:
             for param in model.mtl_vgg_core.v1_block.parameters():
-                    param.requires_grad = False
+                param.requires_grad = False
         if "v4" in tasks:
             for param in model.mtl_vgg_core.v4_block.parameters():
-                    param.requires_grad = False
+                param.requires_grad = False
 
 
 def weight_reset(m, advanced_init=False, zero_init_residual=False):

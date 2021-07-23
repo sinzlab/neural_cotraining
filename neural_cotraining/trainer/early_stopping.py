@@ -1,24 +1,24 @@
 import numpy as np
 from .utils import StopClosureWrapper, map_to_task_dict
 
-def early_stopping(
-        model,
-        objective_closure,
-        config,
-        optimizer,
-        interval=5,
-        patience=20,
-        max_iter=1000,
-        maximize=True,
-        tolerance=1e-5,
-        switch_mode=True,
-        restore_best=True,
-        tracker=None,
-        scheduler=None,
-        lr_decay_steps=1,
-        checkpointing=None,
-):
 
+def early_stopping(
+    model,
+    objective_closure,
+    config,
+    optimizer,
+    interval=5,
+    patience=20,
+    max_iter=1000,
+    maximize=True,
+    tolerance=1e-5,
+    switch_mode=True,
+    restore_best=True,
+    tracker=None,
+    scheduler=None,
+    lr_decay_steps=1,
+    checkpointing=None,
+):
     def _objective():
         if switch_mode:
             model.eval()
@@ -37,6 +37,7 @@ def early_stopping(
                     restored_epoch
                 )
             )
+
     def finalize(best_objective):
         if restore_best:
             restored_epoch, _ = checkpointing.restore(
@@ -55,8 +56,14 @@ def early_stopping(
     best_objective = current_objective = _objective()
 
     if scheduler is not None:
-        if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):  # only works sofar with one task but not with MTL
-            scheduler.step(current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'])
+        if (config.scheduler == "adaptive") and (
+            not config.scheduler_options["mtl"]
+        ):  # only works sofar with one task but not with MTL
+            scheduler.step(
+                current_objective[config.to_monitor[0]][
+                    "eval" if config.maximize else "loss"
+                ]
+            )
 
     for repeat in range(lr_decay_steps):
 
@@ -80,15 +87,25 @@ def early_stopping(
 
             # if a scheduler is defined, a .step with the current objective is all that is needed to reduce the LR
             if scheduler is not None:
-                if (config.scheduler == "adaptive") and (not config.scheduler_options['mtl']):   # only works sofar with one task but not with MTL
-                    scheduler.step(current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'])
+                if (config.scheduler == "adaptive") and (
+                    not config.scheduler_options["mtl"]
+                ):  # only works sofar with one task but not with MTL
+                    scheduler.step(
+                        current_objective[config.to_monitor[0]][
+                            "eval" if config.maximize else "loss"
+                        ]
+                    )
                 elif config.scheduler == "manual":
                     scheduler.step()
 
             def test_current_obj(obj, best_obj):
-                obj_key = 'eval' if config.maximize else 'loss'
-                result = [ obj[task][obj_key] * maximize < best_obj[task][obj_key] * maximize - tolerance for task in obj.keys()
-                           if task in config.to_monitor ]
+                obj_key = "eval" if config.maximize else "loss"
+                result = [
+                    obj[task][obj_key] * maximize
+                    < best_obj[task][obj_key] * maximize - tolerance
+                    for task in obj.keys()
+                    if task in config.to_monitor
+                ]
                 return np.array(result)
 
             if (test_current_obj(current_objective, best_objective)).all():
@@ -111,15 +128,22 @@ def early_stopping(
                     ),
                 )
             checkpointing.save(
-                epoch=epoch, score=current_objective[config.to_monitor[0]]['eval' if config.maximize else 'loss'], patience_counter=patience_counter,
+                epoch=epoch,
+                score=current_objective[config.to_monitor[0]][
+                    "eval" if config.maximize else "loss"
+                ],
+                patience_counter=patience_counter,
             )  # save model
 
-            if (config.scheduler == "manual") and (epoch in config.scheduler_options['milestones']):
+            if (config.scheduler == "manual") and (
+                epoch in config.scheduler_options["milestones"]
+            ):
                 decay_lr()
 
-
         if (epoch < max_iter) & (lr_decay_steps > 1) & (repeat < lr_decay_steps):
-            if (config.scheduler == "adaptive") and (config.scheduler_options['mtl']):   #adaptive lr scheduling for mtl alongside early_stopping
+            if (config.scheduler == "adaptive") and (
+                config.scheduler_options["mtl"]
+            ):  # adaptive lr scheduling for mtl alongside early_stopping
                 scheduler.step()
             decay_lr()
         patience_counter = -1

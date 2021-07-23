@@ -1,6 +1,7 @@
 from nnvision.models.models import se_core_gauss_readout, se_core_point_readout
 from neural_cotraining.models.utils import get_model_parameters
 
+
 def neural_cnn_builder(data_loaders, seed: int = 1000, **config):
     config.pop("comment", None)
     readout_type = config.pop("readout_type", None)

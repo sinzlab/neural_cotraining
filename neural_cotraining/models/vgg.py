@@ -9,6 +9,7 @@ from neural_cotraining.configs.model import ClassificationModelConfig
 import numpy as np
 from neural_cotraining.models.utils import get_model_parameters
 
+
 def create_vgg_readout(readout_type, n_features, num_classes=None):
     if readout_type == "dense":
         readout = nn.Sequential(
@@ -64,7 +65,7 @@ class VGG(DefaultVGG):
             self._initialize_weights()
 
     def forward(self, x):
-        #if self.input_channels == 1:
+        # if self.input_channels == 1:
         if x.shape[1] == 1:
             x = x.expand(-1, 3, -1, -1)
         x = self.features(x)
@@ -113,9 +114,7 @@ def classification_cnn_builder(data_loader, seed: int, **config):
 
     if config.pretrained:
         print("Downloading pretrained model:", flush=True)
-        state_dict = load_state_dict_from_url(
-            model_urls[config.type], progress=True
-        )
+        state_dict = load_state_dict_from_url(model_urls[config.type], progress=True)
         model.load_state_dict(state_dict)
 
     # Add wrappers

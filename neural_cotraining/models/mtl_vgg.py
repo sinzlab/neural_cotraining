@@ -25,9 +25,6 @@ VGG_TYPES = {
 }
 
 
-
-
-
 class MultipleGaussian2d(torch.nn.ModuleDict):
     def __init__(
         self,
@@ -70,13 +67,15 @@ class MTL_VGG_Core(Core2d, nn.Module):
         classification=True,
         vgg_type="vgg19_bn",
         pretrained=True,
-        v1_model_layer=17, v4_model_layer=-1,
+        v1_model_layer=17,
+        v4_model_layer=-1,
         neural_input_channels=1,
         classification_input_channels=1,
         v1_fine_tune=False,
         momentum=0.1,
         v1_bias=True,
-        v1_final_batchnorm=False, add_dropout={},
+        v1_final_batchnorm=False,
+        add_dropout={},
         **kwargs
     ):
 
@@ -97,14 +96,12 @@ class MTL_VGG_Core(Core2d, nn.Module):
         vgg = vgg_loader(pretrained=pretrained)
 
         if self.v1_model_layer > 0:
-            v1_block = nn.Sequential(
-                *list(vgg.features.children())[:v1_model_layer]
-            )
+            v1_block = nn.Sequential(*list(vgg.features.children())[:v1_model_layer])
 
         if self.v4_model_layer > 0:
             if self.v1_model_layer > 0:
                 v4_block = nn.Sequential(
-                    *list(vgg.features.children())[v1_model_layer:self.v4_model_layer]
+                    *list(vgg.features.children())[v1_model_layer : self.v4_model_layer]
                 )
             else:
                 v4_block = nn.Sequential(
@@ -113,9 +110,13 @@ class MTL_VGG_Core(Core2d, nn.Module):
 
         if "shared_block" in self.add_dropout.keys():
             if self.v1_model_layer > 0:
-                self.v1_block = self.add_dropout_layers(v1_block, self.add_dropout['shared_block'])
+                self.v1_block = self.add_dropout_layers(
+                    v1_block, self.add_dropout["shared_block"]
+                )
             if self.v4_model_layer > 0:
-                self.v4_block = self.add_dropout_layers(v4_block, self.add_dropout['shared_block'])
+                self.v4_block = self.add_dropout_layers(
+                    v4_block, self.add_dropout["shared_block"]
+                )
 
         else:
             if self.v1_model_layer > 0:
@@ -147,19 +148,19 @@ class MTL_VGG_Core(Core2d, nn.Module):
         if classification:
             if self.v4_model_layer > 0:
                 block = nn.Sequential(
-                    *list(vgg.features.children())[self.v4_model_layer:]
+                    *list(vgg.features.children())[self.v4_model_layer :]
                 )
             else:
-                block = nn.Sequential(
-                    *list(vgg.features.children())[v1_model_layer:]
-                )
+                block = nn.Sequential(*list(vgg.features.children())[v1_model_layer:])
 
             if "unshared_block" in self.add_dropout.keys():
-                self.unshared_block = self.add_dropout_layers(block, self.add_dropout['unshared_block'])
+                self.unshared_block = self.add_dropout_layers(
+                    block, self.add_dropout["unshared_block"]
+                )
             else:
                 self.unshared_block = block
 
-    def forward(self, x, neural_set='v1', classification=False):
+    def forward(self, x, neural_set="v1", classification=False):
         if x.shape[1] == 1:
             x = x.expand(-1, 3, -1, -1)
         if self.v1_model_layer > 0:
@@ -167,7 +168,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
             input_next = v1_core_out
             if self.v1_final_batchnorm:
                 v1_core_out = self.v1_extra(v1_core_out)
-            if neural_set=='v1' and not classification:
+            if neural_set == "v1" and not classification:
                 return v1_core_out, None
 
         if self.v4_model_layer > 0:
@@ -181,7 +182,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
                 input_next = v4_core_out
                 if self.v1_final_batchnorm:
                     v4_core_out = self.v4_extra(v4_core_out)
-            if neural_set=='v4' and not classification:
+            if neural_set == "v4" and not classification:
                 return v4_core_out, None
 
         if classification:
@@ -231,9 +232,7 @@ class MTL_VGG_Core(Core2d, nn.Module):
 
     def add_bn(self, outchannels, momentum):
         extra = nn.Sequential()
-        extra.add_module(
-            "OutBatchNorm", nn.BatchNorm2d(outchannels, momentum=momentum)
-        )
+        extra.add_module("OutBatchNorm", nn.BatchNorm2d(outchannels, momentum=momentum))
         extra.add_module("OutNonlin", nn.ReLU(inplace=True))
         return extra
 
@@ -248,7 +247,8 @@ class MTL_VGG(nn.Module):
         input_size=None,
         num_classes=200,
         pretrained=True,
-        v1_model_layer=17, v4_model_layer=-1,
+        v1_model_layer=17,
+        v4_model_layer=-1,
         neural_input_channels=1,
         classification_input_channels=1,
         v1_fine_tune=False,
@@ -288,12 +288,14 @@ class MTL_VGG(nn.Module):
             vgg_type=vgg_type,
             classification=classification,
             pretrained=pretrained,
-            v1_model_layer=v1_model_layer, v4_model_layer=v4_model_layer,
+            v1_model_layer=v1_model_layer,
+            v4_model_layer=v4_model_layer,
             v1_fine_tune=v1_fine_tune,
             neural_input_channels=self.neural_input_channels[0],
             classification_input_channels=self.classification_input_channels,
             v1_final_batchnorm=v1_final_batchnorm,
-            v1_bias=v1_bias, add_dropout=self.add_dropout
+            v1_bias=v1_bias,
+            add_dropout=self.add_dropout,
         )
 
         if v1_model_layer > 0:
@@ -305,7 +307,9 @@ class MTL_VGG(nn.Module):
         if classification:
             # init fully connected part of vgg
             test_input = Variable(torch.zeros(1, 3, input_size, input_size))
-            _, test_out = self.mtl_vgg_core(test_input, neural_set="v4", classification=True)
+            _, test_out = self.mtl_vgg_core(
+                test_input, neural_set="v4", classification=True
+            )
             self.n_features = test_out.size(1) * test_out.size(2) * test_out.size(3)
             self.classification_readout = create_vgg_readout(
                 classification_readout_type,
@@ -314,10 +318,14 @@ class MTL_VGG(nn.Module):
             )
             self._initialize_weights_classification_readout()
 
-    def forward(self, x, neural_set="v1", data_key=None, classification=False, both=False):
-        shared_core_out, core_out = self.mtl_vgg_core(x, neural_set=neural_set, classification=classification) #self.detach_classification_layers)
+    def forward(
+        self, x, neural_set="v1", data_key=None, classification=False, both=False
+    ):
+        shared_core_out, core_out = self.mtl_vgg_core(
+            x, neural_set=neural_set, classification=classification
+        )  # self.detach_classification_layers)
         if not classification and not both:
-            if neural_set=="v1":
+            if neural_set == "v1":
                 neural_out = self.v1_readout(shared_core_out, data_key=data_key)
             else:
                 neural_out = self.v4_readout(shared_core_out, data_key=data_key)
@@ -337,9 +345,8 @@ class MTL_VGG(nn.Module):
             else:
                 return classification_out
 
-
     def regularizer(self, neural_set="v1", data_key=None):
-        if neural_set=="v1":
+        if neural_set == "v1":
             return self.v1_readout.regularizer(data_key=data_key)
         else:
             return self.v4_readout.regularizer(data_key=data_key)
@@ -347,17 +354,18 @@ class MTL_VGG(nn.Module):
     def freeze(self, selection=("v1",)):
         if "v1" in selection:
             for param in self.mtl_vgg_core.v1_block.parameters():
-                    param.requires_grad = False
+                param.requires_grad = False
         if "v4" in selection:
             for param in self.mtl_vgg_core.v4_block.parameters():
-                    param.requires_grad = False
-
+                param.requires_grad = False
 
     def _initialize_weights_classification_readout(self):
         if self.mtl_vgg_core.classification:
             for m in self.classification_readout:
                 if isinstance(m, nn.Conv2d):
-                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    nn.init.kaiming_normal_(
+                        m.weight, mode="fan_out", nonlinearity="relu"
+                    )
                     if m.bias is not None:
                         nn.init.constant_(m.bias, 0)
                 elif isinstance(m, nn.BatchNorm2d):
@@ -368,11 +376,21 @@ class MTL_VGG(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
     def set_neural_loader_info(self, neural_set):
-        setattr(self, "{}_train_dataloaders".format(neural_set), self.dataloaders["train"][neural_set])
-        session_shape_dict = get_dims_for_loader_dict(getattr(self, "{}_train_dataloaders".format(neural_set)))
+        setattr(
+            self,
+            "{}_train_dataloaders".format(neural_set),
+            self.dataloaders["train"][neural_set],
+        )
+        session_shape_dict = get_dims_for_loader_dict(
+            getattr(self, "{}_train_dataloaders".format(neural_set))
+        )
         setattr(self, "{}_session_shape_dict".format(neural_set), session_shape_dict)
         names = next(
-            iter(list(getattr(self, "{}_train_dataloaders".format(neural_set)).values())[0])
+            iter(
+                list(getattr(self, "{}_train_dataloaders".format(neural_set)).values())[
+                    0
+                ]
+            )
         )._fields
         if len(names) == 3:
             in_name, _, out_name = names
@@ -384,19 +402,23 @@ class MTL_VGG(nn.Module):
             v[in_name][1] for v in session_shape_dict.values()
         ]
         assert (
-                np.unique(self.neural_input_channels).size == 1
+            np.unique(self.neural_input_channels).size == 1
         ), "all input channels must be of equal size"
 
     def create_gaussian_readout(self, neural_set):
         in_name = getattr(self, "{}_in_name".format(neural_set))
         out_name = getattr(self, "{}_out_name".format(neural_set))
         session_shape_dict = getattr(self, "{}_session_shape_dict".format(neural_set))
-        n_neurons_dict = {k: v[out_name][1] if out_name != "labels" else 1 for k, v in
-                             session_shape_dict.items()}
+        n_neurons_dict = {
+            k: v[out_name][1] if out_name != "labels" else 1
+            for k, v in session_shape_dict.items()
+        }
         in_shapes_dict = {k: v[in_name] for k, v in session_shape_dict.items()}
         in_shapes = {}
         for k in n_neurons_dict:
-            in_shapes[k] = get_module_output(self.mtl_vgg_core, in_shapes_dict[k], neural_set=neural_set)[1:]
+            in_shapes[k] = get_module_output(
+                self.mtl_vgg_core, in_shapes_dict[k], neural_set=neural_set
+            )[1:]
 
         readout = MultipleGaussian2d(
             in_shapes=in_shapes,
@@ -409,7 +431,7 @@ class MTL_VGG(nn.Module):
         if self.v1_readout_bias:
             train_dataloaders = getattr(self, "{}_train_dataloaders".format(neural_set))
             for key, value in train_dataloaders.items():
-                if out_name == 'labels':
+                if out_name == "labels":
                     targets = getattr(next(iter(value)), out_name).to(torch.float)
                 else:
                     targets = getattr(next(iter(value)), out_name)
@@ -432,7 +454,8 @@ def mtl_builder(data_loaders, seed: int = 1000, **config):
         input_size=config.input_size,
         num_classes=config.num_classes,
         pretrained=config.pretrained,
-        v1_model_layer=config.v1_model_layer, v4_model_layer=config.v4_model_layer,
+        v1_model_layer=config.v1_model_layer,
+        v4_model_layer=config.v4_model_layer,
         neural_input_channels=config.neural_input_channels,
         classification_input_channels=config.classification_input_channels,
         v1_fine_tune=config.v1_fine_tune,

@@ -32,7 +32,6 @@ DATASET_URLS = {
 
 
 class ImageClassificationLoader(BaseImageLoader):
-
     def __call__(self, seed, **config):
 
         seed = 1000
@@ -40,10 +39,16 @@ class ImageClassificationLoader(BaseImageLoader):
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-        transform_train, transform_train_only_noise, transform_val_in_domain, transform_val_out_domain, transform_val_gauss_levels, transform_test_c, \
-        fly_test_transforms, imagenet_fly_test_transforms = self.get_transforms(config)
-
-
+        (
+            transform_train,
+            transform_train_only_noise,
+            transform_val_in_domain,
+            transform_val_out_domain,
+            transform_val_gauss_levels,
+            transform_test_c,
+            fly_test_transforms,
+            imagenet_fly_test_transforms,
+        ) = self.get_transforms(config)
 
         error_msg = "[!] valid_size should be in the range [0, 1]."
         assert (config.valid_size >= 0) and (config.valid_size <= 1), error_msg
@@ -59,13 +64,27 @@ class ImageClassificationLoader(BaseImageLoader):
             val_gauss_datasets,
             fly_test_datasets,
             imagenet_fly_test_datasets,
-            c_test_datasets
-        ) = self.get_datasets(config, transform_train, transform_train_only_noise, transform_val_in_domain, transform_val_out_domain, transform_val_gauss_levels,
-                              transform_test_c, fly_test_transforms, imagenet_fly_test_transforms)
-
+            c_test_datasets,
+        ) = self.get_datasets(
+            config,
+            transform_train,
+            transform_train_only_noise,
+            transform_val_in_domain,
+            transform_val_out_domain,
+            transform_val_gauss_levels,
+            transform_test_c,
+            fly_test_transforms,
+            imagenet_fly_test_transforms,
+        )
 
         filters = [globals().get(f)(config, train_dataset) for f in config.filters]
-        datasets_ = [train_dataset, valid_dataset_in_domain, valid_dataset_out_domain, test_dataset_in_domain, test_dataset_out_domain]
+        datasets_ = [
+            train_dataset,
+            valid_dataset_in_domain,
+            valid_dataset_out_domain,
+            test_dataset_in_domain,
+            test_dataset_out_domain,
+        ]
         datasets_ += list(val_gauss_datasets.values())
         if config.add_fly_corrupted_test:
             for fly_ds in fly_test_datasets.values():
@@ -73,7 +92,6 @@ class ImageClassificationLoader(BaseImageLoader):
             if config.dataset_cls == "TinyImageNet":
                 for in_fly_ds in imagenet_fly_test_datasets.values():
                     datasets_ += list(in_fly_ds.values())
-
 
         if config.add_corrupted_test:
             for c_ds in c_test_datasets.values():
@@ -83,26 +101,29 @@ class ImageClassificationLoader(BaseImageLoader):
             for filt in filters:
                 filt.apply(ds)
 
-        data_loaders = self.get_data_loaders(train_dataset,
-                                             train_dataset_only_noise,
-                                             valid_dataset_in_domain,
-                                             valid_dataset_out_domain,
-                                             test_dataset_in_domain,
-                                             test_dataset_out_domain,
-                                             val_gauss_datasets,
-                                             fly_test_datasets,
-                                             imagenet_fly_test_datasets,
-                                             c_test_datasets, config, seed)
+        data_loaders = self.get_data_loaders(
+            train_dataset,
+            train_dataset_only_noise,
+            valid_dataset_in_domain,
+            valid_dataset_out_domain,
+            test_dataset_in_domain,
+            test_dataset_out_domain,
+            val_gauss_datasets,
+            fly_test_datasets,
+            imagenet_fly_test_datasets,
+            c_test_datasets,
+            config,
+            seed,
+        )
         return data_loaders
-
 
     def get_transforms(self, config):
         class Distort(object):
             def __init__(self, with_clean, noises):
 
-                self.noises = noises #['impulse_noise', 'shot_noise', 'gaussian_noise', 'snow', 'jpeg_compression',
+                self.noises = noises  # ['impulse_noise', 'shot_noise', 'gaussian_noise', 'snow', 'jpeg_compression',
                 # 'contrast', 'fog', 'defocus_blur', 'frost', 'pixelate', 'motion_blur', 'zoom_blur', 'brightness', 'elastic_transform']
-                self.levels = [1,2,3,4,5]
+                self.levels = [1, 2, 3, 4, 5]
                 self.with_clean = with_clean
 
             def __call__(self, pic):
@@ -114,7 +135,9 @@ class ImageClassificationLoader(BaseImageLoader):
                     else:
                         noise_type = np.random.choice(self.noises)
                         severity = np.random.choice(self.levels)
-                        img = corrupt(pic, corruption_name=noise_type, severity=severity)
+                        img = corrupt(
+                            pic, corruption_name=noise_type, severity=severity
+                        )
                         return img
                 else:
                     noise_type = np.random.choice(self.noises)
@@ -126,17 +149,23 @@ class ImageClassificationLoader(BaseImageLoader):
             if config.apply_noise.get("noise_std", False):
                 std = config.apply_noise.get("noise_std")
                 noise_config = {
-                    "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+                    "std": {
+                        np.random.choice(list(std.keys()), p=list(std.values())): 1.0
+                    }
                 }
             elif config.apply_noise.get("noise_snr", False):
                 snr = config.apply_noise.get("noise_snr")
                 noise_config = {
-                    "snr": {np.random.choice(list(snr.keys()), p=list(snr.values())): 1.0}
+                    "snr": {
+                        np.random.choice(list(snr.keys()), p=list(snr.values())): 1.0
+                    }
                 }
             else:
                 std = {0.08: 0.1, 0.12: 0.1, 0.18: 0.1, 0.26: 0.1, 0.38: 0.1, -1: 0.5}
                 noise_config = {
-                    "std": {np.random.choice(list(std.keys()), p=list(std.values())): 1.0}
+                    "std": {
+                        np.random.choice(list(std.keys()), p=list(std.values())): 1.0
+                    }
                 }
             return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
 
@@ -148,9 +177,7 @@ class ImageClassificationLoader(BaseImageLoader):
             return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
 
         def apply_one_noise(x, std_value=None):
-            noise_config = {
-                "std": {std_value: 1.0}
-            }
+            noise_config = {"std": {std_value: 1.0}}
 
             return NoiseAugmentation.apply_noise(x, device="cpu", **noise_config)[0]
 
@@ -159,7 +186,9 @@ class ImageClassificationLoader(BaseImageLoader):
                 transforms.RandomResizedCrop(config.input_size)
                 if config.apply_augmentation
                 else None,
-                transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+                transforms.RandomHorizontalFlip()
+                if config.apply_augmentation
+                else None,
                 transforms.ToTensor(),
                 transforms.Lambda(apply_noise) if config.apply_noise else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
@@ -172,7 +201,9 @@ class ImageClassificationLoader(BaseImageLoader):
                     transforms.RandomResizedCrop(config.input_size)
                     if config.apply_augmentation
                     else None,
-                    transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+                    transforms.RandomHorizontalFlip()
+                    if config.apply_augmentation
+                    else None,
                     transforms.ToTensor(),
                     transforms.Lambda(apply_only_noise) if config.apply_noise else None,
                     transforms.Grayscale() if config.apply_grayscale else None,
@@ -212,17 +243,17 @@ class ImageClassificationLoader(BaseImageLoader):
                 else None,
             ]
             transform_val_gauss_levels = {}
-            for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
+            for level in [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]:
                 transform_val_gauss_levels[level] = [
-                        transforms.Resize(config.in_resize),
-                        transforms.CenterCrop(config.input_size),
-                        transforms.ToTensor(),
-                        transforms.Lambda(partial(apply_one_noise, std_value=level)),
-                        transforms.Grayscale() if config.apply_grayscale else None,
-                        transforms.Normalize(config.train_data_mean, config.train_data_std)
-                        if config.apply_normalization
-                        else None,
-                    ]
+                    transforms.Resize(config.in_resize),
+                    transforms.CenterCrop(config.input_size),
+                    transforms.ToTensor(),
+                    transforms.Lambda(partial(apply_one_noise, std_value=level)),
+                    transforms.Grayscale() if config.apply_grayscale else None,
+                    transforms.Normalize(config.train_data_mean, config.train_data_std)
+                    if config.apply_normalization
+                    else None,
+                ]
             fly_test_transforms = {}
             if config.add_fly_corrupted_test:
                 for fly_noise_type, levels in config.add_fly_corrupted_test.items():
@@ -236,7 +267,11 @@ class ImageClassificationLoader(BaseImageLoader):
 
                             def __call__(self, pic):
                                 pic = np.asarray(pic)
-                                img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
+                                img = corrupt(
+                                    pic,
+                                    corruption_name=self.noise_type,
+                                    severity=self.severity,
+                                )
                                 return img
 
                         transform_fly_test = [
@@ -246,7 +281,9 @@ class ImageClassificationLoader(BaseImageLoader):
                             transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
                             transforms.ToTensor(),
-                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            transforms.Normalize(
+                                config.train_data_mean, config.train_data_std
+                            )
                             if config.apply_normalization
                             else None,
                         ]
@@ -256,16 +293,22 @@ class ImageClassificationLoader(BaseImageLoader):
                         fly_test_transforms[fly_noise_type][level] = transform_fly_test
 
         else:
-            #transforms for the training set
+            # transforms for the training set
             transform_train = [
                 transforms.RandomCrop(config.input_size, padding=4)
                 if config.apply_augmentation
                 else None,
-                transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
+                transforms.RandomHorizontalFlip()
+                if config.apply_augmentation
+                else None,
                 transforms.RandomRotation(15) if config.apply_augmentation else None,
-                transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
+                transforms.Lambda(Distort(True, config.apply_noise["all_noises"]))
+                if config.apply_noise.get("all_noises", False)
+                else None,
                 transforms.ToTensor(),
-                transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
+                transforms.Lambda(apply_noise)
+                if config.apply_noise.get("noise_std", False)
+                else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
@@ -277,11 +320,19 @@ class ImageClassificationLoader(BaseImageLoader):
                     transforms.RandomCrop(config.input_size, padding=4)
                     if config.apply_augmentation
                     else None,
-                    transforms.RandomHorizontalFlip() if config.apply_augmentation else None,
-                    transforms.RandomRotation(15) if config.apply_augmentation else None,
-                    transforms.Lambda(Distort(False, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
+                    transforms.RandomHorizontalFlip()
+                    if config.apply_augmentation
+                    else None,
+                    transforms.RandomRotation(15)
+                    if config.apply_augmentation
+                    else None,
+                    transforms.Lambda(Distort(False, config.apply_noise["all_noises"]))
+                    if config.apply_noise.get("all_noises", False)
+                    else None,
                     transforms.ToTensor(),
-                    transforms.Lambda(apply_only_noise) if config.apply_noise.get("noise_std", False) else None,
+                    transforms.Lambda(apply_only_noise)
+                    if config.apply_noise.get("noise_std", False)
+                    else None,
                     transforms.Grayscale() if config.apply_grayscale else None,
                     transforms.Normalize(config.train_data_mean, config.train_data_std)
                     if config.apply_normalization
@@ -294,9 +345,13 @@ class ImageClassificationLoader(BaseImageLoader):
             # if the training set has only clean images, then the validation set also has clean images only and vice versa.
             # in this example the trianing set domain is natural images without noise
             transform_val_in_domain = [
-                transforms.Lambda(Distort(True, config.apply_noise['all_noises'])) if config.apply_noise.get("all_noises", False) else None,
+                transforms.Lambda(Distort(True, config.apply_noise["all_noises"]))
+                if config.apply_noise.get("all_noises", False)
+                else None,
                 transforms.ToTensor(),
-                transforms.Lambda(apply_noise) if config.apply_noise.get("noise_std", False) else None,
+                transforms.Lambda(apply_noise)
+                if config.apply_noise.get("noise_std", False)
+                else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
@@ -306,7 +361,12 @@ class ImageClassificationLoader(BaseImageLoader):
             # for example if the training set has clean images, the validation set would have noisy images.
             transform_val_out_domain = [
                 transforms.ToTensor(),
-                transforms.Lambda(apply_noise) if (not config.apply_noise.get("noise_std", False) and not config.apply_noise.get("all_noises", False)) else None,
+                transforms.Lambda(apply_noise)
+                if (
+                    not config.apply_noise.get("noise_std", False)
+                    and not config.apply_noise.get("all_noises", False)
+                )
+                else None,
                 transforms.Grayscale() if config.apply_grayscale else None,
                 transforms.Normalize(config.train_data_mean, config.train_data_std)
                 if config.apply_normalization
@@ -322,15 +382,15 @@ class ImageClassificationLoader(BaseImageLoader):
             ]
             # transforms for the validation set after applying gaussian noise with different std values of noise
             transform_val_gauss_levels = {}
-            for level in [0.0,0.05,0.1,0.2,0.3,0.5,1.0]:
+            for level in [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]:
                 transform_val_gauss_levels[level] = [
-                        transforms.ToTensor(),
-                        transforms.Lambda(partial(apply_one_noise, std_value=level)),
-                        transforms.Grayscale() if config.apply_grayscale else None,
-                        transforms.Normalize(config.train_data_mean, config.train_data_std)
-                        if config.apply_normalization
-                        else None,
-                    ]
+                    transforms.ToTensor(),
+                    transforms.Lambda(partial(apply_one_noise, std_value=level)),
+                    transforms.Grayscale() if config.apply_grayscale else None,
+                    transforms.Normalize(config.train_data_mean, config.train_data_std)
+                    if config.apply_normalization
+                    else None,
+                ]
 
             # transforms for the TinyImageNet-C test set after applying the image corruptions on the fly
             fly_test_transforms = {}
@@ -349,16 +409,21 @@ class ImageClassificationLoader(BaseImageLoader):
 
                             def __call__(self, pic):
                                 pic = np.asarray(pic)
-                                img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
+                                img = corrupt(
+                                    pic,
+                                    corruption_name=self.noise_type,
+                                    severity=self.severity,
+                                )
                                 return img
-
 
                         transform_fly_test = [
                             Noise(fly_noise_type, level),
                             transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
                             transforms.ToTensor(),
-                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            transforms.Normalize(
+                                config.train_data_mean, config.train_data_std
+                            )
                             if config.apply_normalization
                             else None,
                         ]
@@ -369,7 +434,9 @@ class ImageClassificationLoader(BaseImageLoader):
                             transforms.ToPILImage() if config.apply_grayscale else None,
                             transforms.Grayscale() if config.apply_grayscale else None,
                             transforms.ToTensor(),
-                            transforms.Normalize(config.train_data_mean, config.train_data_std)
+                            transforms.Normalize(
+                                config.train_data_mean, config.train_data_std
+                            )
                             if config.apply_normalization
                             else None,
                         ]
@@ -377,10 +444,16 @@ class ImageClassificationLoader(BaseImageLoader):
                             list(filter(lambda x: x is not None, transform_fly_test))
                         )
                         imagenet_transform_fly_test = transforms.Compose(
-                            list(filter(lambda x: x is not None, imagenet_transform_fly_test))
+                            list(
+                                filter(
+                                    lambda x: x is not None, imagenet_transform_fly_test
+                                )
+                            )
                         )
                         fly_test_transforms[fly_noise_type][level] = transform_fly_test
-                        imagenet_fly_test_transforms[fly_noise_type][level] = imagenet_transform_fly_test
+                        imagenet_fly_test_transforms[fly_noise_type][
+                            level
+                        ] = imagenet_transform_fly_test
 
         transform_test_c = transforms.Compose(
             list(filter(lambda x: x is not None, transform_test_c))
@@ -400,12 +473,27 @@ class ImageClassificationLoader(BaseImageLoader):
             )
         for level in list(transform_val_gauss_levels.keys()):
             transform_val_gauss_levels[level] = transforms.Compose(
-                    list(filter(lambda x: x is not None, transform_val_gauss_levels[level]))
-                )
+                list(filter(lambda x: x is not None, transform_val_gauss_levels[level]))
+            )
 
-        return transform_train, transform_train_only_noise, transform_val_in_domain, transform_val_out_domain, transform_val_gauss_levels, transform_test_c, fly_test_transforms, imagenet_fly_test_transforms
+        return (
+            transform_train,
+            transform_train_only_noise,
+            transform_val_in_domain,
+            transform_val_out_domain,
+            transform_val_gauss_levels,
+            transform_test_c,
+            fly_test_transforms,
+            imagenet_fly_test_transforms,
+        )
 
-    def add_corrupted_test(self, config, transform_val_in_domain, transform_val_out_domain, transform_test_c):
+    def add_corrupted_test(
+        self,
+        config,
+        transform_val_in_domain,
+        transform_val_out_domain,
+        transform_test_c,
+    ):
         c_test_datasets = {}
         if config.add_corrupted_test:
             urls = DATASET_URLS[config.dataset_cls + "-C"]
@@ -417,7 +505,6 @@ class ImageClassificationLoader(BaseImageLoader):
                     config.data_dir,
                     dataset_cls=config.dataset_cls + "-C",
                 )
-
 
                 for c_category in os.listdir(dataset_dir):
                     if not os.path.isdir(os.path.join(dataset_dir, c_category)):
@@ -433,13 +520,23 @@ class ImageClassificationLoader(BaseImageLoader):
 
         return c_test_datasets
 
-    def get_datasets(self, config, transform_train, transform_train_only_noise, transform_val_in_domain, transform_val_out_domain, transform_val_gauss_levels,
-                     transform_test_c, fly_test_transforms, imagenet_fly_test_transforms):
+    def get_datasets(
+        self,
+        config,
+        transform_train,
+        transform_train_only_noise,
+        transform_val_in_domain,
+        transform_val_out_domain,
+        transform_val_gauss_levels,
+        transform_test_c,
+        fly_test_transforms,
+        imagenet_fly_test_transforms,
+    ):
 
         # if the dataset in torchvision and it is not ImageNet
         if (
-                config.dataset_cls in list(torchvision.datasets.__dict__.keys())
-                and config.dataset_cls != "ImageNet"
+            config.dataset_cls in list(torchvision.datasets.__dict__.keys())
+            and config.dataset_cls != "ImageNet"
         ):
             dataset_cls = eval("torchvision.datasets." + config.dataset_cls)
             train_dataset = dataset_cls(
@@ -456,7 +553,9 @@ class ImageClassificationLoader(BaseImageLoader):
                     download=config.download,
                     transform=transform_train_only_noise,
                 )
-                train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_only_noise])
+                train_dataset = ManyDatasetsInOne(
+                    [train_dataset, train_dataset_only_noise]
+                )
             else:
                 train_dataset_only_noise = None
 
@@ -513,22 +612,36 @@ class ImageClassificationLoader(BaseImageLoader):
             train_dataset = datasets.ImageFolder(train_dir, transform=transform_train)
 
             if config.apply_noise.get("representation_matching", False):
-                train_dataset_only_noise = datasets.ImageFolder(train_dir, transform=transform_train_only_noise)
-                train_dataset = ManyDatasetsInOne([train_dataset, train_dataset_only_noise])
+                train_dataset_only_noise = datasets.ImageFolder(
+                    train_dir, transform=transform_train_only_noise
+                )
+                train_dataset = ManyDatasetsInOne(
+                    [train_dataset, train_dataset_only_noise]
+                )
             else:
                 train_dataset_only_noise = None
 
-            valid_dataset_in_domain = datasets.ImageFolder(train_dir, transform=transform_val_in_domain)
+            valid_dataset_in_domain = datasets.ImageFolder(
+                train_dir, transform=transform_val_in_domain
+            )
 
-            test_dataset_in_domain = datasets.ImageFolder(val_dir, transform=transform_val_in_domain)
+            test_dataset_in_domain = datasets.ImageFolder(
+                val_dir, transform=transform_val_in_domain
+            )
 
-            valid_dataset_out_domain = datasets.ImageFolder(train_dir, transform=transform_val_out_domain)
+            valid_dataset_out_domain = datasets.ImageFolder(
+                train_dir, transform=transform_val_out_domain
+            )
 
-            test_dataset_out_domain = datasets.ImageFolder(val_dir, transform=transform_val_out_domain)
+            test_dataset_out_domain = datasets.ImageFolder(
+                val_dir, transform=transform_val_out_domain
+            )
 
             val_gauss_datasets = {}
             for level in list(transform_val_gauss_levels.keys()):
-                val_gauss_datasets[level] = datasets.ImageFolder(train_dir, transform=transform_val_gauss_levels[level])
+                val_gauss_datasets[level] = datasets.ImageFolder(
+                    train_dir, transform=transform_val_gauss_levels[level]
+                )
 
             fly_test_datasets = {}
             imagenet_fly_test_datasets = {}
@@ -547,19 +660,39 @@ class ImageClassificationLoader(BaseImageLoader):
 
                             def __call__(self, pic):
                                 pic = np.asarray(pic)
-                                img = corrupt(pic, corruption_name=self.noise_type, severity=self.severity)
+                                img = corrupt(
+                                    pic,
+                                    corruption_name=self.noise_type,
+                                    severity=self.severity,
+                                )
                                 return img
 
                         if config.dataset_cls == "ImageNet":
-                            fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
-                                                                                            transform=fly_test_transforms[fly_noise_type][level])
+                            fly_test_datasets[fly_noise_type][
+                                level
+                            ] = datasets.ImageFolder(
+                                val_dir,
+                                transform=fly_test_transforms[fly_noise_type][level],
+                            )
                         else:
-                            fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(val_dir,
-                                                                                            transform=fly_test_transforms[fly_noise_type][level])
-                            imagenet_fly_test_datasets[fly_noise_type][level] = datasets.ImageFolder(imagenet_val_dir,
-                                                                                            transform=imagenet_fly_test_transforms[fly_noise_type][level])
+                            fly_test_datasets[fly_noise_type][
+                                level
+                            ] = datasets.ImageFolder(
+                                val_dir,
+                                transform=fly_test_transforms[fly_noise_type][level],
+                            )
+                            imagenet_fly_test_datasets[fly_noise_type][
+                                level
+                            ] = datasets.ImageFolder(
+                                imagenet_val_dir,
+                                transform=imagenet_fly_test_transforms[fly_noise_type][
+                                    level
+                                ],
+                            )
 
-        c_test_datasets = self.add_corrupted_test(config, valid_dataset_in_domain, valid_dataset_out_domain, transform_test_c)
+        c_test_datasets = self.add_corrupted_test(
+            config, valid_dataset_in_domain, valid_dataset_out_domain, transform_test_c
+        )
         return (
             train_dataset,
             train_dataset_only_noise,
@@ -570,9 +703,8 @@ class ImageClassificationLoader(BaseImageLoader):
             val_gauss_datasets,
             fly_test_datasets,
             imagenet_fly_test_datasets,
-            c_test_datasets
+            c_test_datasets,
         )
-
 
     def get_data_loaders(
         self,
@@ -585,7 +717,9 @@ class ImageClassificationLoader(BaseImageLoader):
         val_gauss_datasets,
         fly_test_datasets,
         imagenet_fly_test_datasets,
-        c_test_datasets, config, seed
+        c_test_datasets,
+        config,
+        seed,
     ):
         num_train = len(train_dataset)
         indices = list(range(num_train))
@@ -655,7 +789,7 @@ class ImageClassificationLoader(BaseImageLoader):
             "test": {"img_classification": test_loader_in_domain},
             "validation_out_domain": {"img_classification": valid_loader_out_domain},
             "test_out_domain": {"img_classification": test_loader_out_domain},
-            "validation_gauss": val_gauss_loaders
+            "validation_gauss": val_gauss_loaders,
         }
 
         if config.add_corrupted_test:
@@ -681,7 +815,9 @@ class ImageClassificationLoader(BaseImageLoader):
                 if config.dataset_cls == "TinyImageNet":
                     imagenet_fly_test_loaders[fly_noise_type] = {}
                 for level, dataset in fly_test_datasets[fly_noise_type].items():
-                    fly_test_loaders[fly_noise_type][level] = torch.utils.data.DataLoader(
+                    fly_test_loaders[fly_noise_type][
+                        level
+                    ] = torch.utils.data.DataLoader(
                         dataset,
                         batch_size=config.batch_size,
                         num_workers=config.num_workers,
@@ -689,7 +825,9 @@ class ImageClassificationLoader(BaseImageLoader):
                         shuffle=False,
                     )
                     if config.dataset_cls == "TinyImageNet":
-                        imagenet_fly_test_loaders[fly_noise_type][level] = torch.utils.data.DataLoader(
+                        imagenet_fly_test_loaders[fly_noise_type][
+                            level
+                        ] = torch.utils.data.DataLoader(
                             imagenet_fly_test_datasets[fly_noise_type][level],
                             batch_size=config.batch_size,
                             num_workers=config.num_workers,
