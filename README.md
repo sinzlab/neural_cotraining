@@ -1,4 +1,4 @@
-# neural_cotraining: The code running MTL on object recognition with neural data
+# neural_cotraining: The pipeline for performing MTL on object recognition with neural data prediction
 
 ![Black](https://github.com/sinzlab/nnfabrik/workflows/Black/badge.svg)
 ![GitHub Pages](https://github.com/sinzlab/nnfabrik/workflows/GitHub%20Pages/badge.svg?branch=master)
