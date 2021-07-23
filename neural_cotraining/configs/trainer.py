@@ -87,12 +87,6 @@ class CoTrainerConfig(TrainerConfig):
         modules = []
         if self.representation_matching:
             modules.append("RepresentationMatching")
-        elif (
-            self.noise_snr or self.noise_std
-        ):  # Logit matching includes noise augmentation
-            modules.append("NoiseAugmentation")
-        if self.noise_adv_classification or self.noise_adv_regression:
-            modules.append("NoiseAdvTraining")
         if self.reset_linear_frequency:
             modules.append("RandomReadoutReset")
         if self.rdm_transfer:
@@ -101,8 +95,6 @@ class CoTrainerConfig(TrainerConfig):
             modules.append("LotteryTicketPruning")
         if (
             self.rdm_transfer
-            or self.noise_adv_classification
-            or self.noise_adv_regression
             or self.representation_matching
         ):
             modules.append("OutputSelector")

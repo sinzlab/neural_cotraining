@@ -55,7 +55,10 @@ class LongCycler:
     """
     Cycles through trainloaders until the loader with largest size is exhausted.
         Needed for dataloaders of unequal size (as in the monkey data).
-    It can handle loaders in the framework of MTL trainer
+    It can handle loaders in the framework of MTL trainer. The different from the version in neuralpredictors is the following:
+        - It uses self.backward, which is responsible for backpropagating the error signals once all batches from the different datasets are forward-passed through the network
+        - It uses a main_key corresponding to the main task in MTL; usually it is image_classification
+        - It allows for backpropagating gradients after a defined number of gradient accumulation, namely grad_accum_step
     """
 
     def __init__(self, loaders, grad_accum_step=0):
@@ -94,6 +97,10 @@ class ShortCycler:
     """
     Cycles through trainloaders until the loader with smallest size is exhausted.
         Needed for dataloaders of unequal size (as in the monkey data).
+    It can handle loaders in the framework of MTL trainer. The different from the version in neuralpredictors is the following:
+        - It uses self.backward, which is responsible for backpropagating the error signals once all batches from the different datasets are forward-passed through the network
+        - It uses a main_key corresponding to the main task in MTL; usually it is image_classification
+        - It allows for backpropagating gradients after a defined number of gradient accumulation, namely grad_accum_step
     """
 
     def __init__(self, loaders, grad_accum_step=0):

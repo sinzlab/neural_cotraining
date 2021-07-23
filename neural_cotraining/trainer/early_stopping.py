@@ -19,6 +19,10 @@ def early_stopping(
     lr_decay_steps=1,
     checkpointing=None,
 ):
+    '''
+    It is a modified version of early_stopping in neuralpredictors. It defines which objective of which task in MTL to monitor.
+    In addition, it allows for an adaptive scheduler based on monitoring several objectives at once.
+    '''
     def _objective():
         if switch_mode:
             model.eval()
