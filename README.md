@@ -25,11 +25,15 @@ pip install git+https://github.com/sinzlab/neural_cotraining.git
 
 ## Code 
 
-Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer.
+Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer. In the `/configs` folder can be found the config classes for the different components which are relevant for image classification, neural prediction and MTL on both tasks.
 ### Dataset
-In the `/configs` folder can be found the dataset configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the loaders' functions can be found in the `/dataset` folder.
+The dataset loaders' functions can be found in the `/dataset` folder. The function in `/dataset/neural_dataset_loader.py` can load the monkey V1 dataset or a similar neural dataset through the `monkey_static_loader` in `/nnvision/datasets/monkey_loaders.py` using the `neural_cotrain_NeurIPS` branch. Furthermore, the function in `/dataset/img_classification_loader.py` can load an image classification-related dataset like TinyImageNet directly.
+In order to combine both loaders in the MTL setup, we use the `MTLDatasetsLoader` in `/dataset/mtl_datasets_loader.py`.
+
 ### Model
-In the `/configs` folder can be found the model configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the model-building functions can be found in the `/models` folder.
+The model-building functions can be found in the `/models` folder. The builder function in `/models/vgg.py` can create a VGG model to perform single-task image classification. Also, the builder in `/models/neural_model_builder.py` creates a standard model to predict neural responses using the models implemented in nnvision. 
+To combine image classification and neural prediction in one model, we use the `MTL_VGG` model class in `/models/mtl_vgg.py`.
+
 ### Trainer
 In the `/configs` folder can be found the trainer config which can be used for MTL. Also, the trainer function can be found in the `/trainer` folder.
 
