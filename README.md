@@ -23,7 +23,7 @@ You can use the following way to install neural_cotraining:
 pip install git+https://github.com/sinzlab/neural_cotraining.git
 ```
 
-## Structure of the code 
+## Code 
 
 Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer.
 ### Dataset
@@ -35,8 +35,9 @@ In the "/configs" folder can be found the trainer config which can be used for M
 
 ## :bulb: Example
 
-Based on the above mentioned libraries, we provide a simple example on how to run an MTL experiment using neural_cotraining. 
-[Here](./examples/notebooks/nnfabrik_example.ipynb)
+Through bias_transfer_recipes, experiments can be run after specifying the parameters of the dataset, model and trainer configs.
+We provide a simple example on how to run an MTL experiment using neural_cotraining. 
+[Here](https://github.com/Shahdsaf/bias_transfer_recipes/blob/uptodate_shahd/bias_transfer_recipes/notebooks/test1.ipynb)
 
 
 ## :bug: Report bugs (or request features)
