@@ -27,7 +27,7 @@ pip install git+https://github.com/sinzlab/neural_cotraining.git
 
 Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer.
 ### Dataset
-In the "/configs" folder can be found the dataset configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the loaders' functions can be found in the "/dataset" folder.
+In the '/configs' folder can be found the dataset configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the loaders' functions can be found in the "/dataset" folder.
 ### Model
 In the "/configs" folder can be found the model configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the model-building functions can be found in the "/models" folder.
 ### Trainer
