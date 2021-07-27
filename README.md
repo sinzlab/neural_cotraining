@@ -35,7 +35,7 @@ The model-building functions can be found in the `/models` folder. The builder f
 To combine image classification and neural prediction in one model, we use the `MTL_VGG` model class in `/models/mtl_vgg.py`.
 
 ### Trainer
-In the `/configs` folder can be found the trainer config which can be used for MTL. Also, the trainer function can be found in the `/trainer` folder.
+In order to train the defined model, we use the trainer function, that can be found in the `/trainer` folder. It is responsible for the whole training process including the batch iterations, loss computation, evaluation on the validation set and the logging of results per epoch and finally the final evaluation on the test sets.
 
 ## :bulb: Example
 
@@ -44,6 +44,6 @@ We provide a simple example on how to run an MTL experiment using neural_cotrain
 [Here](https://github.com/Shahdsaf/bias_transfer_recipes/blob/uptodate_shahd/bias_transfer_recipes/notebooks/test1.ipynb)
 
 
-## :bug: Report bugs (or request features)
+## :bug: Report bugs 
 
 In case you find a bug, please create an issue or contact any of the contributors.
