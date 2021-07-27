@@ -23,6 +23,16 @@ You can use the following way to install neural_cotraining:
 pip install git+https://github.com/sinzlab/neural_cotraining.git
 ```
 
+## Structure of the code 
+
+Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer.
+### Dataset
+In the "/configs" folder can be found the dataset configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the loaders' functions can be found in the "/dataset" folder.
+### Model
+In the "/configs" folder can be found the model configs which are used for different tasks: image classification, neural prediction or MTL on both. Also, the model-building functions can be found in the "/models" folder.
+### Trainer
+In the "/configs" folder can be found the trainer config which can be used for MTL. Also, the trainer function can be found in the "/trainer" folder.
+
 ## :bulb: Example
 
 Based on the above mentioned libraries, we provide a simple example on how to run an MTL experiment using neural_cotraining. 
