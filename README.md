@@ -39,9 +39,9 @@ In order to train the defined model, we use the trainer function, that can be fo
 
 ## :bulb: Example
 
-Through bias_transfer_recipes, experiments can be run after specifying the parameters of the dataset, model and trainer configs.
-We provide a simple example on how to run an MTL experiment using neural_cotraining. 
-[Here](https://github.com/Shahdsaf/bias_transfer_recipes/blob/uptodate_shahd/bias_transfer_recipes/notebooks/test1.ipynb)
+In order to run experiments and populate them in the datajoint tables, we use the bias_transfer_recipes library, which helps to specify the experiment's parameters in a simple manner by defining the attributes of the dataset, model and trainer configs.
+We provide a simple example on how to run an MTL experiment using neural_cotraining 
+[Here](https://github.com/Shahdsaf/bias_transfer_recipes/blob/uptodate_shahd/bias_transfer_recipes/notebooks/test1.ipynb).
 
 
 ## :bug: Report bugs 
