@@ -32,7 +32,9 @@ In order to combine both loaders in the MTL setup, we use the `MTLDatasetsLoader
 
 ### Model
 The model-building functions can be found in the `/models` folder. The builder function in `/models/vgg.py` can create a VGG model to perform single-task image classification. Also, the builder in `/models/neural_model_builder.py` creates a standard model to predict neural responses using the models implemented in nnvision. 
-To combine image classification and neural prediction in one model, we use the `MTL_VGG` model class in `/models/mtl_vgg.py`. See the architecture of our ![MTL-VGG](https://github.com/Shahdsaf/neural_cotraining/blob/main/mtl_vgg.png)
+To combine image classification and neural prediction in one model, we use the `MTL_VGG` model class in `/models/mtl_vgg.py`. 
+
+This is the architecture of our co-trained monkey model using the MTL_VGG class ![](https://github.com/Shahdsaf/neural_cotraining/blob/main/mtl_vgg.png)
 
 ### Trainer
 In order to train the defined model, we use the trainer function, that can be found in the `/trainer` folder. It is responsible for the whole training process including the batch iterations, loss computation, evaluation on the validation set and the logging of results per epoch and finally the final evaluation on the test sets.
