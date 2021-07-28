@@ -1,5 +1,27 @@
 from torch import nn
 from torchvision.models.resnet import Bottleneck, BasicBlock
+import torch
+from neuralpredictors.utils import eval_state
+
+
+def get_module_output(model, input_shape, neural_set):
+    """
+    Gets the output dimensions of the convolutional core
+        by passing an input image through all convolutional layers
+    :param core: convolutional core of the DNN, which final dimensions
+        need to be passed on to the readout layer
+    :param input_shape: the dimensions of the input
+    :return: output dimensions of the core
+    """
+    initial_device = "cuda" if next(iter(model.parameters())).is_cuda else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    with eval_state(model):
+        with torch.no_grad():
+            input = torch.zeros(1, *input_shape[1:]).to(device)
+            output = model.to(device)(input, neural_set=neural_set)
+    model.to(initial_device)
+
+    return output[0].shape
 
 
 def freeze_params(model, to_freeze=None, not_to_freeze=None):
@@ -21,6 +43,7 @@ def freeze_params(model, to_freeze=None, not_to_freeze=None):
         if freeze and param.requires_grad:
             param.requires_grad = False
 
+
 def freeze_mtl_shared_block(model, multi, tasks):
     if multi:
         if "v1" in tasks:
@@ -32,10 +55,10 @@ def freeze_mtl_shared_block(model, multi, tasks):
     else:
         if "v1" in tasks:
             for param in model.mtl_vgg_core.v1_block.parameters():
-                    param.requires_grad = False
+                param.requires_grad = False
         if "v4" in tasks:
             for param in model.mtl_vgg_core.v4_block.parameters():
-                    param.requires_grad = False
+                param.requires_grad = False
 
 
 def weight_reset(m, advanced_init=False, zero_init_residual=False):

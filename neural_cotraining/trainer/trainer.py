@@ -4,10 +4,16 @@ import numpy as np
 import torch
 from torch import nn, optim
 from tqdm import tqdm
-from neural_cotraining.models.utils import freeze_params, reset_params, freeze_mtl_shared_block
+from neural_cotraining.models.utils import (
+    freeze_params,
+    reset_params,
+    freeze_mtl_shared_block,
+)
 from neural_cotraining.trainer.utils import (
     get_subdict,
-    set_bn_to_eval, neural_full_objective, move_data
+    set_bn_to_eval,
+    neural_full_objective,
+    move_data,
 )
 from .main_loop_modules import *
 import sys
@@ -17,17 +23,17 @@ from nntransfer.trainer.utils.checkpointing import LocalCheckpointing
 from neuralpredictors.training.tracking import AdvancedTracker
 from neural_cotraining.configs.trainer import CoTrainerConfig
 from neuralpredictors.measures import modules as mlmeasures
-from .utils import early_stopping
+from .early_stopping import early_stopping
 from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from neural_cotraining.trainer import utils as uts
+from neural_cotraining.trainer import cyclers as cyclers
 from nnfabrik.utility.nn_helpers import move_to_device
+
 
 def trainer(model, dataloaders, seed, uid, cb, eval_only=False, **kwargs):
     t = MTLTrainer(dataloaders, model, seed, uid, cb, **kwargs)
     return t.train()
-
-
 
 
 class MTLTrainer(Trainer):
@@ -36,22 +42,36 @@ class MTLTrainer(Trainer):
     def __init__(self, dataloaders, model, seed, uid, cb, **kwargs):
         self.config = CoTrainerConfig.from_dict(kwargs)
         self.uid = uid
-        self.model, self.device, self.multi = nnf.utility.nn_helpers.move_to_device(model, gpu=(not self.config.force_cpu))
+        self.model, self.device, self.multi = nnf.utility.nn_helpers.move_to_device(
+            model, gpu=(not self.config.force_cpu)
+        )
         nnf.utility.nn_helpers.set_random_seed(seed)
         self.seed = seed
 
-        if self.config.mtl and ("v1" not in self.config.loss_functions.keys()) and ("v4" not in self.config.loss_functions.keys()):
+        if (
+            self.config.mtl
+            and ("v1" not in self.config.loss_functions.keys())
+            and ("v4" not in self.config.loss_functions.keys())
+        ):
             if "img_classification" in dataloaders["train"].keys():
-                dataloaders["train"] = dataloaders['train']["img_classification"] if isinstance(
-                    dataloaders['train']["img_classification"], dict) \
+                dataloaders["train"] = (
+                    dataloaders["train"]["img_classification"]
+                    if isinstance(dataloaders["train"]["img_classification"], dict)
                     else get_subdict(dataloaders["train"], ["img_classification"])
-                dataloaders["validation"] = get_subdict(dataloaders["validation"], ["img_classification"])
-                dataloaders["test"] = get_subdict(dataloaders["test"], ["img_classification"])
+                )
+                dataloaders["validation"] = get_subdict(
+                    dataloaders["validation"], ["img_classification"]
+                )
+                dataloaders["test"] = get_subdict(
+                    dataloaders["test"], ["img_classification"]
+                )
 
         self.cycler_args = dict(self.config.train_cycler_args)
         if self.cycler_args and self.config.train_cycler == "MTL_Cycler":
-            self.cycler_args['ratio'] = self.cycler_args['ratio'][1]
-        self.train_loader = getattr(uts, self.config.train_cycler)(dataloaders["train"], **self.cycler_args)
+            self.cycler_args["ratio"] = self.cycler_args["ratio"][1]
+        self.train_loader = getattr(cyclers, self.config.train_cycler)(
+            dataloaders["train"], **self.cycler_args
+        )
         self.val_keys = list(dataloaders["validation"].keys())
         self.data_loaders = dataloaders
 
@@ -94,7 +114,9 @@ class MTLTrainer(Trainer):
     @property
     def main_loop_modules(self):
         self._main_loop_modules = [
-            globals().get(k)(self.model, self.config, self.device, self.train_loader, self.seed)
+            globals().get(k)(
+                self.model, self.config, self.device, self.train_loader, self.seed
+            )
             for k in self.config.main_loop_modules
         ]
         return self._main_loop_modules
@@ -102,81 +124,103 @@ class MTLTrainer(Trainer):
     def get_training_controls(self):
         criterion, stop_closure = {}, {}
         for k in self.val_keys:
-            if k in ['v1', 'v4']:
+            # in case of neural datasets
+            if k in ["v1", "v4"]:
+                # get the loss function with one of two cases: normal loss or likelihood loss for weighing
                 if self.config.loss_weighing:
                     if self.config.loss_functions[k] == "PoissonLoss":
-                        criterion[k] = NBLossWrapper(self.config.loss_sum).to(self.device)
+                        criterion[k] = NBLossWrapper(self.config.loss_sum).to(
+                            self.device
+                        )
                     else:
                         criterion[k] = MSELossWrapper(
-                            getattr(nn, self.config.loss_functions[k])(reduction="sum" if self.config.loss_sum else "mean")
+                            getattr(nn, self.config.loss_functions[k])(
+                                reduction="sum" if self.config.loss_sum else "mean"
+                            )
                         ).to(self.device)
                 else:
                     if self.config.loss_functions[k] == "PoissonLoss":
-                        criterion[k] = getattr(mlmeasures, self.config.loss_functions[k])(
-                            avg=self.config.avg_loss
-                        )
+                        criterion[k] = getattr(
+                            mlmeasures, self.config.loss_functions[k]
+                        )(avg=self.config.avg_loss)
                     else:
                         criterion[k] = getattr(nn, self.config.loss_functions[k])(
-                            reduction="sum" if self.config.loss_sum else "mean")
+                            reduction="sum" if self.config.loss_sum else "mean"
+                        )
+
+                # get the evaluation function to apply to the validation/test sets
                 stop_closure[k] = {}
                 stop_closure[k] = partial(
                     self.test_neural_model,
                     data_loader=self.data_loaders["validation"][k],
-                    mode="Validation", neural_set=k
+                    mode="Validation",
+                    neural_set=k,
                 )
 
             if k == "img_classification":
                 if self.config.loss_weighing:
                     criterion[k] = XEntropyLossWrapper(
-                        getattr(nn, self.config.loss_functions[k])(reduction="sum" if self.config.loss_sum else "mean")
+                        getattr(nn, self.config.loss_functions[k])(
+                            reduction="sum" if self.config.loss_sum else "mean"
+                        )
                     ).to(self.device)
                 else:
-                    criterion[k] = getattr(nn, self.config.loss_functions[k])(reduction="sum" if self.config.loss_sum else "mean")
+                    criterion[k] = getattr(nn, self.config.loss_functions[k])(
+                        reduction="sum" if self.config.loss_sum else "mean"
+                    )
                 stop_closure[k] = partial(
                     self.main_loop,
-                    data_loader=self.data_loaders['validation'][k] if isinstance(self.data_loaders['validation'][k],dict)
+                    data_loader=self.data_loaders["validation"][k]
+                    if isinstance(self.data_loaders["validation"][k], dict)
                     else get_subdict(self.data_loaders["validation"], [k]),
                     criterion=get_subdict(criterion, [k]),
-                    epoch= 0,
-                    mode = "Validation",
-                    return_outputs = False,
-                    cycler = "LongCycler",
-                    cycler_args = {},
-                    loss_weighing = self.config.loss_weighing, mtl = self.config.mtl,
-                    freeze_bn = {'last_layer': -1}, epoch_tqdm = None
+                    epoch=0,
+                    mode="Validation",
+                    return_outputs=False,
+                    cycler="LongCycler",
+                    cycler_args={},
+                    loss_weighing=self.config.loss_weighing,
+                    mtl=self.config.mtl,
+                    freeze_bn={"last_layer": -1},
+                    epoch_tqdm=None,
                 )
 
+        # get all params and the optimizer instance
         if not self.config.specific_opt_options:
             all_params = list(self.model.parameters())
             if self.config.loss_weighing:
                 for _, loss_object in criterion.items():
                     all_params += list(loss_object.parameters())
         else:
-            params = {'params': []}
+            params = {"params": []}
             specific_opt_options_dict = self.config.specific_opt_options
             for name, parameter in self.model.named_parameters():
                 param_exist = False
                 for name_part in specific_opt_options_dict.keys():
                     if name_part in name:
-                        specific_opt_options_dict[name_part]['params'].append(parameter)
+                        specific_opt_options_dict[name_part]["params"].append(parameter)
                         param_exist = True
                         break
                 if not param_exist:
-                    params['params'].append(parameter)
+                    params["params"].append(parameter)
 
             if self.config.loss_weighing:
                 for _, loss_object in criterion.items():
-                    params['params'] += list(loss_object.parameters())
+                    params["params"] += list(loss_object.parameters())
             all_params = [params] + list(specific_opt_options_dict.values())
-        optimizer = getattr(optim, self.config.optimizer)(all_params, **self.config.optimizer_options)
+        optimizer = getattr(optim, self.config.optimizer)(
+            all_params, **self.config.optimizer_options
+        )
         return optimizer, stop_closure, criterion
 
     def prepare_lr_schedule(self):
         if self.config.scheduler:
             if self.config.scheduler == "adaptive":
-                if self.config.scheduler_options['mtl']:
-                    train_scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=self.config.lr_decay)
-                elif not self.config.scheduler_options['mtl']:
+                if self.config.scheduler_options["mtl"]:
+                    train_scheduler = optim.lr_scheduler.StepLR(
+                        self.optimizer, step_size=1, gamma=self.config.lr_decay
+                    )
+                elif not self.config.scheduler_options["mtl"]:
                     train_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                         self.optimizer,
                         factor=self.config.lr_decay,
@@ -189,7 +233,9 @@ class MTLTrainer(Trainer):
                     )
             elif self.config.scheduler == "manual":
                 train_scheduler = optim.lr_scheduler.MultiStepLR(
-                    self.optimizer, milestones=self.config.scheduler_options['milestones'], gamma=self.config.lr_decay
+                    self.optimizer,
+                    milestones=self.config.scheduler_options["milestones"],
+                    gamma=self.config.lr_decay,
                 )
         else:
             train_scheduler = None
@@ -198,20 +244,27 @@ class MTLTrainer(Trainer):
     def freeze(self):
         if self.config.freeze:
             if self.config.mtl:
-                freeze_mtl_shared_block(self.model, self.multi,
-                                        [task for task in list(self.config.loss_functions.keys()) if task in ['v1', 'v4']])
+                freeze_mtl_shared_block(
+                    self.model,
+                    self.multi,
+                    [
+                        task
+                        for task in list(self.config.loss_functions.keys())
+                        if task in ["v1", "v4"]
+                    ],
+                )
                 # model.freeze(config.freeze['freeze'])
             else:
-                if self.config.freeze['freeze'] == ("core",):
+                if self.config.freeze["freeze"] == ("core",):
                     kwargs = {"not_to_freeze": (self.config.readout_name,)}
-                elif self.config.freeze['freeze'] == ("readout",):
+                elif self.config.freeze["freeze"] == ("readout",):
                     kwargs = {"to_freeze": (self.config.readout_name,)}
                 else:
-                    kwargs = {"to_freeze": self.config.freeze['freeze']}
+                    kwargs = {"to_freeze": self.config.freeze["freeze"]}
                 freeze_params(self.model, **kwargs)
 
-            if self.config.freeze.get('reset', False):
-                reset_params(self.model, self.config.freeze['reset'])
+            if self.config.freeze.get("reset", False):
+                reset_params(self.model, self.config.freeze["reset"])
 
     @property
     def tracker(self):
@@ -221,38 +274,44 @@ class MTLTrainer(Trainer):
             objectives = {
                 "LR": 0,
                 "Training": {
-                    task: {"loss": 0, "eval": 0, "normalization": 0} for task in self.config.loss_functions
+                    task: {"loss": 0, "eval": 0, "normalization": 0}
+                    for task in self.config.loss_functions
                 },
                 "Validation": {
                     task: {"loss": 0, "eval": 0} for task in self.config.loss_functions
                 },
             }
-            objectives['Validation']['patience'] = 0
+            objectives["Validation"]["patience"] = 0
             if "img_classification" in self.config.loss_functions:
-                objectives['Validation']["img_classification"]['normalization'] = 0
+                objectives["Validation"]["img_classification"]["normalization"] = 0
             if self.config.loss_weighing:
                 for task in self.config.loss_functions:
-                    objectives['Training'][task]['loss_weight'] = 0
+                    objectives["Training"][task]["loss_weight"] = 0
             self._tracker = AdvancedTracker(
-                main_objective=("img_classification" if "img_classification" in self.config.loss_functions else list(self.config.loss_functions.keys())[0],
-                                "eval" if "img_classification" in self.config.loss_functions else "loss"), **objectives
+                main_objective=(
+                    "img_classification"
+                    if "img_classification" in self.config.loss_functions
+                    else list(self.config.loss_functions.keys())[0],
+                    "eval"
+                    if "img_classification" in self.config.loss_functions
+                    else "loss",
+                ),
+                **objectives
             )
             return self._tracker
 
-
-
     def compute_loss(
-            self,
-            mode,
-            data_key,
-            data_loader,
-            loss,
-            criterion,
-            loss_weighing,
-            inputs,
-            mtl,
-            outputs,
-            targets,
+        self,
+        mode,
+        data_key,
+        data_loader,
+        loss,
+        criterion,
+        loss_weighing,
+        inputs,
+        mtl,
+        outputs,
+        targets,
     ):
         if "v1" in targets.keys() or "v4" in targets.keys():
             neural_set = "v1" if "v1" in targets.keys() else "v4"
@@ -264,7 +323,10 @@ class MTLTrainer(Trainer):
                 self.config.scale_loss,
                 data_key,
                 inputs,
-                targets[neural_set], multi=self.multi, neural_set=neural_set, mtl=mtl
+                targets[neural_set],
+                multi=self.multi,
+                neural_set=neural_set,
+                mtl=mtl,
             )
 
             batch_size = targets[neural_set].size(0)
@@ -284,9 +346,10 @@ class MTLTrainer(Trainer):
                 )
 
         if "img_classification" in targets.keys():
-            loss += criterion["img_classification"](outputs['img_classification'],
-                                                    targets['img_classification'])
-            _, predicted = outputs['img_classification'].max(1)
+            loss += criterion["img_classification"](
+                outputs["img_classification"], targets["img_classification"]
+            )
+            _, predicted = outputs["img_classification"].max(1)
             self.tracker.log_objective(
                 100 * predicted.eq(targets["img_classification"]).sum().item(),
                 key=(mode, "img_classification", "eval"),
@@ -301,30 +364,36 @@ class MTLTrainer(Trainer):
                 key=(mode, "img_classification", "loss"),
             )
 
-            if loss_weighing and mode=="Training":
+            if loss_weighing and mode == "Training":
                 self.tracker.log_objective(
                     np.exp(criterion["img_classification"].log_w.item()),
                     key=(mode, "img_classification", "loss_weight"),
                 )
         return loss
 
-
     def main_loop(
-            self,
-            data_loader,
-            criterion,
-            epoch: int = 0,
-            mode="Training",
-            return_outputs=False,
-            cycler="LongCycler",
-            cycler_args={},
-            loss_weighing=False, mtl=False,
-            freeze_bn={'last_layer': -1}, epoch_tqdm=None
+        self,
+        data_loader,
+        criterion,
+        epoch: int = 0,
+        mode="Training",
+        return_outputs=False,
+        cycler="LongCycler",
+        cycler_args={},
+        loss_weighing=False,
+        mtl=False,
+        freeze_bn={"last_layer": -1},
+        epoch_tqdm=None,
     ):
-        train_mode = True if mode=="Training" else False
+        train_mode = True if mode == "Training" else False
         self.model.train() if train_mode else self.model.eval()
-        if train_mode and freeze_bn['last_layer'] > 0:
-            set_bn_to_eval(self.model, freeze_bn, self.multi, [task for task in list(criterion.keys()) if task in ['v1', 'v4']])
+        if train_mode and freeze_bn["last_layer"] > 0:
+            set_bn_to_eval(
+                self.model,
+                freeze_bn,
+                self.multi,
+                [task for task in list(criterion.keys()) if task in ["v1", "v4"]],
+            )
 
         module_losses = {}
         collected_outputs = []
@@ -337,25 +406,29 @@ class MTLTrainer(Trainer):
 
         if cycler_args and cycler == "MTL_Cycler":
             cycler_args = dict(cycler_args)
-            cycler_args['ratio'] = cycler_args['ratio'][max(i for i in list(cycler_args['ratio'].keys()) if epoch >= i)]
-        data_cycler = getattr(uts, cycler)(data_loader, **cycler_args)
+            cycler_args["ratio"] = cycler_args["ratio"][
+                max(i for i in list(cycler_args["ratio"].keys()) if epoch >= i)
+            ]
+        data_cycler = getattr(cyclers, cycler)(data_loader, **cycler_args)
         n_iterations = len(data_cycler)
         if hasattr(
-                tqdm, "_instances"
+            tqdm, "_instances"
         ):  # To have tqdm output without line-breaks between steps
             tqdm._instances.clear()
         with torch.enable_grad() if train_mode else torch.no_grad():
 
             with tqdm(
-                    enumerate(data_cycler),
-                    total=n_iterations,
-                    desc="{} Epoch {}".format(mode, epoch),
-                    disable=self.config.show_epoch_progress,
-                    file=sys.stdout,
+                enumerate(data_cycler),
+                total=n_iterations,
+                desc="{} Epoch {}".format(mode, epoch),
+                disable=self.config.show_epoch_progress,
+                file=sys.stdout,
             ) as t:
 
                 for module in self.main_loop_modules:
-                    module.pre_epoch(self.model, train_mode, epoch, optimizer=self.optimizer)
+                    module.pre_epoch(
+                        self.model, train_mode, epoch, optimizer=self.optimizer
+                    )
 
                 if train_mode:
                     self.optimizer.zero_grad()
@@ -363,7 +436,9 @@ class MTLTrainer(Trainer):
                 for batch_idx, batch_data in t:
                     # Pre-Forward
                     loss = torch.zeros(1, device=self.device)
-                    inputs, targets, data_key, neural_set = move_data(batch_data, tasks, self.device)
+                    inputs, targets, data_key, neural_set = move_data(
+                        batch_data, tasks, self.device
+                    )
                     shared_memory = {}  # e.g. to remember where which noise was applied
                     model_ = self.model
                     for module in self.main_loop_modules:
@@ -372,8 +447,9 @@ class MTLTrainer(Trainer):
                             inputs,
                             shared_memory,
                             train_mode=train_mode,
-                            data_key=data_key, neural_set=neural_set,
-                            task_keys=list(targets.keys())
+                            data_key=data_key,
+                            neural_set=neural_set,
+                            task_keys=list(targets.keys()),
                         )
                     # Forward
                     outputs = model_(inputs)
@@ -392,16 +468,18 @@ class MTLTrainer(Trainer):
                             **shared_memory
                         )
 
-                    loss = self.compute_loss(mode, data_key,
-                                              data_loader,
-                                              loss,
-                                              criterion,
-                                              loss_weighing,
-                                              inputs,
-                                              mtl,
-                                              outputs,
-                                              targets,)
-
+                    loss = self.compute_loss(
+                        mode,
+                        data_key,
+                        data_loader,
+                        loss,
+                        criterion,
+                        loss_weighing,
+                        inputs,
+                        mtl,
+                        outputs,
+                        targets,
+                    )
 
                     self.tracker.display_log(tqdm_iterator=t, key=(mode,))
 
@@ -414,29 +492,25 @@ class MTLTrainer(Trainer):
                             self.optimizer.step()
                             self.optimizer.zero_grad()
 
-        objective = self.tracker.get_current_main_objective("Training" if train_mode else "Validation")
-        if return_outputs:
-            return (
-                objective, collected_outputs
-            )
-
-        return (
-            objective
+        objective = self.tracker.get_current_main_objective(
+            "Training" if train_mode else "Validation"
         )
+        if return_outputs:
+            return (objective, collected_outputs)
 
-
+        return objective
 
     def train(self):
         # train over epochs
         epoch = 0
         if hasattr(
-                tqdm, "_instances"
+            tqdm, "_instances"
         ):  # To have tqdm output without line-breaks between steps
             tqdm._instances.clear()
         with tqdm(
-                iterable=self.epoch_iterator,
-                total=self.config.max_iter,
-                disable=(not self.config.show_epoch_progress),
+            iterable=self.epoch_iterator,
+            total=self.config.max_iter,
+            disable=(not self.config.show_epoch_progress),
         ) as epoch_tqdm:
             for epoch, dev_eval in epoch_tqdm:
                 self.tracker.start_epoch()
@@ -449,24 +523,13 @@ class MTLTrainer(Trainer):
                     epoch=epoch,
                     epoch_tqdm=epoch_tqdm,
                     criterion=self.criterion,
-                    return_outputs = False,
+                    return_outputs=False,
                     cycler=self.config.train_cycler,
                     cycler_args=self.config.train_cycler_args,
-                    loss_weighing = self.config.loss_weighing, mtl = self.config.mtl,
-                    freeze_bn = self.config.freeze_bn,
+                    loss_weighing=self.config.loss_weighing,
+                    mtl=self.config.mtl,
+                    freeze_bn=self.config.freeze_bn,
                 )
-
-
-
-            # print(torch.sum(model.mtl_vgg_core.shared_block[0].weight.data), torch.sum(model.mtl_vgg_core.unshared_block[0].weight.data))
-            # for name, param in model.module.named_parameters():
-            #     print(name, param.requires_grad)
-            # for name, param in model.module.mtl_vgg_core.shared_block.named_children():
-            #     if "BatchNorm" in param.__class__.__name__:
-            #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
-            # for name, param in model.mtl_vgg_core.unshared_block.named_children():
-            #     if "BatchNorm" in param.__class__.__name__:
-            #         print("layer: ", name, "running average: ", param.running_mean.sum(), "running var: ", param.running_var.sum())
 
         test_result = self.test_final_model(epoch)
         return (
@@ -487,10 +550,23 @@ class MTLTrainer(Trainer):
         }
 
         self.tracker.add_objectives(objectives, init_epoch=True)
-        loss = get_poisson_loss(self.model, data_loader, device=self.device, as_dict=False, per_neuron=False,
-                                neural_set=neural_set, mtl=self.config.mtl)
+        loss = get_poisson_loss(
+            self.model,
+            data_loader,
+            device=self.device,
+            as_dict=False,
+            per_neuron=False,
+            neural_set=neural_set,
+            mtl=self.config.mtl,
+        )
         eval = get_correlations(
-            self.model, data_loader, device=self.device, as_dict=False, per_neuron=False, neural_set=neural_set, mtl=self.config.mtl
+            self.model,
+            data_loader,
+            device=self.device,
+            as_dict=False,
+            per_neuron=False,
+            neural_set=neural_set,
+            mtl=self.config.mtl,
         )
 
         self.tracker.log_objective(
@@ -503,25 +579,12 @@ class MTLTrainer(Trainer):
             key=(mode, neural_set, "eval"),
         )
 
-
         n_log = self.tracker._normalize_log(self.tracker.log)
         current_log = self.tracker._gather_log(n_log, (mode,), index=-1)
         print("{} {}".format(mode, current_log))
-        #self.tracker.display_log(key=(mode,))
-
         return self.tracker.get_current_objective((mode, neural_set, "eval"))
 
-
-
-
-    def test_cls_model(
-            self,
-            epoch,
-            criterion,
-            data_loader,
-            objectives,
-            mode
-    ):
+    def test_cls_model(self, epoch, criterion, data_loader, objectives, mode):
         self.tracker.add_objectives(objectives, init_epoch=True)
         result = self.main_loop(
             data_loader=data_loader,
@@ -530,178 +593,179 @@ class MTLTrainer(Trainer):
             mode=mode,
             cycler="LongCycler",
             cycler_args={},
-            loss_weighing=self.config.loss_weighing, mtl=self.config.mtl,
-            freeze_bn={'last_layer': -1}, epoch_tqdm=None,
+            loss_weighing=self.config.loss_weighing,
+            mtl=self.config.mtl,
+            freeze_bn={"last_layer": -1},
+            epoch_tqdm=None,
         )
         return result
 
+    def create_cls_objective_dict(self, mode, task):
+        return {
+            mode: {
+                task: {
+                    "eval": 0,
+                    "loss": 0,
+                    "normalization": 0,
+                }
+            }
+        }
+
     def test_final_model(self, epoch):
 
-       self.test_result = {}
-       for k in self.val_keys:
-            if k in ['v1', 'v4']:
+        self.test_result = {}
+        for k in self.val_keys:
+            if k in ["v1", "v4"]:
                 if self.config.add_final_train_eval:
-                    self.test_neural_model(self.data_loaders['train'][k], k, "FinalTraining")
+                    self.test_neural_model(
+                        self.data_loaders["train"][k], k, "FinalTraining"
+                    )
 
                 if self.config.add_final_val_eval:
-                    self.test_neural_model(self.data_loaders['validation'][k], k,
-                                           "FinalValidation")
+                    self.test_neural_model(
+                        self.data_loaders["validation"][k], k, "FinalValidation"
+                    )
 
                 if self.config.add_final_test_eval:
-                    self.test_result[k] = self.test_neural_model(self.data_loaders['test'][k], k,
-                                           "FinalTest")
+                    self.test_result[k] = self.test_neural_model(
+                        self.data_loaders["test"][k], k, "FinalTest"
+                    )
 
             if k == "img_classification":
-                if k in self.data_loaders['train'].keys():
-                    if isinstance(self.data_loaders['train'][k], dict):
-                        imgcls_train_loader_input = self.data_loaders['train'][k]
+                if k in self.data_loaders["train"].keys():
+                    if isinstance(self.data_loaders["train"][k], dict):
+                        imgcls_train_loader_input = self.data_loaders["train"][k]
                     else:
-                        imgcls_train_loader_input = get_subdict(self.data_loaders["train"], [k])
+                        imgcls_train_loader_input = get_subdict(
+                            self.data_loaders["train"], [k]
+                        )
                 else:
-                    imgcls_train_loader_input = self.data_loaders['train']
+                    imgcls_train_loader_input = self.data_loaders["train"]
                 if self.config.add_final_train_eval:
-                    objectives = {
-                        "FinalTraining": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
-                    self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
-                                        imgcls_train_loader_input, objectives,
-                                        "FinalTraining")
+                    objectives = self.create_cls_objective_dict("FinalTraining", k)
+                    self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, [k]),
+                        imgcls_train_loader_input,
+                        objectives,
+                        "FinalTraining",
+                    )
 
                 if self.config.add_final_val_eval:
-                    objectives = {
-                        "FinalValidationInDomain": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
-                    self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
-                                        self.data_loaders['validation'][k] if isinstance(self.data_loaders['validation'][k], dict) else get_subdict(self.data_loaders["validation"], [k]),
-                                        objectives,
-                                        "FinalValidationInDomain")
+                    objectives = self.create_cls_objective_dict(
+                        "FinalValidationInDomain", k
+                    )
+                    self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, [k]),
+                        self.data_loaders["validation"][k]
+                        if isinstance(self.data_loaders["validation"][k], dict)
+                        else get_subdict(self.data_loaders["validation"], [k]),
+                        objectives,
+                        "FinalValidationInDomain",
+                    )
 
-                    if 'validation_out_domain' in self.data_loaders.keys():
-                       objectives = {
-                           "FinalValidationOutDomain": {
-                               k: {
-                                   "eval": 0,
-                                   "loss": 0,
-                                   "normalization": 0,
-                               }
-                           }
-                       }
-                       self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
-                                           get_subdict(self.data_loaders["validation_out_domain"], [k]),
-                                           objectives,
-                                           "FinalValidationOutDomain")
-
+                    if "validation_out_domain" in self.data_loaders.keys():
+                        objectives = self.create_cls_objective_dict(
+                            "FinalValidationOutDomain", k
+                        )
+                        self.test_cls_model(
+                            epoch,
+                            get_subdict(self.criterion, [k]),
+                            get_subdict(
+                                self.data_loaders["validation_out_domain"], [k]
+                            ),
+                            objectives,
+                            "FinalValidationOutDomain",
+                        )
 
                 if self.config.add_final_test_eval:
-                    objectives = {
-                        "FinalTestInDomain": {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
-                    self.test_result[k] = self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
-                                        self.data_loaders['test'][k] if isinstance(
-                                            self.data_loaders['test'][k], dict) else get_subdict(
-                                            self.data_loaders["test"], [k]),
-                                        objectives,
-                                        "FinalTestInDomain")
+                    objectives = self.create_cls_objective_dict("FinalTestInDomain", k)
+                    self.test_result[k] = self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, [k]),
+                        self.data_loaders["test"][k]
+                        if isinstance(self.data_loaders["test"][k], dict)
+                        else get_subdict(self.data_loaders["test"], [k]),
+                        objectives,
+                        "FinalTestInDomain",
+                    )
 
-                    if 'test_out_domain' in self.data_loaders.keys():
-                        objectives = {
-                            "FinalTestOutDomain": {
-                                k: {
-                                    "eval": 0,
-                                    "loss": 0,
-                                    "normalization": 0,
-                                }
-                            }
-                        }
-                        self.test_cls_model(epoch, get_subdict(self.criterion, [k]),
-                                            get_subdict(self.data_loaders["test_out_domain"], [k]),
-                                            objectives,
-                                            "FinalTestOutDomain")
+                    if "test_out_domain" in self.data_loaders.keys():
+                        objectives = self.create_cls_objective_dict(
+                            "FinalTestOutDomain", k
+                        )
+                        self.test_cls_model(
+                            epoch,
+                            get_subdict(self.criterion, [k]),
+                            get_subdict(self.data_loaders["test_out_domain"], [k]),
+                            objectives,
+                            "FinalTestOutDomain",
+                        )
 
-
-       if "validation_gauss" in self.data_loaders:
+        if "validation_gauss" in self.data_loaders:
             for level, dataloader in self.data_loaders["validation_gauss"].items():
-                objectives = {
-                    "Validation_gauss " + str(level): {
-                        k: {
-                            "eval": 0,
-                            "loss": 0,
-                            "normalization": 0,
-                        }
-                    }
-                }
-                self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
-                                    {"img_classification": dataloader},
-                                    objectives,
-                                    "Validation_gauss " + str(level))
+                objectives = self.create_cls_objective_dict(
+                    "Validation_gauss " + str(level), k
+                )
+                self.test_cls_model(
+                    epoch,
+                    get_subdict(self.criterion, ["img_classification"]),
+                    {"img_classification": dataloader},
+                    objectives,
+                    "Validation_gauss " + str(level),
+                )
 
-       if "c_test" in self.data_loaders:
+        if "c_test" in self.data_loaders:
             for c_category in list(self.data_loaders["c_test"].keys()):
-                for c_level, dataloader in self.data_loaders["c_test"][c_category].items():
-                    objectives = {
-                        "c_test {} {}".format(str(c_category), str(c_level)): {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
-                    self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
-                                        {"img_classification": dataloader},
-                                        objectives,
-                                        "c_test {} {}".format(str(c_category), str(c_level)))
+                for c_level, dataloader in self.data_loaders["c_test"][
+                    c_category
+                ].items():
+                    objectives = self.create_cls_objective_dict(
+                        "c_test {} {}".format(str(c_category), str(c_level)), k
+                    )
+                    self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, ["img_classification"]),
+                        {"img_classification": dataloader},
+                        objectives,
+                        "c_test {} {}".format(str(c_category), str(c_level)),
+                    )
 
-
-       if "fly_c_test" in self.data_loaders:
+        if "fly_c_test" in self.data_loaders:
             for fly_noise_type in list(self.data_loaders["fly_c_test"].keys()):
-                for level, dataloader in self.data_loaders["fly_c_test"][fly_noise_type].items():
-                    objectives = {
-                        "fly_c_test {} {}".format(str(fly_noise_type), str(level)): {
-                            k: {
-                                "eval": 0,
-                                "loss": 0,
-                                "normalization": 0,
-                            }
-                        }
-                    }
-                    self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
-                                        {"img_classification": dataloader},
-                                        objectives,
-                                        "fly_c_test {} {}".format(str(fly_noise_type), str(level)))
+                for level, dataloader in self.data_loaders["fly_c_test"][
+                    fly_noise_type
+                ].items():
+                    objectives = self.create_cls_objective_dict(
+                        "fly_c_test {} {}".format(str(fly_noise_type), str(level)), k
+                    )
+                    self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, ["img_classification"]),
+                        {"img_classification": dataloader},
+                        objectives,
+                        "fly_c_test {} {}".format(str(fly_noise_type), str(level)),
+                    )
 
-       if "imagenet_fly_c_test" in self.data_loaders:
-           for fly_noise_type in list(self.data_loaders["imagenet_fly_c_test"].keys()):
-               for level, dataloader in self.data_loaders["imagenet_fly_c_test"][fly_noise_type].items():
-                   objectives = {
-                       "imagenet_fly_c_test {} {}".format(str(fly_noise_type), str(level)): {
-                           k: {
-                               "eval": 0,
-                               "loss": 0,
-                               "normalization": 0,
-                           }
-                       }
-                   }
-                   self.test_cls_model(epoch, get_subdict(self.criterion, ["img_classification"]),
-                                       {"img_classification": dataloader},
-                                       objectives,
-                                       "imagenet_fly_c_test {} {}".format(str(fly_noise_type), str(level)))
-       return list(self.test_result.values())[0]
+        if "imagenet_fly_c_test" in self.data_loaders:
+            for fly_noise_type in list(self.data_loaders["imagenet_fly_c_test"].keys()):
+                for level, dataloader in self.data_loaders["imagenet_fly_c_test"][
+                    fly_noise_type
+                ].items():
+                    objectives = self.create_cls_objective_dict(
+                        "imagenet_fly_c_test {} {}".format(
+                            str(fly_noise_type), str(level)
+                        ),
+                        k,
+                    )
+                    self.test_cls_model(
+                        epoch,
+                        get_subdict(self.criterion, ["img_classification"]),
+                        {"img_classification": dataloader},
+                        objectives,
+                        "imagenet_fly_c_test {} {}".format(
+                            str(fly_noise_type), str(level)
+                        ),
+                    )
+        return list(self.test_result.values())[0]
