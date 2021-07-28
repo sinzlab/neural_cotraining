@@ -29,6 +29,11 @@ A dataset loader is supposed to gather a specific dataset (including all corresp
 The implementation can be found in the `/dataset` folder. The function in `/dataset/neural_dataset_loader.py` can load the monkey V1 dataset or a similar neural dataset through the `monkey_static_loader` in `/nnvision/datasets/monkey_loaders.py` using the `neural_cotrain_NeurIPS` branch of the nnvision package. Furthermore, the function in `/dataset/img_classification_loader.py` can load an image classification-related dataset like TinyImageNet directly.
 In order to combine both loaders in the MTL setup, we use the `MTLDatasetsLoader` in `/dataset/mtl_datasets_loader.py`.
 
+The datasets used for our MTL models can be found [Here](https://bit.ly/3i7aYTJ). There are three datasets:
+- `mtl_monkey_dataset`: was used for our MTL-Monkey model and involves neural responses that were predicted by a single-task trained model on real monkey V1.
+- `mtl_oracle_dataset`: was used for our MTL-Oracle model and involves neural responses that were predicted by our image classification oracle.
+- `mtl_shuffled_dataset`: was used for our MTL-Shuffled model and is the result of shuffling the `mtl_monkey_dataset` across images.
+
 ### Model
 The model-building functions can be found in the `/models` folder. The builder function in `/models/vgg.py` can create a VGG model to perform single-task image classification. Also, the builder in `/models/neural_model_builder.py` creates a standard model to predict neural responses using the models implemented in nnvision. 
 To combine image classification and neural prediction in one model, we use the `MTL_VGG` model class in `/models/mtl_vgg.py`. 
