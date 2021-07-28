@@ -1,7 +1,5 @@
 # neural_cotraining: The pipeline for performing MTL on object recognition with neural data prediction
 
-![Black](https://github.com/sinzlab/nnfabrik/workflows/Black/badge.svg)
-![GitHub Pages](https://github.com/sinzlab/nnfabrik/workflows/GitHub%20Pages/badge.svg?branch=master)
 
 neural_cotraining is the code for our paper [Towards robust vision by multi-task learning on monkey visual cortex](). Here we implement an MTL pipeline, mainly developed for cotraining neural networks on image classification alognside neural prediction. It is mainly built on [nnfabrik](https://github.com/sinzlab/nnfabrik), [neuralpredictors](https://github.com/sinzlab/neuralpredictors), [nntransfer](https://github.com/sinzlab/nntransfer), [nnvision](https://github.com/sinzlab/nnvision) and [bias_transfer_recipes](https://github.com/sinzlab/bias_transfer_recipes).
 
