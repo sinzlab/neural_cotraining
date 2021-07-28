@@ -23,7 +23,7 @@ pip install git+https://github.com/sinzlab/neural_cotraining.git
 
 ## Code 
 
-Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder) and the (co-)trainer. In the `/configs` folder can be found the config classes for the different components which are relevant for image classification, neural prediction and MTL on both tasks.
+Based on nnfabrik and neuralpredictors, the pipeline consists of 3 major components: dataset (loader), model (builder), and the (co-)trainer. The `/configs` folder has the config classes for the different components which are relevant for image classification, neural prediction, and MTL on both tasks.
 ### Dataset
 The dataset loaders' functions can be found in the `/dataset` folder. The function in `/dataset/neural_dataset_loader.py` can load the monkey V1 dataset or a similar neural dataset through the `monkey_static_loader` in `/nnvision/datasets/monkey_loaders.py` using the `neural_cotrain_NeurIPS` branch. Furthermore, the function in `/dataset/img_classification_loader.py` can load an image classification-related dataset like TinyImageNet directly.
 In order to combine both loaders in the MTL setup, we use the `MTLDatasetsLoader` in `/dataset/mtl_datasets_loader.py`.
