@@ -47,7 +47,9 @@ In order to train the defined model, we use the trainer function, that can be fo
 
 In order to run experiments and populate them in the datajoint tables, we use the `nntransfer` library with corresponding recipe definitions, which helps to specify the experiment's parameters in a simple manner by defining the attributes of the dataset, model, and trainer configs.
 We provide a simple example on how to run an MTL experiment using neural_cotraining 
-[Here](https://github.com/Shahdsaf/bias_transfer_recipes/blob/uptodate_shahd/bias_transfer_recipes/notebooks/example.ipynb). In addition, we provide ready-to-use scripts to reproduce the results or model weights we used in our paper following this [link](https://github.com/Shahdsaf/bias_transfer_recipes/tree/uptodate_shahd/bias_transfer_recipes/notebooks).
+[Here](https://github.com/Shahdsaf/nntransfer_recipes/blob/uptodate_shahd/nntransfer_recipes/notebooks/example.ipynb). In addition, we provide ready-to-use scripts to reproduce the results or model weights we used in our paper following this [link](https://github.com/Shahdsaf/nntransfer_recipes/tree/uptodate_shahd/nntransfer_recipes/notebooks). 
+
+In order to reproduce the MTL models of our paper, the datasets (mentioned above) should be downloaded and unpacked. Then, they should placed in the `/work/data/monkey/` directory, which `nntransfer_recipes` creates in the docker image.
 
 
 ## :bug: Report bugs 
