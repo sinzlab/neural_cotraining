@@ -90,7 +90,7 @@ class NeuralDatasetConfig(DatasetConfig):
         self.train_frac: float = 0.8
         self.dataset: str = "CSRF19_V1"
         self.sessions_dir: str = "neuronal_data"
-        self.data_dir = "./data/monkey/toliaslab/{}".format(self.dataset)
+        self.data_dir = "./data/monkey/{}".format(self.dataset)
         self.seed: int = 1000
         self.subsample: int = 1
         self.crop: int = 36
