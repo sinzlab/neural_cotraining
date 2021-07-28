@@ -23,7 +23,7 @@ from nntransfer.trainer.utils.checkpointing import LocalCheckpointing
 from neuralpredictors.training.tracking import AdvancedTracker
 from neural_cotraining.configs.trainer import CoTrainerConfig
 from neuralpredictors.measures import modules as mlmeasures
-from early_stopping import early_stopping
+from .early_stopping import early_stopping
 from nnvision.utility.measures import get_correlations, get_poisson_loss
 from .utils import XEntropyLossWrapper, NBLossWrapper, MSELossWrapper
 from neural_cotraining.trainer import utils as uts
